@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:touchline:contract:legacy-backup.v1",
+  "type": "object",
+  "properties": {
+    "format": {
+      "const": "touchline-backup"
+    },
+    "curriculum": {
+      "$ref": "urn:touchline:contract:curriculum.v1"
+    },
+    "state": {
+      "$ref": "urn:touchline:contract:progress.v1"
+    }
+  },
+  "required": [
+    "curriculum",
+    "state"
+  ],
+  "additionalProperties": false
+}

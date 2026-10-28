@@ -1,0 +1,157 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:touchline:contract:local-record.v2",
+  "type": "object",
+  "properties": {
+    "format": {
+      "const": "touchline-record"
+    },
+    "version": {
+      "const": 2
+    },
+    "recordId": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "origin": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "local"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "cloud"
+            },
+            "hubId": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            },
+            "backendOrigin": {
+              "type": "string",
+              "pattern": "^https://(?:[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?|\\[[0-9a-f:]+\\])(?::(?!443$)[1-9][0-9]{0,4})?$"
+            },
+            "accountId": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            }
+          },
+          "required": [
+            "kind",
+            "hubId",
+            "backendOrigin",
+            "accountId"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "curriculum": {
+      "$ref": "urn:touchline:contract:curriculum.v1"
+    },
+    "state": {
+      "$ref": "urn:touchline:contract:progress.v1"
+    },
+    "status": {
+      "enum": [
+        "active",
+        "paused",
+        "completed",
+        "saved"
+      ]
+    },
+    "view": {
+      "type": "object",
+      "properties": {
+        "selectedModuleId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]{1,60}$"
+        }
+      },
+      "required": [
+        "selectedModuleId"
+      ],
+      "additionalProperties": false
+    },
+    "draft": {
+      "type": "object",
+      "properties": {
+        "experiment": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "maxLength": 20000,
+                  "minLength": 1
+                },
+                "date": {
+                  "type": "string",
+                  "maxLength": 10
+                },
+                "module": {
+                  "type": "string",
+                  "maxLength": 20000
+                },
+                "title": {
+                  "type": "string",
+                  "maxLength": 20000
+                },
+                "hypothesis": {
+                  "type": "string",
+                  "maxLength": 20000
+                },
+                "result": {
+                  "type": "string",
+                  "maxLength": 20000
+                }
+              },
+              "required": [
+                "id",
+                "date",
+                "module",
+                "title",
+                "hypothesis",
+                "result"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "required": [
+        "experiment"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "format",
+    "version",
+    "recordId",
+    "origin",
+    "curriculum",
+    "state",
+    "status",
+    "view",
+    "draft"
+  ],
+  "additionalProperties": false
+}

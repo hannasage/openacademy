@@ -10,6 +10,7 @@ export async function isolateContext(context, origin, {mockLearningWrites = fals
     if (address.pathname === '/api/cloud-config') return route.fulfill({json: {}});
     if (mockLearningWrites && address.pathname.startsWith('/api/') && route.request().method() !== 'GET') {
       const state = route.request().postDataJSON();
+      if (state.record) return route.fulfill({json: {...state.record, state: {...state.record.state, revision: state.expectedRevision + 1}}});
       return route.fulfill({json: {...state, revision: (state.revision || 0) + 1}});
     }
     return route.continue();

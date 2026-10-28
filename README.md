@@ -34,12 +34,25 @@ A module requires completed tasks and written evidence before you can mark it co
 Completion is a self-assessment. The application does not assess the quality of your evidence.
 The experiment journal supports planned experiments and later edits to record results.
 
-The application stores each curriculum's progress in `data/<curriculum-id>/state.json`.
-The adjacent `state.backup.json` contains the previous saved state.
-The application preserves a damaged file instead of replacing it with empty progress.
+The application saves each record in `data/records/<record-id>/record.json`.
+A record contains its curriculum, progress, unfinished experiment, and selected lesson.
+The adjacent `record.backup.json` contains the previous saved record.
+Each save replaces one complete file.
+An old browser tab cannot overwrite a newer save.
+
+On first use, the application copies older curriculum and progress files into this record format.
+It keeps the original files unchanged and does not repeat a completed migration.
+It rejects damaged files and unknown versions instead of replacing them with empty progress.
 If a saved file is damaged, stop the server before restoring a known backup.
 
-Use Export progress to download a portable copy of the curriculum and its progress.
+Unfinished experiment forms save without requiring a title.
+If a save fails, the browser keeps a recovery copy on that device when browser storage is available.
+A recovery copy based on an older save stays visible for export but cannot overwrite the newer record.
+Use Export progress before choosing Use saved version to retain that conflicting work.
+If browser storage is unavailable, keep the page open until saving succeeds or export your work.
+
+Use Export progress to download a version 2 record, including its unfinished experiment and selected lesson.
+Restore backup also accepts the original version 1 progress exports.
 To transfer a course, import that file with Import curriculum on the new installation.
 Select that curriculum, then use Restore backup with the same file.
 The built-in soccer curriculum already exists on every installation, so it requires only Restore backup.
@@ -52,8 +65,12 @@ Ask the agent to preserve the structure and assign a unique curriculum ID.
 Import the completed JSON file with Import curriculum.
 Select the new course from Your curricula.
 
-Each course has separate progress and experiments.
-The server rejects duplicate curriculum IDs to protect existing progress.
+Each course has separate progress, experiments, and unfinished work.
+Local imports reject duplicate curriculum IDs to protect existing progress.
+Downloaded copies use the hub, backend, and account as part of their identity.
+They can share a curriculum ID with a local course or another account's download.
+Signing out hides downloaded copies and retains local courses.
+These are account filters on a trusted local computer, not encryption or access control for its files.
 To revise a course, import the revision under a new ID.
 Moving progress between revisions requires manual reconciliation of module IDs and tasks.
 The interface does not include a curriculum editor.
@@ -128,7 +145,8 @@ npm run test:browser
 npm run test:appearance
 ```
 
-The first command checks types, lint, persistence tests, and the web build.
+The first command checks types, lint, shared data formats, persistence, account transfer behavior, and the web build.
+Read `contracts/README.md` for record formats, version rules, and shared test examples.
 Browser tests start their own server with temporary learning records and block external requests.
 They do not use the running hub or its saved progress.
 Read `tests/README.md` for individual checks and browser configuration.

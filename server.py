@@ -2,16 +2,16 @@
 """Local curriculum tracker. Python standard library only."""
 import argparse
 import json
-import os
 from pathlib import Path
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
+from local_store import LocalStore, StoreError, finite_json, strict_keys, validate_origin
 
 ROOT = Path(__file__).resolve().parent
 import re
 
 def validate_curriculum(c):
-    if not isinstance(c, dict) or not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,59}", c.get("id", "")):
+    if not isinstance(c, dict) or not isinstance(c.get("id"), str) or not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,59}", c.get("id", "")):
         raise ValueError("Use a curriculum ID with lowercase letters, numbers, and hyphens.")
     for k in ("title", "subtitle", "description"):
         if not isinstance(c.get(k), str) or not c[k].strip():
@@ -31,7 +31,7 @@ def validate_curriculum(c):
         if not isinstance(r, dict) or any(not isinstance(r.get(k), str) for k in ("title", "url", "use")) or urlsplit(r["url"]).scheme not in ("http", "https"):
             raise ValueError("Each resource needs a title, an HTTP(S) URL, and use guidance.")
     for m in c["modules"]:
-        if not isinstance(m, dict) or not re.fullmatch(r"[a-zA-Z0-9_-]{1,60}", m.get("id", "")) or m["id"] in ids:
+        if not isinstance(m, dict) or not isinstance(m.get("id"), str) or not re.fullmatch(r"[a-zA-Z0-9_-]{1,60}", m.get("id", "")) or m["id"] in ids:
             raise ValueError("Module IDs must be unique letters, numbers, underscores, or hyphens.")
         ids.add(m["id"])
         for k in ("title", "phase", "question", "outcome", "math", "evidence", "challenge", "reading", "dataset"):
@@ -118,94 +118,137 @@ class Handler(BaseHTTPRequestHandler):
         origin = self.headers.get("Origin")
         return host in hosts and (not origin or origin == f"http://{host}")
 
+    def store(self):
+        built_in = json.loads((ROOT / "curriculum.json").read_text())
+        return LocalStore(self.server.data_dir, built_in, validate_curriculum, validate, initial)
+
+    def query(self):
+        return parse_qs(urlsplit(self.path).query, keep_blank_values=True)
+
+    def scope(self):
+        query = self.query()
+        fields = ("hubId", "backendOrigin", "accountId")
+        if not any(k in query for k in fields):
+            return None
+        if any(len(query.get(k, [])) != 1 for k in fields):
+            raise StoreError("Provide one hub, backend origin, and account together.", field="scope")
+        return validate_origin(dict(kind="cloud", **{k: query[k][0] for k in fields}))
+
+    def plan(self):
+        values = self.query().get("plan", ["soccer-ml"])
+        if len(values) != 1:
+            raise StoreError("Choose one curriculum.", field="plan")
+        return values[0]
+
     def curricula(self):
-        built_in = validate_curriculum(json.loads((ROOT / "curriculum.json").read_text()))
-        return [built_in] + [validate_curriculum(json.loads(p.read_text())) for p in sorted((self.server.data_dir / "curricula").glob("*.json"))]
+        store = self.store()
+        return [store.get_record(r["recordId"])["curriculum"] for r in store.library()["records"]]
 
     def current(self):
-        from urllib.parse import parse_qs
-        plan_id = parse_qs(urlsplit(self.path).query).get("plan", ["soccer-ml"])[0]
-        for c in self.curricula():
-            if c["id"] == plan_id:
-                return c
-        raise ValueError("Unknown curriculum.")
+        return self.store().local_record(self.plan())["curriculum"]
 
     def read_state(self, c):
-        target = self.server.data_dir / c["id"] / "state.json"
-        if target.exists():
-            return validate(json.loads(target.read_text()), c)
-        return initial(c)
+        return self.store().local_record(c["id"])["state"]
+
+    def fail(self, error):
+        if isinstance(error, StoreError):
+            return self.respond(error.status, error.payload())
+        if isinstance(error, OSError):
+            return self.respond(500, {"error": "Cannot access saved data. Keep your edits and check that the data folder is writable.", "code": "storage_unavailable", "retryable": True})
+        return self.respond(400, {"error": str(error), "code": "invalid_request", "retryable": False})
+
+    def forbidden(self):
+        return self.respond(403, {"error": "Use the local application address.", "code": "forbidden_origin", "retryable": False})
+
+    def not_found(self):
+        return self.respond(404, {"error": "Not found.", "code": "not_found", "retryable": False})
+
+    def body(self):
+        if self.headers.get("Content-Type", "").split(";", 1)[0].strip() != "application/json":
+            raise StoreError("Expected JSON.", "unsupported_media_type", 415)
+        try:
+            size = int(self.headers.get("Content-Length", "0"))
+        except ValueError:
+            raise StoreError("Invalid content length.", "invalid_request") from None
+        if not 0 < size <= 2_000_000:
+            raise StoreError("Backup must be smaller than 2 MB.", "payload_too_large", 413)
+        try:
+            result = json.loads(self.rfile.read(size), parse_constant=lambda value: (_ for _ in ()).throw(ValueError(value)))
+        except (ValueError, UnicodeError):
+            raise StoreError("Request must contain valid, finite JSON.", "invalid_json") from None
+        finite_json(result)
+        return result
 
     def do_GET(self):
         if not self.allowed():
-            return self.respond(403, {"error": "Use the local application address."})
+            return self.forbidden()
         path = urlsplit(self.path).path
-        if path == "/api/cloud-config":
-            config_file = ROOT / "cloud-config.local.json"
-            config = json.loads(config_file.read_text()) if config_file.exists() else {}
-            return self.respond(200, {k: config.get(k, "") for k in ("url", "publishableKey")})
-        if path == "/api/curricula":
-            try:
+        try:
+            if path == "/api/cloud-config":
+                config_file = ROOT / "cloud-config.local.json"
+                config = json.loads(config_file.read_text()) if config_file.exists() else {}
+                return self.respond(200, {k: config.get(k, "") for k in ("url", "publishableKey")})
+            if path == "/api/curricula":
                 return self.respond(200, self.curricula())
-            except (OSError, ValueError):
-                return self.respond(500, {"error": "Cannot read curricula. Curriculum files were preserved."})
-        if path == "/api/state":
-            try:
-                return self.respond(200, self.read_state(self.current()))
-            except (OSError, ValueError):
-                return self.respond(500, {"error": "Cannot read saved progress. Your file was preserved. Restore data/state.json from a backup."})
-        files = {"/": ("index.html", "text/html; charset=utf-8"), "/app.js": ("app.js", "text/javascript"), "/style.css": ("style.css", "text/css"), "/curriculum.json": ("curriculum.json", "application/json")}
-        files["/web.bundle.js"] = ("web.bundle.js", "text/javascript")
-        files["/web.bundle.css"] = ("web.bundle.css", "text/css")
-        if path not in files:
-            return self.respond(404, {"error": "Not found."})
-        name, kind = files[path]
-        self.respond(200, (ROOT / name).read_bytes(), kind)
+            if path == "/api/state":
+                return self.respond(200, self.store().local_record(self.plan())["state"])
+            if path == "/api/record":
+                return self.respond(200, self.store().local_record(self.plan()))
+            if path == "/api/library":
+                return self.respond(200, self.store().library(self.scope()))
+            match = re.fullmatch(r"/api/records/([^/]+)(/export)?", path)
+            if match:
+                return self.respond(200, self.store().get_record(match[1], self.scope()))
+            files = {"/": ("index.html", "text/html; charset=utf-8"), "/app.js": ("app.js", "text/javascript"), "/style.css": ("style.css", "text/css"), "/curriculum.json": ("curriculum.json", "application/json"), "/web.bundle.js": ("web.bundle.js", "text/javascript"), "/web.bundle.css": ("web.bundle.css", "text/css")}
+            if path not in files:
+                return self.not_found()
+            name, kind = files[path]
+            return self.respond(200, (ROOT / name).read_bytes(), kind)
+        except (OSError, ValueError, TypeError, RecursionError) as error:
+            return self.fail(error)
 
     def do_PUT(self):
         if not self.allowed():
-            return self.respond(403, {"error": "Use the local application address."})
+            return self.forbidden()
         path = urlsplit(self.path).path
-        if path not in ("/api/state", "/api/curricula"):
-            return self.respond(404, {"error": "Not found."})
-        if self.headers.get("Content-Type") != "application/json":
-            return self.respond(415, {"error": "Expected JSON."})
+        match = re.fullmatch(r"/api/records/([^/]+)", path)
+        if path not in ("/api/state", "/api/curricula", "/api/library") and not match:
+            return self.not_found()
         try:
-            size = int(self.headers.get("Content-Length", "0"))
-            if not 0 < size <= 2_000_000:
-                return self.respond(413, {"error": "Backup must be smaller than 2 MB."})
-            payload = json.loads(self.rfile.read(size))
+            payload = self.body()
+            store = self.store()
             if path == "/api/curricula":
-                c = validate_curriculum(payload)
-                if any(x["id"] == c["id"] for x in self.curricula()):
-                    return self.respond(409, {"error": "This curriculum ID already exists. Use a new ID to import a separate plan."})
-                folder = self.server.data_dir / "curricula"
-                folder.mkdir(parents=True, exist_ok=True)
-                temp = folder / (c["id"] + ".tmp")
-                temp.write_text(json.dumps(c, indent=2))
-                temp.replace(folder / (c["id"] + ".json"))
-                return self.respond(201, c)
-            c = self.current()
-            state = validate(payload, c)
-            previous = self.read_state(c)
-            if state["revision"] != previous["revision"]:
-                return self.respond(409, {"error": "Another tab saved newer progress. Export your edits before reloading this tab."})
-            state["revision"] += 1
-            target = self.server.data_dir / c["id"] / "state.json"
-            target.parent.mkdir(parents=True, exist_ok=True)
-            if target.exists():
-                target.with_suffix(".backup.json").write_text(json.dumps(previous, indent=2))
-            temp = target.with_suffix(".tmp")
-            with temp.open("w") as file:
-                json.dump(state, file, indent=2)
-                file.flush()
-                os.fsync(file.fileno())
-            temp.replace(target)
-            return self.respond(200, state)
-        except (ValueError, TypeError) as error:
-            return self.respond(400, {"error": str(error)})
-        except OSError:
-            return self.respond(500, {"error": "Cannot save progress. Keep this tab open, export your edits, and make sure that the data folder is writable."})
+                c = store._course(payload)
+                record = store.import_record({"curriculum": c, "state": initial(c)}, {"kind": "local"}, "active")
+                return self.respond(201, record["curriculum"])
+            if path == "/api/state":
+                return self.respond(200, store.save_legacy_state(self.plan(), payload))
+            if path == "/api/library":
+                strict_keys(payload, ["expectedRevision", "focusRecordId"], "request")
+                return self.respond(200, store.save_library(payload["expectedRevision"], payload["focusRecordId"], self.scope()))
+            strict_keys(payload, ["expectedRevision", "record"], "request")
+            return self.respond(200, store.save_record(match[1], payload["expectedRevision"], payload["record"], self.scope()))
+        except (OSError, ValueError, TypeError, RecursionError) as error:
+            return self.fail(error)
+
+    def do_POST(self):
+        if not self.allowed():
+            return self.forbidden()
+        if urlsplit(self.path).path != "/api/import":
+            return self.not_found()
+        try:
+            payload = self.body()
+            required = {"source", "origin", "status"}
+            if not isinstance(payload, dict) or not required <= set(payload) or set(payload) - required - {"targetRecordId", "expectedRevision"}:
+                raise StoreError("Invalid import request fields.", field="request")
+            scope = self.scope()
+            origin = validate_origin(payload["origin"])
+            if origin["kind"] == "cloud" and origin != scope:
+                raise StoreError("Use the matching connection scope for a cloud import.", "scope_mismatch", 400, field="scope")
+            record = self.store().import_record(payload["source"], origin, payload["status"], payload.get("targetRecordId"), payload.get("expectedRevision"), scope)
+            return self.respond(200 if payload.get("targetRecordId") is not None else 201, record)
+        except (OSError, ValueError, TypeError, RecursionError) as error:
+            return self.fail(error)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

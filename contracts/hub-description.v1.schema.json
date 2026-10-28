@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:touchline:contract:hub-description.v1",
+  "type": "object",
+  "properties": {
+    "format": {
+      "const": "touchline-hub"
+    },
+    "version": {
+      "const": 1
+    },
+    "hubId": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "\\S"
+    },
+    "hubOrigin": {
+      "type": "string",
+      "pattern": "^https://(?:[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?|\\[[0-9a-f:]+\\])(?::(?!443$)[1-9][0-9]{0,4})?$"
+    },
+    "backend": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "supabase"
+        },
+        "url": {
+          "type": "string",
+          "pattern": "^https://(?:[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?|\\[[0-9a-f:]+\\])(?::(?!443$)[1-9][0-9]{0,4})?$"
+        },
+        "publishableKey": {
+          "type": "string",
+          "pattern": "^(?:sb_publishable_[A-Za-z0-9_-]+|eyJ[A-Za-z0-9_-]+\\.eyJ[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+)$"
+        }
+      },
+      "required": [
+        "type",
+        "url",
+        "publishableKey"
+      ],
+      "additionalProperties": false
+    },
+    "contracts": {
+      "type": "object",
+      "properties": {
+        "snapshot": {
+          "const": 1
+        },
+        "progress": {
+          "const": 1
+        }
+      },
+      "required": [
+        "snapshot",
+        "progress"
+      ],
+      "additionalProperties": false
+    },
+    "auth": {
+      "type": "object",
+      "properties": {
+        "email": {
+          "const": "otp"
+        },
+        "providers": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "google",
+              "apple"
+            ]
+          },
+          "uniqueItems": true,
+          "maxItems": 2
+        }
+      },
+      "required": [
+        "email",
+        "providers"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "format",
+    "version",
+    "hubId",
+    "name",
+    "hubOrigin",
+    "backend",
+    "contracts",
+    "auth"
+  ],
+  "additionalProperties": false
+}

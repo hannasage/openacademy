@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "revision": 0,
+  "curriculumId": "fixture-course",
+  "weeklyHours": 10,
+  "startDate": "",
+  "modules": {
+    "baseline": {
+      "status": "active",
+      "tasks": [
+        true,
+        "false"
+      ],
+      "notes": "Keep the split fixed.",
+      "evidence": "",
+      "hours": 1
+    }
+  },
+  "experiments": []
+}

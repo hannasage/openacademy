@@ -1,0 +1,157 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:touchline:contract:public-progress.v1",
+  "type": "object",
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "curriculumId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{0,59}$"
+    },
+    "weeklyHours": {
+      "type": "number",
+      "minimum": 1,
+      "maximum": 40
+    },
+    "startDate": {
+      "type": "string",
+      "maxLength": 10
+    },
+    "modules": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[a-zA-Z0-9_-]{1,60}$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "enum": [
+              "not-started",
+              "active",
+              "complete"
+            ]
+          },
+          "tasks": {
+            "type": "array",
+            "items": {
+              "type": "boolean"
+            },
+            "minItems": 1,
+            "maxItems": 30
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 50000
+          },
+          "evidence": {
+            "type": "string",
+            "maxLength": 50000
+          },
+          "hours": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 10000
+          }
+        },
+        "required": [
+          "status",
+          "tasks",
+          "notes",
+          "evidence",
+          "hours"
+        ],
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "complete"
+                }
+              },
+              "required": [
+                "status"
+              ]
+            },
+            "then": {
+              "properties": {
+                "tasks": {
+                  "type": "array",
+                  "items": {
+                    "const": true
+                  }
+                },
+                "evidence": {
+                  "type": "string",
+                  "pattern": "\\S"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "experiments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 20000
+          },
+          "date": {
+            "type": "string",
+            "maxLength": 20000
+          },
+          "module": {
+            "type": "string",
+            "maxLength": 20000
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 20000,
+            "pattern": "\\S"
+          },
+          "hypothesis": {
+            "type": "string",
+            "maxLength": 20000
+          },
+          "result": {
+            "type": "string",
+            "maxLength": 20000
+          }
+        },
+        "required": [
+          "id",
+          "date",
+          "module",
+          "title",
+          "hypothesis",
+          "result"
+        ],
+        "additionalProperties": false
+      },
+      "maxItems": 2000
+    }
+  },
+  "required": [
+    "version",
+    "revision",
+    "curriculumId",
+    "weeklyHours",
+    "startDate",
+    "modules",
+    "experiments"
+  ],
+  "additionalProperties": false
+}

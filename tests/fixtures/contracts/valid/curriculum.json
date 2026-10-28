@@ -1,0 +1,46 @@
+{
+  "id": "fixture-course",
+  "version": 1,
+  "title": "Prediction practice",
+  "subtitle": "A small contract fixture",
+  "description": "Train and evaluate one baseline.",
+  "weeks": 1,
+  "weeklyHours": 10,
+  "totalHours": 10,
+  "resources": {
+    "guide": {
+      "title": "Synthetic guide",
+      "url": "https://example.org/guide",
+      "use": "Fixture only."
+    }
+  },
+  "modules": [
+    {
+      "id": "baseline",
+      "number": 1,
+      "title": "A baseline",
+      "phase": "Practice",
+      "question": "Does the baseline improve?",
+      "outcome": "Compare predictions.",
+      "math": "Mean",
+      "evidence": "A result file",
+      "challenge": "Change one assumption.",
+      "reading": "Read the guide.",
+      "dataset": "Synthetic rows",
+      "tasks": [
+        "Record a baseline.",
+        "Compare a change."
+      ],
+      "weeks": [
+        "Week 1"
+      ],
+      "resources": [
+        "guide"
+      ],
+      "prerequisites": [],
+      "hours": 10,
+      "weekStart": 1,
+      "weekEnd": 1
+    }
+  ]
+}

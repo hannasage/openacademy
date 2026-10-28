@@ -1,0 +1,6 @@
+{
+  "error": "Choose a module.",
+  "code": "invalid_record",
+  "field": "view.selectedModuleId",
+  "retryable": false
+}

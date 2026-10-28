@@ -20,6 +20,10 @@ It does not connect to the running hub on port 8765.
 Learning requests use real local persistence.
 The suite saves a note, restarts the server, imports another curriculum, and checks that their records stay separate.
 It also rejects a stale write and confirms that the newer record remains unchanged.
+The suite restores unfinished experiments, edit targets, and selected lessons after a server restart.
+Failed saves block course changes, and conflicting recovery copies remain available for export.
+Separate accounts can download the same curriculum without replacing each other's records.
+The tests cover sign-out, canceled imports, version 1 restores, and version 2 restores.
 
 The browser receives an empty `/api/cloud-config` response.
 The runner blocks requests to every external origin and tests that restriction.
@@ -58,3 +62,13 @@ Its default screenshot directory is `artifacts/`.
 Build the native app for an iOS simulator before testing appearance.
 Check pair selection, mode selection, device appearance changes, dismissal, and preference persistence after relaunch.
 Appearance preferences remain local to each device.
+
+## Data and account checks
+
+`npm test` runs the Python storage tests and Node tests.
+Both runtimes read the shared examples in `tests/fixtures/contracts/`.
+The examples cover valid records, old backups, unknown versions, invalid references, and private fields in public data.
+
+Account transfer tests replace the Supabase client with an in-memory stub.
+They cover canceled downloads, interrupted publication, and account changes while a request waits.
+They make no network requests and use no deployment credentials.

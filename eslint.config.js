@@ -6,7 +6,7 @@ export default [
     ignores: ['node_modules/**', 'web.bundle.js', 'ios/**', 'artifacts/**', 'evidence/**'],
   },
   {
-    files: ['*.js', '*.jsx', 'tests/**/*.mjs'],
+    files: ['*.js', '*.jsx', 'web/**/*.js', 'tests/**/*.mjs'],
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'module',

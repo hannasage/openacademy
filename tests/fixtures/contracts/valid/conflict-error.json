@@ -1,0 +1,6 @@
+{
+  "error": "Newer progress exists.",
+  "code": "revision_conflict",
+  "retryable": false,
+  "currentRevision": 4
+}

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "esbuild web.jsx --bundle --format=esm --minify --outfile=web.bundle.js",
-    "test": "python3 -m unittest -v test_server.py && python3 -m unittest discover -s tests -p \"test_*.py\" -v && node --test tests/browser/server.test.mjs",
+    "test": "python3 -m unittest -v test_server.py && python3 -m unittest discover -s tests -p \"test_*.py\" -v && node --test tests/*.test.mjs tests/browser/server.test.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test:browser": "node tests/run-browser.mjs",
@@ -23,6 +23,7 @@
     "@types/node": "26.6.6",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
+    "ajv": "8.20.0",
     "esbuild": "0.28.2",
     "eslint": "10.13.0",
     "globals": "17.13.0",
