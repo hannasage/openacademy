@@ -1,0 +1,21 @@
+data/
+__pycache__/
+.DS_Store
+node_modules/
+cloud-config.local.json
+*.xcuserstate
+xcuserdata/
+ios/build/
+.env*
+.vercel/
+.vercel
+
+# Local evidence and tool state
+artifacts/
+evidence/
+.agents/
+.impeccable/
+.playwright-cli/
+test-results/
+playwright-report/
+*.log

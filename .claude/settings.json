@@ -1,0 +1,60 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git *)",
+      "Bash(gh *)",
+      "Bash(npm *)",
+      "Bash(npx *)",
+      "Bash(node *)",
+      "Bash(brew *)",
+      "Bash(ls *)",
+      "Bash(find *)",
+      "Bash(grep *)",
+      "Bash(mkdir *)",
+      "Bash(cp *)",
+      "Bash(mv *)",
+      "Bash(cat *)",
+      "Bash(echo *)",
+      "Bash(touch *)",
+      "Bash(chmod *)",
+      "Bash(which *)",
+      "Bash(tmux *)",
+      "Bash(supabase *)",
+      "Bash(tsc *)",
+      "Bash(vitest *)",
+      "Bash(playwright *)",
+      "Bash(qmd *)"
+    ],
+    "deny": [
+      "Bash(git push * main)",
+      "Bash(git push * main *)",
+      "Bash(git push --force *)",
+      "Bash(git push * --force)",
+      "Bash(git push * --force *)",
+      "Bash(git push -f *)",
+      "Bash(git push * -f)",
+      "Bash(git push * -f *)",
+      "Bash(git push *+*)",
+      "Bash(git push)",
+      "Bash(git push origin)",
+      "Bash(git push *:main*)",
+      "Bash(git push *:main)",
+      "Bash(git push * HEAD)",
+      "Bash(git push *--all*)",
+      "Bash(git push *--mirror*)",
+      "Bash(git reset --hard*)",
+      "Bash(git clean *-fd*)",
+      "Bash(git clean *-x*)",
+      "Bash(git branch -D*)",
+      "Bash(git stash drop*)",
+      "Bash(gh pr merge*)",
+      "Bash(gh api *merge*)",
+      "mcp__claude_ai_Gmail",
+      "mcp__claude_ai_Google_Calendar"
+    ],
+    "ask": [
+      "mcp__higgsfield__confirm_billing_purchase",
+      "mcp__higgsfield__generate_video*"
+    ]
+  }
+}
