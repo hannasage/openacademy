@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>NSCameraUsageDescription</key><string>Scan your Touchline hub code to find its address. You review the destination before signing in.</string>
+<key>CFBundleURLTypes</key><array><dict>
+<key>CFBundleURLName</key><string>Touchline hub and sign-in links</string>
+<key>CFBundleURLSchemes</key><array><string>touchline</string><string>love.hannasage.touchline</string></array>
+</dict></array>
+</dict></plist>

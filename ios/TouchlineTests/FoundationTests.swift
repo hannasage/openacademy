@@ -61,7 +61,10 @@ final class FoundationTests: XCTestCase {
         XCTAssertNil(try cache.load(scope: AccountScope(hubID: UUID(), backendOrigin: a.backendOrigin, accountID: a.accountID)))
         XCTAssertNil(try cache.load(scope: AccountScope(hubID: a.hubID, backendOrigin: "https://two.example", accountID: a.accountID)))
         XCTAssertEqual(try AccountScope.legacy(connection: Connection(url: "https://example.supabase.co", publishableKey: "sb_publishable_test"), accountID: a.accountID).hubID.uuidString.lowercased(), "5f1a10e2-8270-5f0c-a408-2a87c5c1390f")
-        let failing = try FileReadingCache(directory: directory, reader: reader, writer: { _, _ in throw CocoaError(.fileWriteOutOfSpace) })
+        let failing = try FileReadingCache(directory: directory, reader: reader, writer: { data, url in
+            if url.lastPathComponent == "pending-cleanup-v1.json" { try data.write(to: url, options: .atomic) }
+            else { throw CocoaError(.fileWriteOutOfSpace) }
+        })
         XCTAssertThrowsError(try failing.save([], scope: a, refreshedAt: Date()))
         XCTAssertEqual(try cache.load(scope: a)?.records.count, 1)
         try cache.save([snapshot], scope: b, refreshedAt: Date())
@@ -227,6 +230,20 @@ final class HubStoreTests: XCTestCase {
         XCTAssertEqual(restored.first?.state.modules[backup.curriculum.modules[0].id]?.notes, backup.state.modules[backup.curriculum.modules[0].id]?.notes)
         XCTAssertTrue(restored.first?.isPublishedFocus == true)
     }
+    func testConfirmedRevocationClearsPrivateCopiesButKeepsLocalReading() async throws {
+        let (store, service, cache, _, backup, _) = try setup()
+        service.bytes = try rows(backup)
+        await store.connect(Connection(url: "https://example.supabase.co", publishableKey: "sb_publishable_test"))
+        await store.signIn(email: "test@example.com", password: "test")
+        let scope = try AccountScope.legacy(connection: store.connection, accountID: service.nextAccount)
+        XCTAssertTrue(store.courses.contains { $0.readingSource == .downloaded })
+        service.fetchWork = { throw HubAccessError.unauthorized }
+        await store.refresh()
+        XCTAssertFalse(store.signedIn)
+        XCTAssertFalse(store.courses.contains { $0.readingSource == .downloaded })
+        XCTAssertTrue(store.courses.contains { $0.readingSource == .bundled })
+        XCTAssertNil(try cache.load(scope: scope))
+    }
     func testNetworkFailurePreservesCurrentDownloadAndOfflineRelaunch() async throws {
         let (store, service, cache, _, backup, defaults) = try setup()
         service.bytes = try rows(backup)
@@ -310,7 +327,10 @@ final class HubStoreTests: XCTestCase {
     func testFailedCacheWriteDoesNotReplaceVisibleDownloads() async throws {
         let (_, service, cache, root, backup, defaults) = try setup()
         let scope = try AccountScope.legacy(connection: Connection(url: "https://example.supabase.co", publishableKey: "sb_publishable_test"), accountID: service.nextAccount)
-        let failing = try FileReadingCache(directory: root, reader: ContractReader(), writer: { _, _ in throw CocoaError(.fileWriteOutOfSpace) })
+        let failing = try FileReadingCache(directory: root, reader: ContractReader(), writer: { data, url in
+            if url.lastPathComponent == "pending-cleanup-v1.json" { try data.write(to: url, options: .atomic) }
+            else { throw CocoaError(.fileWriteOutOfSpace) }
+        })
         let store = HubStore(cache: failing, reader: try ContractReader(), bundled: backup, defaults: defaults, makeService: { _ in service })
         service.bytes = try rows(backup)
         await store.connect(Connection(url: "https://example.supabase.co", publishableKey: "sb_publishable_test"))
@@ -339,6 +359,56 @@ final class HubStoreTests: XCTestCase {
         await store.signOut()
         XCTAssertNil(try cache.load(scope: scope))
         XCTAssertFalse(store.needsSignOutRetry)
+    }
+    func testFailedCleanupRemainsBlockedAcrossRelaunch() async throws {
+        let (_, service, cache, root, backup, defaults) = try setup()
+        let failing = RemovalFailureCache(cache)
+        let store = HubStore(cache: failing, reader: try ContractReader(), bundled: backup, defaults: defaults, makeService: { _ in service })
+        service.bytes = try rows(backup)
+        await store.connect(Connection(url: "https://example.supabase.co", publishableKey: "sb_publishable_test"))
+        await store.signIn(email: "a@example.com", password: "test")
+        let scope = try AccountScope.legacy(connection: store.connection, accountID: service.nextAccount)
+        await store.signOut()
+        XCTAssertNotNil(try cache.loadCleanup())
+        let freshCache = try FileReadingCache(directory: root, reader: ContractReader())
+        XCTAssertEqual(try freshCache.loadCleanup()?.scope, scope)
+        let restartedFailure = RemovalFailureCache(freshCache)
+        let relaunched = HubStore(cache: restartedFailure, reader: try ContractReader(), bundled: backup, defaults: defaults, makeService: { _ in service })
+        await relaunched.restoreSession()
+        XCTAssertTrue(relaunched.needsSignOutRetry); XCTAssertFalse(relaunched.signedIn)
+        await relaunched.signIn(email: "a@example.com", password: "test")
+        XCTAssertFalse(relaunched.signedIn); XCTAssertFalse(relaunched.courses.contains { $0.readingSource == .downloaded })
+        restartedFailure.failRemoval = false
+        await relaunched.signOut()
+        XCTAssertFalse(relaunched.needsSignOutRetry); XCTAssertNil(try cache.load(scope: scope))
+        XCTAssertNil(try cache.loadCleanup())
+    }
+    func testUnwritableCleanupMarkerBlocksActivationWithoutClaimingSignOut() async throws {
+        let (_, service, _, root, backup, defaults) = try setup()
+        let failing = try FileReadingCache(directory: root, reader: ContractReader(), writer: { _, _ in throw CocoaError(.fileWriteOutOfSpace) })
+        let store = HubStore(cache: failing, reader: try ContractReader(), bundled: backup, defaults: defaults, makeService: { _ in service })
+        await store.connect(Connection(url: "https://example.supabase.co", publishableKey: "sb_publishable_test"))
+        XCTAssertTrue(store.needsSignOutRetry); XCTAssertFalse(store.signedIn)
+        await store.signIn(email: "a@example.com", password: "test")
+        XCTAssertFalse(store.signedIn); XCTAssertNil(service.cachedAccountID)
+        await store.signOut()
+        XCTAssertTrue(store.message.contains("sign-out could not be recorded"))
+        XCTAssertTrue(store.needsSignOutRetry)
+    }
+    func testCorruptCleanupMarkerRemainsUntouchedAndBlocksRelaunch() async throws {
+        let (store, service, cache, root, backup, defaults) = try setup()
+        service.bytes = try rows(backup)
+        await store.connect(Connection(url: "https://example.supabase.co", publishableKey: "sb_publishable_test"))
+        await store.signIn(email: "a@example.com", password: "test")
+        let marker = root.appendingPathComponent("pending-cleanup-v1.json"), damaged = Data("future or damaged cleanup".utf8)
+        try damaged.write(to: marker)
+        let fresh = try FileReadingCache(directory: root, reader: ContractReader())
+        let relaunched = HubStore(cache: fresh, reader: try ContractReader(), bundled: backup, defaults: defaults, makeService: { _ in service })
+        await relaunched.restoreSession(); await relaunched.signOut()
+        XCTAssertFalse(relaunched.signedIn); XCTAssertTrue(relaunched.needsSignOutRetry)
+        XCTAssertFalse(relaunched.courses.contains { $0.readingSource == .downloaded })
+        XCTAssertEqual(try Data(contentsOf: marker), damaged)
+        XCTAssertTrue(store.signedIn); XCTAssertNotNil(cache)
     }
     func testFailedCleanupBlocksAnotherAccountUntilRecovered() async throws {
         let (_, service, cache, _, backup, defaults) = try setup()
@@ -425,6 +495,9 @@ private final class RemovalFailureCache: ReadingCache {
     var hasUnownedLegacyCache: Bool { wrapped.hasUnownedLegacyCache }
     func load(scope: AccountScope) throws -> CachedDownload? { try wrapped.load(scope: scope) }
     func save(_ records: [PublishedCourse], scope: AccountScope, refreshedAt: Date, library: PublishedLibrary?) throws { try wrapped.save(records, scope: scope, refreshedAt: refreshedAt, library: library) }
+    func loadCleanup() throws -> ReadingCleanup? { try wrapped.loadCleanup() }
+    func saveCleanup(scope: AccountScope?) throws { try wrapped.saveCleanup(scope: scope) }
+    func clearCleanup() throws { try wrapped.clearCleanup() }
     func remove(scope: AccountScope) throws { if failRemoval { throw CocoaError(.fileWriteNoPermission) }; try wrapped.remove(scope: scope) }
     func loadImports() throws -> [LearningBackup] { try wrapped.loadImports() }
     func saveImports(_ records: [LearningBackup]) throws { try wrapped.saveImports(records) }
