@@ -1,4 +1,5 @@
 import XCTest
+import Combine
 @testable import Touchline
 
 final class FoundationTests: XCTestCase {
@@ -128,6 +129,8 @@ private final class TestService: HubService {
     var onAccountChange: ((UUID?) -> Void)?
     var nextAccount = UUID()
     var bytes = Data("[]".utf8)
+    var libraryBytes: Data?
+    func fetchLibrary(accountID: UUID) async throws -> Data? { libraryBytes }
     var fetchWork: (() async throws -> Data)?
     func signIn(email: String, password: String) async throws -> UUID { cachedAccountID = nextAccount; return nextAccount }
     func signOut() async throws { cachedAccountID = nil; onAccountChange?(nil) }
@@ -157,6 +160,72 @@ final class HubStoreTests: XCTestCase {
     private func rows(_ backup: LearningBackup) throws -> Data {
         let json = try JSONSerialization.jsonObject(with: JSONEncoder().encode(backup)) as! [String: Any]
         return try JSONSerialization.data(withJSONObject: [["curriculum": json["curriculum"]!, "progress": json["state"]!, "revision": 1, "updated_at": "2026-10-28T12:00:00Z"]])
+    }
+    func testPublishedCourseUpdatesKeepCloudNavigationDuringRefreshAndImport() async throws {
+        let (store, service, _, root, backup, _) = try setup()
+        service.bytes = try rows(backup)
+        await store.connect(Connection(url: "https://example.supabase.co", publishableKey: "sb_publishable_test"))
+        await store.signIn(email: "test@example.com", password: "test")
+        let cloud = try XCTUnwrap(store.courses.first { $0.readingSource == .downloaded })
+        let module = try XCTUnwrap(cloud.curriculum.modules.first)
+        let navigation = ReadingNavigation()
+        navigation.select(cloud.id)
+        let path: [ReadingRoute] = [.lesson(module.id), .sources(module.id)]
+        navigation.setPath(path, for: cloud.id)
+        var observedSelections: [String?] = []
+        var observedPaths: [[ReadingRoute]] = []
+        let subscription = store.$courses.sink { courses in
+            navigation.reconcile(courses)
+            observedSelections.append(navigation.selected)
+            observedPaths.append(navigation.path(for: cloud.id))
+        }
+        defer { subscription.cancel() }
+        await store.refresh()
+        XCTAssertTrue(store.message.hasPrefix("Downloaded "))
+        let incoming = root.appendingPathComponent("navigation-import.json")
+        try JSONEncoder().encode(backup).write(to: incoming)
+        await store.importFile(incoming)
+        XCTAssertTrue(store.message.hasPrefix("Imported "))
+        XCTAssertGreaterThanOrEqual(observedSelections.count, 3)
+        XCTAssertTrue(observedSelections.allSatisfy { $0 == cloud.id })
+        XCTAssertTrue(observedPaths.allSatisfy { $0 == path })
+        XCTAssertEqual(navigation.selected, cloud.id)
+        XCTAssertEqual(navigation.path(for: cloud.id), path)
+    }
+    func testTwoDownloadsKeepPublishedFocusProgressAndExperimentsOffline() async throws {
+        let (store, service, cache, _, backup, defaults) = try setup()
+        let original = try JSONSerialization.jsonObject(with: rows(backup)) as! [[String: Any]]
+        var first = original[0], second = original[0]
+        var curriculum = second["curriculum"] as! [String: Any]
+        curriculum["id"] = "second-course"; curriculum["title"] = "Another course"
+        var progress = second["progress"] as! [String: Any]
+        progress["curriculumId"] = "second-course"
+        progress["experiments"] = [["id": "second-experiment", "date": "2026-10-28", "module": backup.curriculum.modules[0].id, "title": "Second experiment", "hypothesis": "A separate hypothesis", "result": "A separate result"]]
+        second["curriculum"] = curriculum; second["progress"] = progress; second["status"] = "paused"
+        first["status"] = "active"
+        service.bytes = try JSONSerialization.data(withJSONObject: [first, second])
+        service.libraryBytes = try JSONSerialization.data(withJSONObject: [["snapshot": ["version": 1, "revision": 1, "focusCurriculumId": backup.curriculum.id]]])
+        await store.connect(Connection(url: "https://example.supabase.co", publishableKey: "sb_publishable_test"))
+        await store.signIn(email: "test@example.com", password: "test")
+        let cloud = store.courses.filter { $0.readingSource == .downloaded }
+        XCTAssertEqual(cloud.count, 2)
+        XCTAssertEqual(cloud.first?.isPublishedFocus, true)
+        XCTAssertEqual(cloud.last?.readingStatus, .paused)
+        XCTAssertEqual(cloud.last?.state.experiments.first?.result, "A separate result")
+        XCTAssertTrue(cloud.first?.state.experiments.isEmpty == true)
+        let previousRefresh = store.lastRefresh
+        service.libraryBytes = Data("[{\"snapshot\":{\"version\":999}}]".utf8)
+        await store.refresh()
+        XCTAssertEqual(store.lastRefresh, previousRefresh)
+        XCTAssertTrue(store.courses.contains { $0.isPublishedFocus })
+        service.fetchWork = { throw URLError(.notConnectedToInternet) }
+        let relaunched = HubStore(cache: cache, reader: try ContractReader(), bundled: backup, defaults: defaults, makeService: { _ in service })
+        await relaunched.restoreSession()
+        let restored = relaunched.courses.filter { $0.readingSource == .downloaded }
+        XCTAssertEqual(restored.count, 2)
+        XCTAssertEqual(restored.last?.state.experiments.first?.result, "A separate result")
+        XCTAssertEqual(restored.first?.state.modules[backup.curriculum.modules[0].id]?.notes, backup.state.modules[backup.curriculum.modules[0].id]?.notes)
+        XCTAssertTrue(restored.first?.isPublishedFocus == true)
     }
     func testNetworkFailurePreservesCurrentDownloadAndOfflineRelaunch() async throws {
         let (store, service, cache, _, backup, defaults) = try setup()
@@ -355,8 +424,73 @@ private final class RemovalFailureCache: ReadingCache {
     init(_ wrapped: FileReadingCache) { self.wrapped = wrapped }
     var hasUnownedLegacyCache: Bool { wrapped.hasUnownedLegacyCache }
     func load(scope: AccountScope) throws -> CachedDownload? { try wrapped.load(scope: scope) }
-    func save(_ records: [PublishedCourse], scope: AccountScope, refreshedAt: Date) throws { try wrapped.save(records, scope: scope, refreshedAt: refreshedAt) }
+    func save(_ records: [PublishedCourse], scope: AccountScope, refreshedAt: Date, library: PublishedLibrary?) throws { try wrapped.save(records, scope: scope, refreshedAt: refreshedAt, library: library) }
     func remove(scope: AccountScope) throws { if failRemoval { throw CocoaError(.fileWriteNoPermission) }; try wrapped.remove(scope: scope) }
     func loadImports() throws -> [LearningBackup] { try wrapped.loadImports() }
     func saveImports(_ records: [LearningBackup]) throws { try wrapped.saveImports(records) }
+}
+
+
+@MainActor
+final class ReadingScreenTests: XCTestCase {
+    private func backup() throws -> LearningBackup {
+        let root = Bundle(for: Self.self).url(forResource: "contracts", withExtension: nil)!
+        return try ContractReader().decode(Data(contentsOf: root.appendingPathComponent("valid/legacy-backup.json")), schema: "legacy-backup.v1.schema.json")
+    }
+    func testSelectionSurvivesRefreshAndKeepsSeparateLessonPaths() throws {
+        var first = try backup(); first.readerID = "account:first"
+        var second = try backup(); second.readerID = "account:second"
+        let navigation = ReadingNavigation()
+        navigation.select(first.id)
+        navigation.setPath([.lesson(first.curriculum.modules[0].id)], for: first.id)
+        navigation.select(second.id)
+        navigation.setPath([.lesson(second.curriculum.modules[0].id), .sources(second.curriculum.modules[0].id)], for: second.id)
+        navigation.reconcile([first, second])
+        XCTAssertEqual(navigation.selected, second.id)
+        XCTAssertEqual(navigation.path(for: second.id).count, 2)
+        navigation.select(first.id)
+        XCTAssertEqual(navigation.path(for: first.id), [.lesson(first.curriculum.modules[0].id)])
+        navigation.reconcile([second])
+        XCTAssertNil(navigation.selected)
+        XCTAssertTrue(navigation.path(for: first.id).isEmpty)
+        navigation.select(second.id)
+        navigation.setPath([.lesson("removed-module"), .sources("removed-module")], for: second.id)
+        navigation.reconcile([second])
+        XCTAssertEqual(navigation.selected, second.id)
+        XCTAssertTrue(navigation.path(for: second.id).isEmpty)
+    }
+    func testLibraryFocusIsExplicitAndCacheSurvivesRelaunch() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let reader = try ContractReader(), cache = try FileReadingCache(directory: root, reader: reader)
+        let item = try backup()
+        let snapshot = PublishedCourse(format: "touchline-snapshot", version: 1, curriculum: item.curriculum, progress: item.state, status: .active, revision: 1, publishedAt: "2026-10-28T12:00:00Z")
+        let scope = try AccountScope(hubID: UUID(), backendOrigin: "https://example.com", accountID: UUID())
+        let library = PublishedLibrary(version: 1, revision: 1, focusCurriculumId: item.curriculum.id)
+        try cache.save([snapshot], scope: scope, refreshedAt: Date(), library: library)
+        XCTAssertEqual(try cache.load(scope: scope)?.library?.focusCurriculumId, item.curriculum.id)
+        let file = root.appendingPathComponent(scope.storageKey + ".json")
+        var envelope = try JSONSerialization.jsonObject(with: Data(contentsOf: file)) as! [String: Any]
+        envelope["library"] = ["version": 1, "revision": 1, "focusCurriculumId": item.curriculum.id, "privateField": "reject"]
+        try JSONSerialization.data(withJSONObject: envelope).write(to: file)
+        XCTAssertThrowsError(try cache.load(scope: scope))
+        try cache.save([snapshot], scope: scope, refreshedAt: Date(), library: PublishedLibrary(version: 1, revision: 2, focusCurriculumId: nil))
+        XCTAssertEqual(try cache.load(scope: scope)?.library?.revision, 2)
+        XCTAssertNil(try cache.load(scope: scope)?.library?.focusCurriculumId)
+        try cache.save([snapshot], scope: scope, refreshedAt: Date())
+        XCTAssertNil(try cache.load(scope: scope)?.library)
+    }
+    func testTutorPromptUsesThisCopiesNotesAndRemainingTask() throws {
+        let copy = try backup(), module = try XCTUnwrap(copy.curriculum.modules.first)
+        let prompt = ReadingSource.tutorPrompt(module: module, course: copy.curriculum, progress: copy.state.modules[module.id])
+        XCTAssertTrue(prompt.contains(copy.curriculum.title))
+        XCTAssertTrue(prompt.contains("Keep the split fixed."))
+        XCTAssertTrue(prompt.contains(module.tasks[1]))
+        XCTAssertTrue(prompt.contains(module.challenge))
+    }
+    func testUnsafeSourceIsRejectedBeforeOpening() {
+        XCTAssertNil(ReadingSource.safeURL("javascript:alert(1)"))
+        XCTAssertNil(ReadingSource.safeURL("https://user:password@example.com/"))
+        XCTAssertNotNil(ReadingSource.safeURL("https://example.com/book"))
+    }
 }

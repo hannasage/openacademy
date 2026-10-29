@@ -59,6 +59,28 @@ Local imports and the bundled curriculum remain available.
 If removal fails, the app reports the failure and keeps private content hidden.
 Use Retry sign-out and cleanup when storage or account access is available.
 
+## Reading your library
+
+The library shows the published focus when the hub provides one.
+Other downloaded curricula remain grouped by their published status.
+Included and imported copies stay separate from account downloads.
+The reader never chooses a focus from the order of the courses.
+
+Each curriculum keeps its lesson and source location while the app stays open.
+Refreshing a valid copy preserves that location when the lesson still exists.
+Removing a course or ending its account session clears its private navigation.
+The companion shows saved progress, notes, evidence, time, and experiments without editing them.
+
+Read sources opens the original website and leaves the lesson in place.
+If the system cannot open a link, the app offers retry guidance and a share action.
+The downloaded lesson includes the curriculum text, but not linked books or datasets.
+Devices lists the copies already stored here and the last successful download.
+Download selection and the new account flow follow in the connection release.
+
+The hub must expose the version 1 published-library view for a connected refresh.
+An absent or invalid view fails the refresh without replacing the previous reading copy.
+Older native cache files without library metadata remain readable with no inferred focus.
+
 ## Data and recovery
 
 Each account has a separate cache file keyed by hub, canonical backend origin, and account ID.

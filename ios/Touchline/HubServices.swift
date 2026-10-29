@@ -8,7 +8,9 @@ protocol HubService: AnyObject {
     func signIn(email: String, password: String) async throws -> UUID
     func signOut() async throws
     func fetch(accountID: UUID) async throws -> Data
+    func fetchLibrary(accountID: UUID) async throws -> Data?
 }
+extension HubService { func fetchLibrary(accountID: UUID) async throws -> Data? { nil } }
 
 @MainActor
 final class SupabaseHubService: HubService {
@@ -36,14 +38,22 @@ final class SupabaseHubService: HubService {
         return user.id
     }
     func signOut() async throws { try await client.auth.signOut() }
+    func fetchLibrary(accountID: UUID) async throws -> Data? {
+        let transfer = try await verifiedTransfer(accountID: accountID)
+        return try await transfer.from("learning_library_snapshots").select("snapshot").execute().data
+    }
     func fetch(accountID: UUID) async throws -> Data {
+        let transfer = try await verifiedTransfer(accountID: accountID)
+        return try await transfer.from("learning_courses").select().order("updated_at", ascending: false).execute().data
+    }
+    private func verifiedTransfer(accountID: UUID) async throws -> SupabaseClient {
         let session = try await client.auth.session
         let user = try await client.auth.user(jwt: session.accessToken)
         guard user.id == accountID, session.user.id == accountID else { throw HubError.message("Sign in to the matching account before refreshing.") }
         let token = session.accessToken
         let transfer = SupabaseClient(supabaseURL: URL(string: connection.url)!, supabaseKey: connection.publishableKey,
             options: .init(auth: .init(accessToken: { token })))
-        return try await transfer.from("learning_courses").select().order("updated_at", ascending: false).execute().data
+        return transfer
     }
 }
 

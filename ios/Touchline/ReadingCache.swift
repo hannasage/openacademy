@@ -35,14 +35,20 @@ struct CachedDownload: Codable {
     let scope: AccountScope
     let records: [PublishedCourse]
     let refreshedAt: Date
+    var library: PublishedLibrary? = nil
 }
 protocol ReadingCache {
     var hasUnownedLegacyCache: Bool { get }
     func load(scope: AccountScope) throws -> CachedDownload?
-    func save(_ records: [PublishedCourse], scope: AccountScope, refreshedAt: Date) throws
+    func save(_ records: [PublishedCourse], scope: AccountScope, refreshedAt: Date, library: PublishedLibrary?) throws
     func remove(scope: AccountScope) throws
     func loadImports() throws -> [LearningBackup]
     func saveImports(_ records: [LearningBackup]) throws
+}
+extension ReadingCache {
+    func save(_ records: [PublishedCourse], scope: AccountScope, refreshedAt: Date) throws {
+        try save(records, scope: scope, refreshedAt: refreshedAt, library: nil)
+    }
 }
 final class FileReadingCache: ReadingCache {
     private let directory: URL
@@ -66,24 +72,30 @@ final class FileReadingCache: ReadingCache {
         try safe(url)
         let data = try Data(contentsOf: url)
         guard data.count <= 20_000_000 else { throw HubError.message("The reading cache is too large.") }
-        guard let envelope = try JSONSerialization.jsonObject(with: data) as? [String: Any], Set(envelope.keys) == Set(["format", "version", "scope", "records", "refreshedAt"]),
+        guard let envelope = try JSONSerialization.jsonObject(with: data) as? [String: Any], Set(envelope.keys).isSubset(of: Set(["format", "version", "scope", "records", "refreshedAt", "library"])),
               let origin = envelope["scope"] as? [String: Any], Set(origin.keys) == Set(["hubID", "backendOrigin", "accountID"]),
               let snapshots = envelope["records"] as? [[String: Any]], snapshots.count <= 100 else { throw HubError.message("The reading cache has an unsupported format.") }
         for snapshot in snapshots { try reader.validate(JSONSerialization.data(withJSONObject: snapshot), schema: "published-course.v1.schema.json") }
+        if let value = envelope["library"] {
+            guard let library = value as? [String: Any] else { throw HubError.message("The cached library is invalid.") }
+            try reader.validate(JSONSerialization.data(withJSONObject: library), schema: "published-library.v1.schema.json")
+        }
         let saved = try JSONDecoder().decode(CachedDownload.self, from: data)
         guard saved.format == "touchline-native-cache", saved.version == 1, saved.scope == scope else { throw HubError.message("The saved download belongs to another account or version.") }
         try validate(saved.records)
+        if let library = saved.library { try reader.validate(JSONEncoder().encode(library), schema: "published-library.v1.schema.json") }
         return saved
     }
     private func validate(_ records: [PublishedCourse]) throws {
         guard records.count <= 100, Set(records.map { $0.curriculum.id }).count == records.count else { throw HubError.message("Downloaded curricula contain duplicate identifiers.") }
         for record in records { try reader.validate(JSONEncoder().encode(record), schema: "published-course.v1.schema.json") }
     }
-    func save(_ records: [PublishedCourse], scope: AccountScope, refreshedAt: Date) throws {
+    func save(_ records: [PublishedCourse], scope: AccountScope, refreshedAt: Date, library: PublishedLibrary?) throws {
         try validate(records)
+        if let library { try reader.validate(JSONEncoder().encode(library), schema: "published-library.v1.schema.json") }
         let target = location(scope)
         if FileManager.default.fileExists(atPath: target.path) { try safe(target) }
-        let bytes = try JSONEncoder().encode(CachedDownload(format: "touchline-native-cache", version: 1, scope: scope, records: records, refreshedAt: refreshedAt))
+        let bytes = try JSONEncoder().encode(CachedDownload(format: "touchline-native-cache", version: 1, scope: scope, records: records, refreshedAt: refreshedAt, library: library))
         guard bytes.count <= 20_000_000 else { throw HubError.message("The reading cache is too large.") }
         try writer(bytes, target)
     }
