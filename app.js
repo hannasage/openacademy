@@ -1,6 +1,8 @@
 'use strict';
 import {createLearningService} from './web/services/learning.js';
 import {accounts} from './web/services/accounts.js';
+import {lessonMarkup} from './web/screens/lesson.js';
+import {screens} from './web/screens/model.js';
 import {shell} from './web/shell/bridge.js';
 const learning = createLearningService();
 /** @type {Curriculum[]} */ let curricula = [];
@@ -9,6 +11,9 @@ const learning = createLearningService();
 /** @type {LocalRecord} */ let record;
 /** @type {LibrarySummary[]} */ let library = [];
 /** @type {CloudOrigin | null} */ let accountScope = null;
+/** @type {LibraryPreference} */ let libraryPreference={version:1,revision:0,focusRecordId:null};
+/** @type {Map<string,LocalRecord>} */ const screenRecords=new Map();
+let screenBusy=false;
 let lastLocalRecordId = '';
 let recoveryConflict = false;
 let recoveryAvailable = true;
@@ -74,7 +79,7 @@ async function save() {
     const snapshot=structuredClone(record);
     const response=await learning.saveRecord(snapshot,snapshot.state.revision,accountScope);
     if(epoch!==viewEpoch)return false;
-    state.revision=response.state.revision;
+    state.revision=response.state.revision;screenRecords.set(record.recordId,record);updateScreens();
     if(dirty)journal();else clearJournal();
     $('#save-state').textContent='Saved on this computer'; $('#retry').hidden=true;
    } catch(error) {
@@ -141,7 +146,9 @@ function detail() {
  if(accountInvalidated)return;
  const m=moduleById(selected),p=progress(m);
  const missing=m.prerequisites.filter(id=>progress(moduleById(id)).status!=='complete');
- $('#module-detail').innerHTML=`<div class="detail-top"><p class="eyebrow">WEEKS ${m.weekStart}–${m.weekEnd} / ${esc(m.phase)}</p><span>${m.hours} hours · ${esc(dates(m))}</span></div><h2>${esc(m.title)}</h2><p class="question">${esc(m.question)}</p><p>${esc(m.outcome)}</p>${missing.length?'<p class="prerequisite">Build on the earlier modules before completing this one. You can explore any stage now.</p>':''}<div class="module-controls"><label>Progress<select id="status"><option value="not-started">Not started</option><option value="active">In progress</option><option value="complete">Complete with evidence</option></select></label><label>Hours spent<input id="study-hours" type="number" min="0" max="10000" step="0.25" value="${p.hours}"></label></div><section class="detail-section"><h3>The experiment</h3><div class="tasks">${m.tasks.map((t,i)=>`<label class="task"><input type="checkbox" data-task="${i}" ${p.tasks[i]?'checked':''}><span>${esc(t)}</span></label>`).join('')}</div></section><section class="math-note"><p class="eyebrow">THE IDEAS BEHIND THE CODE</p><p>${esc(m.math)}</p></section><section class="detail-section"><h3>Your two-week rhythm</h3>${m.weeks.map(w=>`<p>${esc(w)}</p>`).join('')}</section><section class="detail-section"><h3>Data for this project</h3><p>${esc(m.dataset)}</p></section><section class="detail-section"><h3>Read with a question</h3><p>${esc(m.reading)}</p><div class="resources">${m.resources.map(k=>{const r=course.resources[k];return `<a href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">${esc(r.title)} <span aria-hidden="true">↗</span><small>${esc(r.use)}</small></a>`;}).join('')}</div></section><section class="detail-section"><h3>Show what you know</h3><p>${esc(m.evidence)}</p><div class="challenge"><span class="eyebrow">TRY THIS YOURSELF</span><p>${esc(m.challenge)}</p></div><label>Evidence and project location<textarea id="evidence" placeholder="Notebook path, repository link, results, and your independent explanation.">${esc(p.evidence)}</textarea></label><label>Learning notes<textarea id="notes" placeholder="What clicked? What is still unclear? What will you try next?">${esc(p.notes)}</textarea></label></section><section class="agent-section"><div><h3>Bring your AI tutor</h3><p>Copy this brief into your existing agent. It includes your current notes.</p></div><button id="tutor">Copy tutor prompt</button></section><textarea id="prompt-fallback" aria-label="Tutor prompt to copy" hidden readonly></textarea><button class="primary" id="save-module">Save progress</button>`;
+ $('#module-detail').innerHTML=lessonMarkup(course,m,p,missing.length>0,dates(m));
+ $('#switch-curriculum').onclick=()=>void shell.navigate('library');
+ $('#log-experiment').onclick=()=>void shell.navigate('experiments');
  $('#status').value=p.status;
  $('#status').onchange=()=>{const targetControl=$('#status');const target=editable(m);if(targetControl.value==='complete'&&(!target.tasks.every(Boolean)||!target.evidence.trim())){notice('Complete the tasks and add evidence before marking this module complete.',true);targetControl.value=target.status;return;} target.status=/** @type {ModuleProgress['status']} */(targetControl.value);changed();navigation();};
  $('#study-hours').onchange=()=>{const targetControl=$('#study-hours');const n=Number(targetControl.value);if(!Number.isFinite(n)||n<0||n>10000){targetControl.value=String(progress(m).hours);notice('Enter study hours between 0 and 10000.',true);return;}editable(m).hours=n;changed();stats();};
@@ -173,8 +180,8 @@ function download(value,name){const url=URL.createObjectURL(new Blob([JSON.strin
 function render(){
  if(accountInvalidated)return;
  $('#experiment-form').hidden=false;
- $('#plan-title').textContent=course.title;$('#plan-subtitle').textContent=course.subtitle;$('#plan-description').textContent=course.description;$('#module-count').textContent=course.modules.length+' FIELD NOTES';
- $('#curriculum-select').value=record.recordId; navigation();detail();experiments();guide();
+ $('#plan-title').textContent=course.title;$('#plan-subtitle').textContent=course.subtitle;$('#plan-description').textContent=course.description;$('#module-count').textContent=course.modules.length+' modules';
+ $('#curriculum-select').value=record.recordId;screenRecords.set(record.recordId,record);updateScreens(); navigation();detail();experiments();guide();
 }
 /** @param {string} id @param {boolean} [ignoreRecovery] */
 async function loadCourse(id,ignoreRecovery=false){
@@ -235,8 +242,40 @@ $('#template').onclick=()=>download({id:'my-new-topic',version:1,title:'My new t
 async function refreshLibrary() {
  const epoch=viewEpoch;
  const value=await learning.listLibrary(accountScope);requireEpoch(epoch);
- library=value.records;
+ library=value.records;libraryPreference={version:value.version,revision:value.revision,focusRecordId:value.focusRecordId};
+ screenRecords.clear();
+ const values=await Promise.allSettled(library.map(item=>learning.getRecord(item.recordId,accountScope)));requireEpoch(epoch);
+ values.forEach((value,index)=>{if(value.status==='fulfilled')screenRecords.set(library[index].recordId,value.value);});
+ updateScreens();populateCourses();
+ screens.update({loading:false,error:values.some(value=>value.status==='rejected')?'Some curricula could not load. Retry to read their saved progress.':''});
 }
+function updateScreens(){
+ screens.update({rows:library.map(summary=>({summary:{...summary,status:screenRecords.get(summary.recordId)?.status||summary.status},record:screenRecords.get(summary.recordId)||null})),focusRecordId:libraryPreference.focusRecordId});
+}
+/** @param {()=>Promise<void>} work */
+async function screenAction(work){
+ if(screenBusy){screens.update({error:'A request is in progress. Wait for it to finish and try again.'});return;}
+ screenBusy=true;screens.update({busy:true,error:''});
+ $('#curriculum-select').disabled=true;
+ try{if(record&&!accountInvalidated&&!(await save()))throw Error('Save or export your current work before changing curricula.');await work();}
+ catch(error){screens.update({error:message(error)});notice(message(error),true);}
+ finally{screenBusy=false;screens.update({busy:false});$('#curriculum-select').disabled=accountInvalidated;}
+}
+screens.bind({
+ open:id=>screenAction(async()=>{await loadCourse(id);await shell.navigate('curriculum');}),
+ focus:id=>screenAction(async()=>{const epoch=viewEpoch;await learning.saveFocus(id,libraryPreference.revision,accountScope);requireEpoch(epoch);await refreshLibrary();notice(id?'Your focus changed. Other curricula keep their status.':'Focus cleared. Every curriculum keeps its progress.');}),
+ status:(id,status)=>screenAction(async()=>{
+  const epoch=viewEpoch;
+  // The open record must keep its working-copy revision. Fetching a newer
+  // revision here could let later edits overwrite another writer's changes.
+  const target=record?.recordId===id?structuredClone(record):await learning.getRecord(id,accountScope);requireEpoch(epoch);
+  const next=await learning.saveRecord({...target,status},target.state.revision,accountScope);requireEpoch(epoch);
+  if(record?.recordId===id){record.status=next.status;record.state.revision=next.state.revision;if(dirty)journal();}
+  await refreshLibrary();notice('Curriculum status saved. Its learning history is kept.');
+ }),
+ refresh:()=>screenAction(async()=>{screens.update({loading:true});try{await refreshLibrary();populateCourses();}finally{screens.update({loading:false});}}),
+ import:()=>$('#curriculum-file').click(),
+});
 function populateCourses(){
  $('#curriculum-select').innerHTML=library.map(item=>`<option value="${esc(item.recordId)}">${esc(item.title)}${item.origin.kind==='cloud'?' · Cloud copy':''}</option>`).join('');
  if(record)$('#curriculum-select').value=record.recordId;
@@ -255,8 +294,9 @@ shell.bind({
  navigate:async view=>{
   const epoch=viewEpoch;
   if(accountInvalidated){if(view!=='sync')return false;}
-  else {const loaded=await ready;requireEpoch(epoch);if(!loaded&&view!=='sync')return false;if(loaded&&!(await save()))return false;requireEpoch(epoch);}
-  for(const id of ['curriculum','experiments','guide','sync'])$('#'+id+'-view').hidden=id!==view;
+  else {const loaded=(await ready)||!!record;requireEpoch(epoch);if(!loaded&&!['sync','home','library'].includes(view))return false;if(loaded&&!(await save()))return false;requireEpoch(epoch);}
+  if(view==='home'||view==='library'){try{await refreshLibrary();requireEpoch(epoch);}catch(error){screens.update({loading:false,error:message(error)});}}
+  for(const id of ['home','library','curriculum','experiments','guide','sync'])$('#'+id+'-view').hidden=id!==view;
   if(view==='guide')guide();if(view==='curriculum')detail();
   return true;
  },
@@ -268,20 +308,21 @@ window.addEventListener('beforeunload',e=>{if(dirty||saving||volatileRecovery.si
 const ready=(async()=>{try{
  curricula=await learning.listCurricula();await refreshLibrary();populateCourses();let id;
  try{id=localStorage.getItem('touchline-course');}catch{ /* Local selection is optional. */ }
+ if(!library.length){screens.update({loading:false});return false;}
  await loadCourse(id&&library.some(item=>item.recordId===id||item.origin.kind==='local'&&item.curriculumId===id)?id:library[0].recordId);
  for(const id of ['import','curriculum-select','add-curriculum','template'])/** @type {HTMLInputElement | HTMLSelectElement | HTMLButtonElement} */($('#'+id)).disabled=false;
  return true;
-}catch(error){notice(message(error)+' Reload the page to retry.',true);return false;}})();
+}catch(error){screens.update({loading:false,error:message(error)+' Reload the page to retry.'});notice(message(error)+' Reload the page to retry.',true);return false;}})();
 
 accounts.bind({
- snapshot: async () => { const epoch=viewEpoch;if(!(await ready))throw Error('The local library is not ready.');requireEpoch(epoch); if(!(await save())) throw Error('Save local changes before publishing.');requireEpoch(epoch); return JSON.parse(JSON.stringify({curriculum:course,state})); },
+ snapshot: async () => { const epoch=viewEpoch;if(!(await ready)&&!record)throw Error('The local library is not ready.');requireEpoch(epoch); if(!(await save())) throw Error('Save local changes before publishing.');requireEpoch(epoch); return JSON.parse(JSON.stringify({curriculum:course,state})); },
  invalidateAccountScope: async () => {
-  if(!(await ready))return;
+  // Session loss must hide private data even when startup failed or is pending.
   if(dirty||saving)journal();
   const oldSave=saving;
   viewEpoch++;const epoch=viewEpoch;accountInvalidated=true;accountScope=null;clearTimeout(timer);dirty=false;recoveryConflict=false;
   shell.update({ready:false,progress:null});
-  library=[];populateCourses();
+  library=[];screenRecords.clear();libraryPreference={version:1,revision:0,focusRecordId:null};updateScreens();screens.update({loading:true,error:''});populateCourses();
   for(const selector of ['#modules','#module-detail','#experiment-list','#experiment-module','#guide-view'])$(selector).replaceChildren();
   $('#experiment-form').reset();$('#experiment-form').hidden=true;editing=null;
   $('#plan-title').textContent='Your local learning library';$('#plan-subtitle').textContent='';$('#plan-description').textContent='';$('#module-count').textContent='';
@@ -301,7 +342,7 @@ accounts.bind({
  },
  setAccountScope: async origin => {
   const epoch=viewEpoch;
-  if(!(await ready))throw Error('The local library is not ready.');
+  if(!(await ready)&&!record)throw Error('The local library is not ready.');
   requireEpoch(epoch);
   if(!accountInvalidated&&!(await save()))throw Error('Save or export local changes before changing accounts.');
   requireEpoch(epoch);
@@ -315,7 +356,7 @@ accounts.bind({
  },
  importCloud: async (backup,origin) => {
   const epoch=viewEpoch;
-  if(!(await ready))throw Error('The local library is not ready.');
+  if(!(await ready)&&!record)throw Error('The local library is not ready.');
   requireEpoch(epoch);
   if(!origin)throw Error('Sign in before importing a cloud record.');
   if(!(await save()))throw Error('Save or export local changes first.');

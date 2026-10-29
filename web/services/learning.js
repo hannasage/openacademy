@@ -35,6 +35,8 @@ export function createLearningService(transport = globalThis.fetch.bind(globalTh
     importCurriculum: curriculum => request('/api/curricula', curriculum),
     /** @param {CloudOrigin | null} [scope] @returns {Promise<LibraryResponse>} */
     listLibrary: scope => request('/api/library' + scopeQuery(scope)),
+    /** @param {string|null} focusRecordId @param {number} expectedRevision @param {CloudOrigin|null} [scope] @returns {Promise<LibraryResponse>} */
+    saveFocus: (focusRecordId,expectedRevision,scope) => request('/api/library'+scopeQuery(scope),{focusRecordId,expectedRevision}),
     /** @param {string} recordId @param {CloudOrigin | null} [scope] @returns {Promise<LocalRecord>} */
     getRecord: (recordId, scope) => request('/api/records/' + encodeURIComponent(recordId) + scopeQuery(scope)),
     /** @param {LocalRecord} record @param {number} expectedRevision @param {CloudOrigin | null} [scope] @returns {Promise<LocalRecord>} */
