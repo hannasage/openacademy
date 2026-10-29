@@ -24,6 +24,7 @@ final class AppearanceTests: XCTestCase {
         for (pair, dark, name, values) in cases {
             let palette = HubPalette(pair: pair, dark: dark)
             XCTAssertEqual(palette.name, name)
+            XCTAssertEqual(palette.colorScheme, dark ? .dark : .light)
             for (color, hex) in zip([palette.background, palette.surface, palette.text, palette.muted, palette.accent, palette.border], values) { assertColor(color, hex) }
             assertColor(palette.primaryText, pair == .coast && !dark ? 0x101820 : 0x17202a)
             assertColor(palette.link, dark ? values[4] : values[2])

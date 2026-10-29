@@ -15,6 +15,7 @@ enum AppearanceMode: String, CaseIterable, Identifiable {
 }
 
 struct HubPalette {
+    let colorScheme: ColorScheme
     let name: String
     let background: Color
     let surface: Color
@@ -26,6 +27,7 @@ struct HubPalette {
     let primaryText: Color
 
     init(pair: ThemePair, dark: Bool) {
+        colorScheme = dark ? .dark : .light
         name = dark ? pair.darkName : pair.lightName
         let values: [UInt32]
         switch (pair, dark) {
@@ -107,6 +109,7 @@ private struct HubSurface: ViewModifier {
             .background(palette.background)
             .toolbarBackground(palette.background, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarColorScheme(palette.colorScheme, for: .navigationBar)
     }
 }
 extension View {
