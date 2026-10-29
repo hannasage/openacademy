@@ -136,6 +136,11 @@ export async function verifyStatusWriterConflict({page,server}) {
 }
 
 export async function verifyEditsDuringStatusSave({page,server}) {
+ await page.clock.install();
+ await page.addInitScript(()=>{
+  const transport=window.fetch;window.statusTestRecordId='';window.statusTestWrites=[];
+  window.fetch=(input,options)=>{if(window.statusTestRecordId&&String(input).startsWith('/api/records/'+window.statusTestRecordId)&&options?.method==='PUT')window.statusTestWrites.push(JSON.parse(options.body));return transport(input,options);};
+ });
  await page.reload();await page.locator('#notes').waitFor();
  const id=await page.locator('#curriculum-select').inputValue();
  await page.locator('[data-module="m02"]').click();
@@ -147,8 +152,12 @@ export async function verifyEditsDuringStatusSave({page,server}) {
  let release,observed;
  const pending=new Promise(resolve=>{observed=resolve;});
  const gate=new Promise(resolve=>{release=resolve;});
+ let firstStatus=true;
+ await page.evaluate(id=>{window.statusTestRecordId=id;window.statusTestWrites=[];},id);
  await page.route(`**/api/records/${id}`,async route=>{
-  if(route.request().method()==='PUT'&&route.request().postDataJSON().record.status===status){observed();await gate;}
+  if(route.request().method()==='PUT'&&route.request().postDataJSON().record.status===status&&firstStatus){
+   firstStatus=false;const response=await route.fetch();observed();await gate;return route.fulfill({response});
+  }
   await route.continue();
  });
  await page.locator(`[data-record-card="${id}"]`).getByLabel('Curriculum status').selectOption(status);
@@ -156,9 +165,18 @@ export async function verifyEditsDuringStatusSave({page,server}) {
  await page.locator('[data-view=curriculum]').click();await page.locator('#notes').waitFor();
  assert.equal(await page.locator('.module.selected').getAttribute('data-module'),'m02');
  await page.locator('#notes').fill('Keep this edit made while the status write is pending.');
- release();
+ // Advance past autosave while the server already saved status but its response
+ // is still blocked. No second write can use the now-stale working revision.
+ await page.clock.runFor(600);
+ await page.locator('#save-module').click();
+ const notesWrite=page.waitForResponse(response=>response.url().includes('/api/records/'+id)&&response.request().method()==='PUT'&&response.request().postDataJSON().record.state.modules.m02?.notes==='Keep this edit made while the status write is pending.');
+ try{assert.equal(await page.evaluate(()=>window.statusTestWrites.length),1,'Autosave must wait for the status response before choosing a revision.');}
+ finally{release();}
+ assert.equal((await notesWrite).status(),200);
+ assert.equal(await page.evaluate(()=>window.statusTestWrites.length),2,'The queued edit must produce one successful notes write.');
  await page.waitForFunction(()=>document.querySelector('#save-state').textContent==='Saved on this computer');
  await page.unroute(`**/api/records/${id}`);
+ await page.evaluate(()=>{window.statusTestRecordId='';});
  const after=await (await fetch(`${server.url}/api/records/${id}`)).json();
  assert.equal(after.status,status);
  assert.equal(after.state.modules.m02.notes,'Keep this edit made while the status write is pending.');
@@ -168,4 +186,40 @@ export async function verifyEditsDuringStatusSave({page,server}) {
  assert.equal(await page.locator('#notes').inputValue(),'Keep this edit made while the status write is pending.');
  assert.equal(await page.locator('#experiment-form [name=title]').inputValue(),'A draft preserved during status changes.');
  console.log('PASS: edits during a delayed status save keep the selected lesson and unfinished experiment.');
+ await verifyQueuedStatusInvalidation({page,server});
+}
+
+async function verifyQueuedStatusInvalidation({page,server}) {
+ const localId=await page.locator('#curriculum-select').inputValue();
+ const local=await (await fetch(`${server.url}/api/records/${localId}`)).json();
+ const origin={kind:'cloud',hubId:crypto.randomUUID(),backendOrigin:'https://status-invalidation.invalid',accountId:crypto.randomUUID()};
+ await page.evaluate(async({backup,origin})=>{await window.touchline.setAccountScope(origin);await window.touchline.importCloud(backup,origin);},{backup:{curriculum:local.curriculum,state:local.state},origin});
+ const id=await page.locator('#curriculum-select').inputValue();
+ const query=new URLSearchParams({hubId:origin.hubId,backendOrigin:origin.backendOrigin,accountId:origin.accountId});
+ const address=`${server.url}/api/records/${id}?${query}`;
+ await page.locator('[data-view=library]').click();
+ const before=await (await fetch(address)).json();
+ const status=before.status==='active'?'paused':'active';
+ let release,observed;
+ const gate=new Promise(resolve=>{release=resolve;});const pending=new Promise(resolve=>{observed=resolve;});
+ await page.evaluate(id=>{window.statusTestRecordId=id;window.statusTestWrites=[];},id);
+ await page.route(`**/api/records/${id}*`,async route=>{
+  if(route.request().method()!=='PUT')return route.continue();
+  const response=await route.fetch();observed();await gate;return route.fulfill({response});
+ });
+ await page.locator(`[data-record-card="${id}"]`).getByLabel('Curriculum status').selectOption(status);await pending;
+ await page.locator('[data-view=curriculum]').click();await page.locator('#notes').fill('Keep the queued private edit in recovery only.');
+ await page.clock.runFor(600);
+ const invalidating=page.evaluate(()=>window.touchline.invalidateAccountScope());
+ try{await page.waitForFunction(()=>document.querySelector('#experiment-form').hidden);}
+ finally{release();}
+ await invalidating;
+ assert.equal(await page.evaluate(()=>window.statusTestWrites.length),1,'Account invalidation must cancel the queued notes write.');
+ const after=await (await fetch(address)).json();
+ assert.deepEqual(after.state.modules,before.state.modules);
+ assert.equal(after.state.revision,before.state.revision+1);
+ assert.equal(await page.locator(`#curriculum-select option[value="${id}"]`).count(),0);
+ assert.equal(await page.evaluate(({id,selected})=>JSON.parse(localStorage.getItem('touchline-recovery:'+id)).record.state.modules[selected].notes,{id,selected:before.view.selectedModuleId}),'Keep the queued private edit in recovery only.');
+ await page.unroute(`**/api/records/${id}*`);await page.evaluate(()=>{window.statusTestRecordId='';});
+ console.log('PASS: account invalidation cancels queued autosave, hides the cloud record, and keeps the private edit in recovery.');
 }

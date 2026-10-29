@@ -12,12 +12,20 @@ alter table touchline_private.owner_settings enable row level security;
 revoke all on touchline_private.owner_settings from public, anon, authenticated;
 
 create or replace function touchline_private.is_owner() returns boolean
-language sql stable security definer set search_path='' as $$
- select auth.uid() is not null and exists (
+language plpgsql stable security definer set search_path='' as $$
+begin
+ if not (auth.uid() is not null and exists (
   select 1 from touchline_private.owner_settings s join auth.users u on u.id=s.owner_user_id
   where u.id=auth.uid() and u.email_confirmed_at is not null and not coalesce(u.is_anonymous,false)
     and u.deleted_at is null and (u.banned_until is null or u.banned_until<=now())
- );
+ )) then return false; end if;
+ -- Once migration 004 installs session checks, replay must never weaken them.
+ -- The registry is a durable marker. A missing/broken helper fails closed.
+ if to_regclass('touchline_private.session_registry') is not null then
+  return touchline_private.session_is_allowed();
+ end if;
+ return true;
+end;
 $$;
 revoke all on function touchline_private.is_owner() from public, anon;
 grant execute on function touchline_private.is_owner() to authenticated;
@@ -26,10 +34,10 @@ create or replace function touchline_private.require_owner() returns uuid
 language plpgsql security definer set search_path='' as $$
 begin
  perform 1 from touchline_private.owner_settings where singleton for share;
- if not touchline_private.is_owner() then
-  raise exception 'This deployment is private.' using errcode='42501';
- end if;
  perform pg_advisory_xact_lock(hashtextextended(auth.uid()::text, 0));
+ if not touchline_private.is_owner() then
+  raise exception 'This deployment is private or the session has ended.' using errcode='42501';
+ end if;
  return auth.uid();
 end;
 $$;

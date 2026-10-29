@@ -24,6 +24,7 @@ let accountInvalidated = false;
 /** @type {string} */ let selected;
 let dirty = false;
 /** @type {Promise<boolean> | null} */ let saving = null;
+/** @type {{recordId:string, epoch:number, promise:Promise<void>} | null} */ let statusWrite = null;
 /** @type {number | undefined} */ let timer;
 /** @type {string | null} */ let editing = null;
 /**
@@ -74,8 +75,13 @@ async function save() {
  const epoch=viewEpoch;
  saving=(async()=>{
   while(dirty) {
-   dirty=false; $('#save-state').textContent='Saving…';
+   $('#save-state').textContent='Saving…';
    try {
+    // Keep one save promise while waiting, so timer and navigation callers
+    // cannot both write the working copy with the old status revision.
+    if(statusWrite?.recordId===record.recordId&&statusWrite.epoch===epoch)await statusWrite.promise;
+    if(epoch!==viewEpoch||accountInvalidated)return false;
+    dirty=false;
     const snapshot=structuredClone(record);
     const response=await learning.saveRecord(snapshot,snapshot.state.revision,accountScope);
     if(epoch!==viewEpoch)return false;
@@ -266,12 +272,16 @@ screens.bind({
  focus:id=>screenAction(async()=>{const epoch=viewEpoch;await learning.saveFocus(id,libraryPreference.revision,accountScope);requireEpoch(epoch);await refreshLibrary();notice(id?'Your focus changed. Other curricula keep their status.':'Focus cleared. Every curriculum keeps its progress.');}),
  status:(id,status)=>screenAction(async()=>{
   const epoch=viewEpoch;
-  // The open record must keep its working-copy revision. Fetching a newer
-  // revision here could let later edits overwrite another writer's changes.
-  const target=record?.recordId===id?structuredClone(record):await learning.getRecord(id,accountScope);requireEpoch(epoch);
-  const next=await learning.saveRecord({...target,status},target.state.revision,accountScope);requireEpoch(epoch);
-  if(record?.recordId===id){record.status=next.status;record.state.revision=next.state.revision;if(dirty)journal();}
-  await refreshLibrary();notice('Curriculum status saved. Its learning history is kept.');
+  const operation=(async()=>{
+   // The open record must keep its working-copy revision. Fetching a newer
+   // revision here could let later edits overwrite another writer's changes.
+   const target=record?.recordId===id?structuredClone(record):await learning.getRecord(id,accountScope);requireEpoch(epoch);
+   const next=await learning.saveRecord({...target,status},target.state.revision,accountScope);requireEpoch(epoch);
+   if(record?.recordId===id){record.status=next.status;record.state.revision=next.state.revision;if(dirty)journal();}
+   await refreshLibrary();notice('Curriculum status saved. Its learning history is kept.');
+  })();
+  statusWrite={recordId:id,epoch,promise:operation};
+  try{await operation;}finally{if(statusWrite?.promise===operation)statusWrite=null;}
  }),
  refresh:()=>screenAction(async()=>{screens.update({loading:true});try{await refreshLibrary();populateCourses();}finally{screens.update({loading:false});}}),
  import:()=>$('#curriculum-file').click(),

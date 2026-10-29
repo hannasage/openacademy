@@ -107,6 +107,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", kind)
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
+        self.send_header("Referrer-Policy", "no-referrer")
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https:; object-src 'none'; frame-ancestors 'none'")
         self.end_headers()
@@ -199,7 +200,7 @@ class Handler(BaseHTTPRequestHandler):
             match = re.fullmatch(r"/api/records/([^/]+)(/export)?", path)
             if match:
                 return self.respond(200, self.store().get_record(match[1], self.scope()))
-            files = {"/": ("index.html", "text/html; charset=utf-8"), "/app.js": ("app.js", "text/javascript"), "/style.css": ("style.css", "text/css"), "/curriculum.json": ("curriculum.json", "application/json"), "/web.bundle.js": ("web.bundle.js", "text/javascript"), "/web.bundle.css": ("web.bundle.css", "text/css")}
+            files = {"/": ("index.html", "text/html; charset=utf-8"), "/auth/return": ("index.html", "text/html; charset=utf-8"), "/app.js": ("app.js", "text/javascript"), "/style.css": ("style.css", "text/css"), "/curriculum.json": ("curriculum.json", "application/json"), "/web.bundle.js": ("web.bundle.js", "text/javascript"), "/web.bundle.css": ("web.bundle.css", "text/css")}
             if path not in files:
                 return self.not_found()
             name, kind = files[path]
