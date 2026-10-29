@@ -1,5 +1,8 @@
 'use strict';
-export {};
+import {createLearningService} from './web/services/learning.js';
+import {accounts} from './web/services/accounts.js';
+import {shell} from './web/shell/bridge.js';
+const learning = createLearningService();
 /** @type {Curriculum[]} */ let curricula = [];
 /** @type {Curriculum} */ let course;
 /** @type {LearningState} */ let state;
@@ -47,23 +50,6 @@ const progress = m => state.modules[m.id] || {status:'not-started', tasks:m.task
 const editable = m => state.modules[m.id] ||= progress(m);
 /** @param {string} text */
 const notice = (text, error=false) => { $('#notice').textContent=text; $('#notice').className=error?'error':''; };
-/** @overload @param {'/api/curricula'} url @returns {Promise<Curriculum[]>} */
-/** @overload @param {'/api/curricula'} url @param {Curriculum} data @returns {Promise<Curriculum>} */
-/** @overload @param {string} url @param {LearningState} [data] @returns {Promise<LearningState>} */
-/** @param {string} url @param {Curriculum | LearningState} [data] @returns {Promise<Curriculum[] | Curriculum | LearningState>} */
-async function request(url, data) {
- const r=await fetch(url, data===undefined?{}:{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
- const result=await r.json(); if(!r.ok) throw new Error(result.error || 'Request failed.'); return result;
-}
-/** @param {string} url @param {unknown} [data] @param {string} [method] @returns {Promise<LocalRecord>} */
-async function recordRequest(url, data, method='PUT') {
- const response=await fetch(url, data===undefined?{}:{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
- const value=await response.json();
- if(!response.ok)throw Error(value.error||'The learning record could not be saved.');
- return value;
-}
-/** @param {CloudOrigin | null} [scope] */
-function scopeQuery(scope=accountScope) { return scope?'?'+new URLSearchParams({hubId:scope.hubId,backendOrigin:scope.backendOrigin,accountId:scope.accountId}).toString():''; }
 /** @param {number} epoch */
 function requireEpoch(epoch){if(epoch!==viewEpoch)throw Error('The account changed during this operation. Retry from the current account.');}
 function recoveryKey() { return 'touchline-recovery:'+record.recordId; }
@@ -86,7 +72,7 @@ async function save() {
    dirty=false; $('#save-state').textContent='Saving…';
    try {
     const snapshot=structuredClone(record);
-    const response=await recordRequest('/api/records/'+record.recordId+scopeQuery(),{expectedRevision:snapshot.state.revision,record:snapshot});
+    const response=await learning.saveRecord(snapshot,snapshot.state.revision,accountScope);
     if(epoch!==viewEpoch)return false;
     state.revision=response.state.revision;
     if(dirty)journal();else clearJournal();
@@ -126,7 +112,7 @@ function usableRecovery(candidate,current) {
 function stats() {
  if(accountInvalidated)return;
  const p=course.modules.map(progress);
- window.updateProjectionProgress?.(p.filter(x=>x.status==='complete').length,p.length);
+ shell.update({progress:{done:p.filter(x=>x.status==='complete').length,total:p.length}});
  $('#completed').textContent=`${p.filter(x=>x.status==='complete').length} / ${p.length}`;
  $('#hours').textContent=`${p.reduce((a,x)=>a+x.hours,0).toFixed(1).replace('.0','')} h`;
  $('#experiments-count').textContent=String(state.experiments.length);
@@ -195,7 +181,7 @@ async function loadCourse(id,ignoreRecovery=false){
  const next=library.find(item=>item.recordId===id||item.origin.kind==='local'&&item.curriculumId===id);
  if(!next)throw Error('Unknown learning record.');
  const epoch=viewEpoch;
- const serverRecord=await recordRequest('/api/records/'+next.recordId+scopeQuery());
+ const serverRecord=await learning.getRecord(next.recordId,accountScope);
  if(epoch!==viewEpoch)throw Error('The account changed while this record was loading.');
  if(!ignoreRecovery&&!accountInvalidated&&(dirty||saving))throw Error('Your work changed while the record was loading. Save it before switching.');
  record=serverRecord;accountInvalidated=false; dirty=false; recoveryConflict=false; clearTimeout(timer);
@@ -208,7 +194,7 @@ async function loadCourse(id,ignoreRecovery=false){
  }catch { recoveryAvailable=false; }
  course=record.curriculum; state=record.state; selected=record.view.selectedModuleId;
  if(record.origin.kind==='local')lastLocalRecordId=record.recordId;
- render();for(const id of ['export','restore','import','curriculum-select','add-curriculum','template'])/** @type {HTMLInputElement | HTMLSelectElement | HTMLButtonElement} */($('#'+id)).disabled=false;
+ render();shell.update({ready:true});for(const id of ['import','curriculum-select','add-curriculum','template'])/** @type {HTMLInputElement | HTMLSelectElement | HTMLButtonElement} */($('#'+id)).disabled=false;
  $('#retry').hidden=!recoveryConflict; $('#retry').textContent=recoveryConflict?'Use saved version':'Retry save';
  $('#save-state').textContent=recoveryConflict?'Recovery conflict':recovered?'Unsaved changes':'Saved on this computer';
  if(recoveryConflict)notice('This device has unsaved work based on an older version. Export progress to keep this working copy, then choose Use saved version. Nothing will overwrite the newer saved record.',true);
@@ -221,8 +207,6 @@ $('#retry').onclick=async()=>{
  if(!confirm('Discard the recovered working copy and load the newer saved version? Export progress first if you want to keep this copy.'))return;
  try{clearJournal();await loadCourse(record.recordId,true);}catch(error){notice(message(error)+' Your current working copy is still available for export. Retry loading the saved version.',true);}
 };
-$('#restore').onclick=()=>$('#import').click();
-$('#export').onclick=()=>download(record,course.id+'-progress.json');
 $('#import').onchange=async()=>{
  const field=$('#import');const file=field.files?.[0];if(!file)return;
  const epoch=viewEpoch,targetId=record.recordId;
@@ -241,16 +225,16 @@ $('#import').onchange=async()=>{
   const replacement=structuredClone(record); replacement.state=incoming;replacement.state.revision=state.revision;
   if(backup.format==='touchline-record'&&backup.version===2){replacement.view=backup.view;replacement.draft=backup.draft;replacement.status=backup.status;}
   else {replacement.draft={experiment:null};}
-  await recordRequest('/api/records/'+targetId+scopeQuery(),{expectedRevision:state.revision,record:replacement});checkTarget();
+  await learning.saveRecord(replacement,state.revision,accountScope);checkTarget();
   await loadCourse(targetId);checkTarget();notice('Backup restored.');
  }catch(error){notice(message(error),true);}finally{field.value='';}
 };
 $('#add-curriculum').onclick=()=>$('#curriculum-file').click();
-$('#curriculum-file').onchange=async()=>{const field=$('#curriculum-file');const file=field.files?.[0];if(!file)return;try{if(file.size>2000000)throw Error('Curriculum must be smaller than 2 MB.');const input=JSON.parse(await file.text());const c=await request('/api/curricula',input.curriculum||input);curricula.push(c);await refreshLibrary();populateCourses();notice('Curriculum imported. Select it from Your curricula.');}catch(error){notice(message(error),true);}finally{field.value='';}};
+$('#curriculum-file').onchange=async()=>{const field=$('#curriculum-file');const file=field.files?.[0];if(!file)return;try{if(file.size>2000000)throw Error('Curriculum must be smaller than 2 MB.');const input=JSON.parse(await file.text());const c=await learning.importCurriculum(input.curriculum||input);curricula.push(c);await refreshLibrary();populateCourses();notice('Curriculum imported. Select it from Your curricula.');}catch(error){notice(message(error),true);}finally{field.value='';}};
 $('#template').onclick=()=>download({id:'my-new-topic',version:1,title:'My new topic',subtitle:'MY LEARNING PLAN',description:'Replace this with your learning goal.',weeks:2,weeklyHours:5,resources:{reference:{title:'Example resource: replace this',url:'https://example.com',use:'Explain which section to use.'}},modules:[{id:'intro',title:'First project',phase:'Foundations',question:'What will you investigate?',outcome:'Describe the artifact you will build.',math:'Describe the concepts you will learn. This field can cover any subject.',tasks:['Build a small example.','Explain your result independently.','Record evidence and reflect.'],weeks:['Week 1: Explore and build.','Week 2: Test and explain.'],evidence:'Describe the evidence required for completion.',challenge:'Describe an independent task.',resources:['reference'],reading:'Name the relevant sections.',dataset:'Describe data or materials. Use Not applicable if none are needed.',hours:10,weekStart:1,weekEnd:2,prerequisites:[]}],nextPhase:['Choose a follow-on topic.']},'curriculum-template.json');
 async function refreshLibrary() {
  const epoch=viewEpoch;
- const response=await fetch('/api/library'+scopeQuery());requireEpoch(epoch);const value=await response.json();requireEpoch(epoch);if(!response.ok)throw Error(value.error||'Could not load your library.');
+ const value=await learning.listLibrary(accountScope);requireEpoch(epoch);
  library=value.records;
 }
 function populateCourses(){
@@ -267,30 +251,43 @@ $('#experiment-form').onsubmit=e=>{
  if(editing){const index=state.experiments.findIndex(x=>x.id===editing);if(index<0){notice('The experiment being edited no longer exists. Export your draft before restoring the saved record.',true);return;}entry.date=state.experiments[index].date;state.experiments[index]=entry;}else state.experiments.push(entry);
  record.draft.experiment=null;editing=null;f.reset();changed();experiments();stats();notice('Experiment recorded. Saving locally…');
 };
-/** @type {NodeListOf<HTMLButtonElement>} */(document.querySelectorAll('[data-view]')).forEach(b=>b.onclick=()=>{/** @type {NodeListOf<HTMLButtonElement>} */(document.querySelectorAll('[data-view]')).forEach(x=>{x.classList.toggle('active',x===b);x.setAttribute('aria-pressed',String(x===b));});for(const v of ['curriculum','experiments','guide','sync'])$('#'+v+'-view').hidden=v!==b.dataset.view;if(b.dataset.view==='guide')guide();if(b.dataset.view==='curriculum')detail();});
+shell.bind({
+ navigate:async view=>{
+  const epoch=viewEpoch;
+  if(accountInvalidated){if(view!=='sync')return false;}
+  else {const loaded=await ready;requireEpoch(epoch);if(!loaded&&view!=='sync')return false;if(loaded&&!(await save()))return false;requireEpoch(epoch);}
+  for(const id of ['curriculum','experiments','guide','sync'])$('#'+id+'-view').hidden=id!==view;
+  if(view==='guide')guide();if(view==='curriculum')detail();
+  return true;
+ },
+ exportProgress:()=>download(record,course.id+'-progress.json'),
+ restoreBackup:()=>$('#import').click(),
+ reportError:error=>notice(message(error),true),
+});
 window.addEventListener('beforeunload',e=>{if(dirty||saving||volatileRecovery.size){e.preventDefault();e.returnValue='';}});
 const ready=(async()=>{try{
- curricula=await request('/api/curricula');await refreshLibrary();populateCourses();let id;
+ curricula=await learning.listCurricula();await refreshLibrary();populateCourses();let id;
  try{id=localStorage.getItem('touchline-course');}catch{ /* Local selection is optional. */ }
  await loadCourse(id&&library.some(item=>item.recordId===id||item.origin.kind==='local'&&item.curriculumId===id)?id:library[0].recordId);
- for(const id of ['export','restore','import','curriculum-select','add-curriculum','template'])/** @type {HTMLInputElement | HTMLSelectElement | HTMLButtonElement} */($('#'+id)).disabled=false;
+ for(const id of ['import','curriculum-select','add-curriculum','template'])/** @type {HTMLInputElement | HTMLSelectElement | HTMLButtonElement} */($('#'+id)).disabled=false;
  return true;
 }catch(error){notice(message(error)+' Reload the page to retry.',true);return false;}})();
 
-window.touchline = {
+accounts.bind({
  snapshot: async () => { const epoch=viewEpoch;if(!(await ready))throw Error('The local library is not ready.');requireEpoch(epoch); if(!(await save())) throw Error('Save local changes before publishing.');requireEpoch(epoch); return JSON.parse(JSON.stringify({curriculum:course,state})); },
  invalidateAccountScope: async () => {
   if(!(await ready))return;
   if(dirty||saving)journal();
   const oldSave=saving;
   viewEpoch++;const epoch=viewEpoch;accountInvalidated=true;accountScope=null;clearTimeout(timer);dirty=false;recoveryConflict=false;
+  shell.update({ready:false,progress:null});
   library=[];populateCourses();
   for(const selector of ['#modules','#module-detail','#experiment-list','#experiment-module','#guide-view'])$(selector).replaceChildren();
   $('#experiment-form').reset();$('#experiment-form').hidden=true;editing=null;
   $('#plan-title').textContent='Your local learning library';$('#plan-subtitle').textContent='';$('#plan-description').textContent='';$('#module-count').textContent='';
   for(const selector of ['#completed','#hours','#experiments-count','#duration','#pace'])$(selector).textContent='';
   $('#retry').hidden=true;
-  for(const id of ['export','restore','import','curriculum-select','add-curriculum','template'])/** @type {HTMLInputElement | HTMLSelectElement | HTMLButtonElement} */($('#'+id)).disabled=true;
+  for(const id of ['import','curriculum-select','add-curriculum','template'])/** @type {HTMLInputElement | HTMLSelectElement | HTMLButtonElement} */($('#'+id)).disabled=true;
   notice('The account session ended. Cloud work is hidden while your local library loads.');
   try{
    // An already-started write may finish, but cannot update this new view.
@@ -323,12 +320,14 @@ window.touchline = {
   if(!origin)throw Error('Sign in before importing a cloud record.');
   if(!(await save()))throw Error('Save or export local changes first.');
   requireEpoch(epoch);
-  if(JSON.stringify(accountScope)!==JSON.stringify(origin))await window.touchline.setAccountScope(origin);
+  if(JSON.stringify(accountScope)!==JSON.stringify(origin))await accounts.service.setAccountScope(origin);
   requireEpoch(epoch);await refreshLibrary();requireEpoch(epoch);
   const existing=library.find(item=>item.origin.kind==='cloud'&&item.curriculumId===backup.curriculum.id);
   if(existing&&!confirm('Replace this account’s downloaded cloud copy with the latest published version? Export progress first to keep local changes.'))return false;
-  const imported=await recordRequest('/api/import'+scopeQuery(),{source:backup,origin,status:'active',...(existing?{targetRecordId:existing.recordId,expectedRevision:existing.revision}:{})},'POST');
+  const imported=await learning.importRecord(backup,origin,'active',existing?{targetRecordId:existing.recordId,expectedRevision:existing.revision}:undefined);
   requireEpoch(epoch);await refreshLibrary();requireEpoch(epoch);populateCourses();await loadCourse(imported.recordId);requireEpoch(epoch);return true;
  },
  download
-};
+});
+// Compatibility facade for the current connection view. New clients use accounts.service.
+window.touchline=accounts.service;

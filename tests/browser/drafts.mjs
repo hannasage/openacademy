@@ -188,7 +188,8 @@ export async function verifyAccountInvalidation({page,server}) {
   assert.equal(await page.locator('#export').isDisabled(),true);
   assert.match(await page.locator('#notice').textContent(),/Cloud work remains hidden/);
   const journalBefore=await page.evaluate(id=>localStorage.getItem('touchline-recovery:'+id),cloudId);
-  await page.locator('[data-view="curriculum"]').click();await page.locator('[data-view="guide"]').click();
+  // Dispatch without waiting for enabled controls: the shell disables private views during invalidation.
+  await page.locator('[data-view="curriculum"]').dispatchEvent('click');await page.locator('[data-view="guide"]').dispatchEvent('click');
   await page.evaluate(()=>{const field=document.querySelector('#experiment-form [name=title]');field.value='Injected input after sign-out';field.dispatchEvent(new Event('input',{bubbles:true}));document.querySelector('#experiment-form').dispatchEvent(new Event('submit',{cancelable:true}));});
   assert.equal(await page.locator('#module-detail').textContent(),'');assert.equal(await page.locator('#guide-view').textContent(),'');
   assert.equal(await page.evaluate(id=>localStorage.getItem('touchline-recovery:'+id),cloudId),journalBefore);
