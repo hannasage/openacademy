@@ -6,7 +6,7 @@ export default [
     ignores: ['node_modules/**', 'web.bundle.js', 'ios/**', 'artifacts/**', 'evidence/**'],
   },
   {
-    files: ['*.js', '*.jsx', 'web/**/*.js', 'tests/**/*.mjs'],
+    files: ['*.js', '*.jsx', 'web/**/*.js', 'web/**/*.jsx', 'tests/**/*.mjs'],
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'module',
@@ -18,7 +18,7 @@ export default [
     },
   },
   {
-    files: ['*.jsx'],
+    files: ['*.jsx', 'web/**/*.jsx'],
     // TypeScript checks unused JSX references with noUnusedLocals and noUnusedParameters.
     // ESLint's core rule cannot distinguish JSX component references from unused imports.
     rules: { 'no-unused-vars': 'off' },

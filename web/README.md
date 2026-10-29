@@ -27,3 +27,10 @@ Authentication and remote transfers remain in `sync.js` until the approved conne
 Run `npm run test:browser` to exercise failed navigation and the retained learning workflows.
 Run `npm run test:appearance` to check theme changes without remounting working forms.
 The service and bridge unit tests run with `npm test`.
+
+The P04 home and library screens are React portals in `web/screens/`.
+They read explicit library focus and complete record metrics through the local service.
+Opening a curriculum keeps the focus unchanged.
+Status changes and focus changes use revision-checked writes, and failures leave the current learning record intact.
+The lesson controller owns the lesson region and uses `web/screens/lesson.js` for its markup.
+Journal, import, connection, and appearance flows retain their existing owners.
