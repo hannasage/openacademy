@@ -2,6 +2,7 @@ import {useEffect,useState,useSyncExternalStore} from 'react';
 import {Button as ProjectionButton,Input,Badge} from '@hannasage/projection-ui/core';
 import {connection} from './instance.js';
 import './connection.css';
+import {SetupEntryCard} from '../setup/entry-card.jsx';
 import {PublicationScreen} from '../publications/screen.jsx';
 /** @param {import('react').ComponentProps<typeof ProjectionButton>} props */
 function Button(props){return <ProjectionButton size="lg" type="button" {...props}/>;}
@@ -35,7 +36,7 @@ export function ConnectionScreen(){
     {state.phase==='disconnected' && <div className="connection-columns"><form className="connection-card" onSubmit={event=>{event.preventDefault();void connection.find(address);}}><h3>I already have a hub</h3><p>Enter the address from your other device. You will confirm the destination before signing in.</p>
       <Input style={{fontSize:16,minHeight:48}} id="hub-address" label="Hub address" type="url" placeholder="https://learn.example.org" required value={address} onChange={event=>setAddress(event.target.value)} />
       <Button type="submit" variant="primary" size="lg" disabled={disabled}>{disabled?'Finding hub…':'Find my hub'}</Button></form>
-      <section className="connection-card"><h3>Create my private hub</h3><p>Use your own Supabase project. An existing hub needs its public address and email sign-in configured.</p><p>If you do not have a hub address yet, keep learning locally and connect later.</p><p className="muted">Your local curricula remain available while you prepare a hub.</p></section></div>}
+      <SetupEntryCard/></div>}
     {state.phase==='review' && state.candidate && <div className="connection-columns"><HubCard hub={state.candidate}/><section className="connection-card"><h3>Is this your destination?</h3><p>Confirm the hub and backend addresses before sending an email code or opening a provider.</p><Button variant="primary" size="lg" disabled={disabled} onClick={()=>void connection.confirm()}>Confirm this hub</Button><Button disabled={disabled} onClick={()=>void connection.useDifferentHub()}>Use a different hub</Button></section></div>}
     {state.phase==='signin' && state.hub && <div className="connection-columns"><form className="connection-card" onSubmit={event=>{event.preventDefault();void connection.requestCode(email);}}><h3>Sign in</h3><Input style={{fontSize:16,minHeight:48}} id="cloud-email" label="Email" type="email" autoComplete="email" required value={email} onChange={event=>setEmail(event.target.value)}/><Button type="submit" variant="primary" size="lg" disabled={disabled||state.needsSignOut}>Email me a sign-in code</Button><p>A one-time code. No new password to remember.</p>
       {state.hub.auth.providers.length>0 && <div className="connection-providers">{state.hub.auth.providers.map(provider=><Button key={provider} disabled={disabled||state.needsSignOut} onClick={()=>void connection.startProvider(provider)}>Continue with {provider==='google'?'Google':'Apple'}</Button>)}<p className="muted">Additional sign-in methods enabled by this hub.</p></div>}

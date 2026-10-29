@@ -1,0 +1,4224 @@
+[
+  {
+    "migrations": [],
+    "catalog": [
+      {
+        "key": "public:PUBLIC:USAGE",
+        "kind": "schema-grant",
+        "value": false
+      },
+      {
+        "key": "public:anon:USAGE",
+        "kind": "schema-grant",
+        "value": false
+      },
+      {
+        "key": "public:authenticated:USAGE",
+        "kind": "schema-grant",
+        "value": false
+      },
+      {
+        "key": "public:postgres:USAGE",
+        "kind": "schema-grant",
+        "value": false
+      },
+      {
+        "key": "public:service_role:USAGE",
+        "kind": "schema-grant",
+        "value": false
+      }
+    ]
+  },
+  {
+    "migrations": [
+      {
+        "id": "001_private_writes.sql",
+        "sha256": "df8195b657214d2c3c75814f0a1f57be3f9104fc1c9debac4b46cae63549ed76"
+      }
+    ],
+    "catalog": [
+      {
+        "key": "public.learning_courses.curriculum",
+        "kind": "column",
+        "value": {
+          "type": "jsonb",
+          "default": null,
+          "notNull": true,
+          "identity": "",
+          "position": 3,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_courses.format_version",
+        "kind": "column",
+        "value": {
+          "type": "integer",
+          "default": "0",
+          "notNull": true,
+          "identity": "",
+          "position": 8,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_courses.id",
+        "kind": "column",
+        "value": {
+          "type": "text",
+          "default": null,
+          "notNull": true,
+          "identity": "",
+          "position": 2,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_courses.progress",
+        "kind": "column",
+        "value": {
+          "type": "jsonb",
+          "default": null,
+          "notNull": true,
+          "identity": "",
+          "position": 4,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_courses.revision",
+        "kind": "column",
+        "value": {
+          "type": "bigint",
+          "default": "0",
+          "notNull": true,
+          "identity": "",
+          "position": 5,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_courses.status",
+        "kind": "column",
+        "value": {
+          "type": "text",
+          "default": "'active'::text",
+          "notNull": true,
+          "identity": "",
+          "position": 7,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_courses.updated_at",
+        "kind": "column",
+        "value": {
+          "type": "timestamp with time zone",
+          "default": "now()",
+          "notNull": true,
+          "identity": "",
+          "position": 6,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_courses.user_id",
+        "kind": "column",
+        "value": {
+          "type": "uuid",
+          "default": null,
+          "notNull": true,
+          "identity": "",
+          "position": 1,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_libraries.focus_curriculum_id",
+        "kind": "column",
+        "value": {
+          "type": "text",
+          "default": null,
+          "notNull": false,
+          "identity": "",
+          "position": 4,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_libraries.revision",
+        "kind": "column",
+        "value": {
+          "type": "bigint",
+          "default": "0",
+          "notNull": true,
+          "identity": "",
+          "position": 3,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_libraries.user_id",
+        "kind": "column",
+        "value": {
+          "type": "uuid",
+          "default": null,
+          "notNull": true,
+          "identity": "",
+          "position": 1,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_libraries.version",
+        "kind": "column",
+        "value": {
+          "type": "integer",
+          "default": "1",
+          "notNull": true,
+          "identity": "",
+          "position": 2,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_library_snapshots.snapshot",
+        "kind": "column",
+        "value": {
+          "type": "jsonb",
+          "default": null,
+          "notNull": false,
+          "identity": "",
+          "position": 2,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_library_snapshots.user_id",
+        "kind": "column",
+        "value": {
+          "type": "uuid",
+          "default": null,
+          "notNull": false,
+          "identity": "",
+          "position": 1,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_snapshots.id",
+        "kind": "column",
+        "value": {
+          "type": "text",
+          "default": null,
+          "notNull": false,
+          "identity": "",
+          "position": 2,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_snapshots.snapshot",
+        "kind": "column",
+        "value": {
+          "type": "jsonb",
+          "default": null,
+          "notNull": false,
+          "identity": "",
+          "position": 3,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_snapshots.user_id",
+        "kind": "column",
+        "value": {
+          "type": "uuid",
+          "default": null,
+          "notNull": false,
+          "identity": "",
+          "position": 1,
+          "generated": ""
+        }
+      },
+      {
+        "key": "touchline_private.owner_settings.email",
+        "kind": "column",
+        "value": {
+          "type": "text",
+          "default": null,
+          "notNull": true,
+          "identity": "",
+          "position": 2,
+          "generated": ""
+        }
+      },
+      {
+        "key": "touchline_private.owner_settings.owner_user_id",
+        "kind": "column",
+        "value": {
+          "type": "uuid",
+          "default": null,
+          "notNull": false,
+          "identity": "",
+          "position": 3,
+          "generated": ""
+        }
+      },
+      {
+        "key": "touchline_private.owner_settings.singleton",
+        "kind": "column",
+        "value": {
+          "type": "boolean",
+          "default": "true",
+          "notNull": true,
+          "identity": "",
+          "position": 1,
+          "generated": ""
+        }
+      },
+      {
+        "key": "touchline_private.write_requests.operation",
+        "kind": "column",
+        "value": {
+          "type": "text",
+          "default": null,
+          "notNull": true,
+          "identity": "",
+          "position": 3,
+          "generated": ""
+        }
+      },
+      {
+        "key": "touchline_private.write_requests.payload",
+        "kind": "column",
+        "value": {
+          "type": "jsonb",
+          "default": null,
+          "notNull": true,
+          "identity": "",
+          "position": 4,
+          "generated": ""
+        }
+      },
+      {
+        "key": "touchline_private.write_requests.request_id",
+        "kind": "column",
+        "value": {
+          "type": "uuid",
+          "default": null,
+          "notNull": true,
+          "identity": "",
+          "position": 2,
+          "generated": ""
+        }
+      },
+      {
+        "key": "touchline_private.write_requests.result",
+        "kind": "column",
+        "value": {
+          "type": "jsonb",
+          "default": null,
+          "notNull": true,
+          "identity": "",
+          "position": 5,
+          "generated": ""
+        }
+      },
+      {
+        "key": "touchline_private.write_requests.user_id",
+        "kind": "column",
+        "value": {
+          "type": "uuid",
+          "default": null,
+          "notNull": true,
+          "identity": "",
+          "position": 1,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_courses.learning_courses_check",
+        "kind": "constraint",
+        "value": "CHECK ((octet_length(curriculum::text) + octet_length(progress::text)) < 2000000)"
+      },
+      {
+        "key": "public.learning_courses.learning_courses_format_version_check",
+        "kind": "constraint",
+        "value": "CHECK (format_version = ANY (ARRAY[0, 1]))"
+      },
+      {
+        "key": "public.learning_courses.learning_courses_id_check",
+        "kind": "constraint",
+        "value": "CHECK (id ~ '^[a-z0-9][a-z0-9-]{0,59}$'::text)"
+      },
+      {
+        "key": "public.learning_courses.learning_courses_pkey",
+        "kind": "constraint",
+        "value": "PRIMARY KEY (user_id, id)"
+      },
+      {
+        "key": "public.learning_courses.learning_courses_revision_check",
+        "kind": "constraint",
+        "value": "CHECK (revision >= 0 AND revision <= '9007199254740991'::bigint)"
+      },
+      {
+        "key": "public.learning_courses.learning_courses_status_check",
+        "kind": "constraint",
+        "value": "CHECK (status = ANY (ARRAY['active'::text, 'paused'::text, 'completed'::text, 'saved'::text]))"
+      },
+      {
+        "key": "public.learning_courses.learning_courses_user_id_fkey",
+        "kind": "constraint",
+        "value": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+      },
+      {
+        "key": "public.learning_libraries.learning_libraries_pkey",
+        "kind": "constraint",
+        "value": "PRIMARY KEY (user_id)"
+      },
+      {
+        "key": "public.learning_libraries.learning_libraries_revision_check",
+        "kind": "constraint",
+        "value": "CHECK (revision >= 0 AND revision <= '9007199254740991'::bigint)"
+      },
+      {
+        "key": "public.learning_libraries.learning_libraries_user_id_fkey",
+        "kind": "constraint",
+        "value": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+      },
+      {
+        "key": "public.learning_libraries.learning_libraries_user_id_focus_curriculum_id_fkey",
+        "kind": "constraint",
+        "value": "FOREIGN KEY (user_id, focus_curriculum_id) REFERENCES learning_courses(user_id, id)"
+      },
+      {
+        "key": "public.learning_libraries.learning_libraries_version_check",
+        "kind": "constraint",
+        "value": "CHECK (version = 1)"
+      },
+      {
+        "key": "touchline_private.owner_settings.owner_settings_email_check",
+        "kind": "constraint",
+        "value": "CHECK (email = lower(email))"
+      },
+      {
+        "key": "touchline_private.owner_settings.owner_settings_email_key",
+        "kind": "constraint",
+        "value": "UNIQUE (email)"
+      },
+      {
+        "key": "touchline_private.owner_settings.owner_settings_owner_user_id_fkey",
+        "kind": "constraint",
+        "value": "FOREIGN KEY (owner_user_id) REFERENCES auth.users(id)"
+      },
+      {
+        "key": "touchline_private.owner_settings.owner_settings_pkey",
+        "kind": "constraint",
+        "value": "PRIMARY KEY (singleton)"
+      },
+      {
+        "key": "touchline_private.owner_settings.owner_settings_singleton_check",
+        "kind": "constraint",
+        "value": "CHECK (singleton)"
+      },
+      {
+        "key": "touchline_private.write_requests.write_requests_pkey",
+        "kind": "constraint",
+        "value": "PRIMARY KEY (user_id, request_id)"
+      },
+      {
+        "key": "touchline_private.write_requests.write_requests_user_id_fkey",
+        "kind": "constraint",
+        "value": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+      },
+      {
+        "key": "public.publish_learning_course(course_id text, course_content jsonb, course_progress jsonb, course_status text, expected_revision bigint, request_id uuid)",
+        "kind": "function",
+        "value": {
+          "body": "\ndeclare owner_id uuid; result public.learning_courses; old_request touchline_private.write_requests; request_payload jsonb;\nbegin\n owner_id:=touchline_private.require_owner();\n perform touchline_private.validate_publication(course_id,course_content,course_progress);\n if expected_revision is null or expected_revision not between -1 and 9007199254740990 or course_status is null or course_status not in ('active','paused','completed','saved') then raise exception 'Invalid revision or curriculum status.' using errcode='22023'; end if;\n request_payload:=jsonb_build_object('id',course_id,'curriculum',course_content,'progress',course_progress,'status',course_status,'expectedRevision',expected_revision);\n if request_id is not null then\n  select * into old_request from touchline_private.write_requests where user_id=owner_id and write_requests.request_id=publish_learning_course.request_id;\n  if found then\n   if old_request.operation<>'course' or old_request.payload<>request_payload then raise exception 'A retry ID cannot identify a different request.' using errcode='22023'; end if;\n   select * into result from jsonb_populate_record(null::public.learning_courses,old_request.result); return result;\n  end if;\n end if;\n if expected_revision=-1 then\n  insert into public.learning_courses(user_id,id,curriculum,progress,status,format_version) values(owner_id,course_id,course_content,course_progress,course_status,1)\n  on conflict do nothing returning * into result;\n else\n  update public.learning_courses set curriculum=course_content,progress=course_progress,status=course_status,format_version=1,revision=revision+1,updated_at=clock_timestamp()\n  where user_id=owner_id and id=course_id and revision=expected_revision returning * into result;\n end if;\n if result.id is null then raise exception 'Newer cloud progress exists. Download it before uploading.' using errcode='40001'; end if;\n if course_status<>'active' then\n  update public.learning_libraries set focus_curriculum_id=null,revision=revision+1 where user_id=owner_id and focus_curriculum_id=course_id;\n end if;\n if request_id is not null then\n  insert into touchline_private.write_requests values(owner_id,request_id,'course',request_payload,to_jsonb(result));\n end if;\n return result;\nend;\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "learning_courses",
+          "strict": false,
+          "language": "plpgsql",
+          "volatility": "v",
+          "securityDefiner": true
+        }
+      },
+      {
+        "key": "public.save_learning_course(course_id text, course_content jsonb, course_progress jsonb, expected_revision integer)",
+        "kind": "function",
+        "value": {
+          "body": "\n select public.publish_learning_course(course_id,course_content,course_progress,'active',expected_revision::bigint,null);\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "learning_courses",
+          "strict": false,
+          "language": "sql",
+          "volatility": "v",
+          "securityDefiner": true
+        }
+      },
+      {
+        "key": "public.save_learning_library(library jsonb, expected_revision bigint, request_id uuid)",
+        "kind": "function",
+        "value": {
+          "body": "\ndeclare owner_id uuid; focus text; result public.learning_libraries; response jsonb; old_request touchline_private.write_requests; request_payload jsonb;\nbegin\n owner_id:=touchline_private.require_owner();\n perform touchline_private.object_fields(library,array['version','revision','focusCurriculumId']);\n if library->'version'<>'1'::jsonb then raise exception 'Unsupported library version.' using errcode='22023'; end if;\n perform touchline_private.number_value(library->'revision',0,9007199254740991,true);\n if expected_revision is null or expected_revision not between -1 and 9007199254740990 or (library->>'revision')::bigint<>greatest(expected_revision,0) then raise exception 'Invalid library revision.' using errcode='22023'; end if;\n if library->'focusCurriculumId'<>'null'::jsonb then perform touchline_private.text_value(library->'focusCurriculumId'); end if;\n focus:=library->>'focusCurriculumId';\n request_payload:=jsonb_build_object('library',library,'expectedRevision',expected_revision);\n if request_id is not null then\n  select * into old_request from touchline_private.write_requests where user_id=owner_id and write_requests.request_id=save_learning_library.request_id;\n  if found then\n   if old_request.operation<>'library' or old_request.payload<>request_payload then raise exception 'A retry ID cannot identify a different request.' using errcode='22023'; end if;\n   return old_request.result;\n  end if;\n end if;\n if focus is not null and not exists(select 1 from public.learning_courses where user_id=owner_id and id=focus and status='active') then raise exception 'Focus must reference an active published curriculum.' using errcode='22023'; end if;\n if expected_revision=-1 then\n  insert into public.learning_libraries(user_id,focus_curriculum_id) values(owner_id,focus) on conflict do nothing returning * into result;\n else\n  update public.learning_libraries set focus_curriculum_id=focus,revision=revision+1 where user_id=owner_id and revision=expected_revision returning * into result;\n end if;\n if result.user_id is null then raise exception 'Newer library changes exist. Refresh before publishing.' using errcode='40001'; end if;\n response:=jsonb_build_object('version',1,'revision',result.revision,'focusCurriculumId',result.focus_curriculum_id);\n if request_id is not null then insert into touchline_private.write_requests values(owner_id,request_id,'library',request_payload,response); end if;\n return response;\nend;\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "jsonb",
+          "strict": false,
+          "language": "plpgsql",
+          "volatility": "v",
+          "securityDefiner": true
+        }
+      },
+      {
+        "key": "touchline_private.configure_owner(owner_email text, owner_account_id uuid)",
+        "kind": "function",
+        "value": {
+          "body": "\ndeclare chosen uuid; matches integer; current_owner uuid;\nbegin\n if owner_email is null or owner_email<>lower(btrim(owner_email)) or owner_email!~'^[^[:space:]@]+@[^[:space:]@]+$' then\n  raise exception 'Enter a lowercase owner email.' using errcode='22023';\n end if;\n select owner_user_id into current_owner from touchline_private.owner_settings where singleton for update;\n if owner_account_id is not null then\n  select id into chosen from auth.users where id=owner_account_id and email_confirmed_at is not null\n   and not coalesce(is_anonymous,false) and deleted_at is null and (banned_until is null or banned_until<=now());\n  if chosen is null then raise exception 'Select an existing confirmed owner account.' using errcode='22023'; end if;\n elsif current_owner is not null then\n  chosen:=current_owner;\n else\n  select count(*), (array_agg(id))[1] into matches,chosen from auth.users where lower(email)=owner_email and deleted_at is null;\n  if matches>1 then raise exception 'Several accounts match. Configure an explicit owner UUID.' using errcode='22023'; end if;\n  if chosen is not null and not exists(select 1 from auth.users where id=chosen and email_confirmed_at is not null and not coalesce(is_anonymous,false)) then\n   raise exception 'Confirm the existing owner account before configuration.' using errcode='22023';\n  end if;\n end if;\n insert into touchline_private.owner_settings(singleton,email,owner_user_id) values(true,owner_email,chosen)\n on conflict(singleton) do update set email=excluded.email,owner_user_id=excluded.owner_user_id;\n return chosen;\nend;\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "uuid",
+          "strict": false,
+          "language": "plpgsql",
+          "volatility": "v",
+          "securityDefiner": true
+        }
+      },
+      {
+        "key": "touchline_private.is_owner()",
+        "kind": "function",
+        "value": {
+          "body": "\nbegin\n if not (auth.uid() is not null and exists (\n  select 1 from touchline_private.owner_settings s join auth.users u on u.id=s.owner_user_id\n  where u.id=auth.uid() and u.email_confirmed_at is not null and not coalesce(u.is_anonymous,false)\n    and u.deleted_at is null and (u.banned_until is null or u.banned_until<=now())\n )) then return false; end if;\n -- Once migration 004 installs session checks, replay must never weaken them.\n -- The registry is a durable marker. A missing/broken helper fails closed.\n if to_regclass('touchline_private.session_registry') is not null then\n  return touchline_private.session_is_allowed();\n end if;\n return true;\nend;\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "boolean",
+          "strict": false,
+          "language": "plpgsql",
+          "volatility": "s",
+          "securityDefiner": true
+        }
+      },
+      {
+        "key": "touchline_private.number_value(v jsonb, minimum numeric, maximum numeric, integral boolean)",
+        "kind": "function",
+        "value": {
+          "body": "\ndeclare n numeric;\nbegin\n if jsonb_typeof(v) is distinct from 'number' then raise exception 'Invalid numeric field.' using errcode='22023'; end if;\n n:=(v#>>'{}')::numeric;\n if n<minimum or n>maximum or (integral and trunc(n)<>n) then raise exception 'Number is outside its allowed range.' using errcode='22023'; end if;\nend;\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "void",
+          "strict": false,
+          "language": "plpgsql",
+          "volatility": "i",
+          "securityDefiner": false
+        }
+      },
+      {
+        "key": "touchline_private.object_fields(v jsonb, required text[], optional text[])",
+        "kind": "function",
+        "value": {
+          "body": "\nbegin\n if jsonb_typeof(v) is distinct from 'object' or not (v ?& required)\n  or exists(select 1 from jsonb_object_keys(v) k where not(k=any(required||optional))) then\n  raise exception 'Invalid object fields.' using errcode='22023';\n end if;\nend;\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "void",
+          "strict": false,
+          "language": "plpgsql",
+          "volatility": "i",
+          "securityDefiner": false
+        }
+      },
+      {
+        "key": "touchline_private.require_owner()",
+        "kind": "function",
+        "value": {
+          "body": "\nbegin\n perform 1 from touchline_private.owner_settings where singleton for share;\n perform pg_advisory_xact_lock(hashtextextended(auth.uid()::text, 0));\n if not touchline_private.is_owner() then\n  raise exception 'This deployment is private or the session has ended.' using errcode='42501';\n end if;\n return auth.uid();\nend;\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "uuid",
+          "strict": false,
+          "language": "plpgsql",
+          "volatility": "v",
+          "securityDefiner": true
+        }
+      },
+      {
+        "key": "touchline_private.restrict_signup()",
+        "kind": "function",
+        "value": {
+          "body": "\ndeclare settings touchline_private.owner_settings;\nbegin\n select * into settings from touchline_private.owner_settings where singleton for update;\n if not found or settings.owner_user_id is not null or new.email is null or lower(new.email)<>settings.email\n   or coalesce(new.is_anonymous,false) then\n  raise exception 'This is a private learning hub. Account creation is restricted.' using errcode='42501';\n end if;\n -- AFTER INSERT allows the owner UUID foreign key to resolve. The transaction\n -- rolls back the account as well if admission or pinning fails.\n update touchline_private.owner_settings set owner_user_id=new.id where singleton;\n return new;\nend;\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "trigger",
+          "strict": false,
+          "language": "plpgsql",
+          "volatility": "v",
+          "securityDefiner": true
+        }
+      },
+      {
+        "key": "touchline_private.text_array(v jsonb)",
+        "kind": "function",
+        "value": {
+          "body": "\ndeclare item jsonb;\nbegin\n if jsonb_typeof(v) is distinct from 'array' then raise exception 'Expected a text list.' using errcode='22023'; end if;\n for item in select * from jsonb_array_elements(v) loop perform touchline_private.text_value(item); end loop;\nend;\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "void",
+          "strict": false,
+          "language": "plpgsql",
+          "volatility": "i",
+          "securityDefiner": false
+        }
+      },
+      {
+        "key": "touchline_private.text_value(v jsonb, maximum integer, nonblank boolean)",
+        "kind": "function",
+        "value": {
+          "body": "\nbegin\n if jsonb_typeof(v) is distinct from 'string' or (maximum is not null and length(v#>>'{}')>maximum)\n  or (nonblank and (v#>>'{}')!~'[^[:space:]]') then\n  raise exception 'Invalid text field.' using errcode='22023';\n end if;\nend;\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "void",
+          "strict": false,
+          "language": "plpgsql",
+          "volatility": "i",
+          "securityDefiner": false
+        }
+      },
+      {
+        "key": "touchline_private.validate_publication(course_id text, c jsonb, p jsonb)",
+        "kind": "function",
+        "value": {
+          "body": "\ndeclare m jsonb; r jsonb; e jsonb; field text; ref text; key text; item jsonb; course_module jsonb; ids text[]:='{}';\nbegin\n if course_id is null or course_id!~'^[a-z0-9][a-z0-9-]{0,59}$' then raise exception 'Invalid curriculum ID.' using errcode='22023'; end if;\n if octet_length(c::text)+octet_length(p::text)>=2000000 then raise exception 'Publication must be smaller than 2 MB.' using errcode='22023'; end if;\n perform touchline_private.object_fields(c,array['id','title','subtitle','description','weeks','weeklyHours','resources','modules'],array['version','nextPhase','researchDate','totalHours']);\n perform touchline_private.text_value(c->'id');\n if c->>'id'<>course_id or (c?'version' and c->'version'<>'1'::jsonb) then raise exception 'Unsupported curriculum identity or version.' using errcode='22023'; end if;\n foreach field in array array['title','subtitle','description'] loop perform touchline_private.text_value(c->field,null,true); end loop;\n perform touchline_private.number_value(c->'weeks',1,520,true);\n perform touchline_private.number_value(c->'weeklyHours',1,40);\n if c?'totalHours' then perform touchline_private.number_value(c->'totalHours',0,20800); end if;\n if c?'researchDate' then perform touchline_private.text_value(c->'researchDate'); end if;\n if c?'nextPhase' then perform touchline_private.text_array(c->'nextPhase'); end if;\n if jsonb_typeof(c->'resources') is distinct from 'object' then raise exception 'Expected resources.' using errcode='22023'; end if;\n for r in select value from jsonb_each(c->'resources') loop\n  perform touchline_private.object_fields(r,array['title','url','use']);\n  foreach field in array array['title','url','use'] loop perform touchline_private.text_value(r->field); end loop;\n  if r->>'url'!~'^https?://[^[:space:]]+$' then raise exception 'Resources need HTTP or HTTPS URLs.' using errcode='22023'; end if;\n end loop;\n if jsonb_typeof(c->'modules') is distinct from 'array' or jsonb_array_length(c->'modules') not between 1 and 100 then raise exception 'Expected 1 to 100 modules.' using errcode='22023'; end if;\n for m in select * from jsonb_array_elements(c->'modules') loop\n  perform touchline_private.object_fields(m,array['id','title','phase','question','outcome','math','evidence','challenge','reading','dataset','tasks','weeks','resources','prerequisites','hours','weekStart','weekEnd'],array['number']);\n  perform touchline_private.text_value(m->'id');\n  if m->>'id'!~'^[a-zA-Z0-9_-]{1,60}$' or m->>'id'=any(ids) then raise exception 'Invalid or duplicate module ID.' using errcode='22023'; end if;\n  ids:=array_append(ids,m->>'id');\n  foreach field in array array['title','phase','question','outcome','math','evidence','challenge','reading','dataset'] loop perform touchline_private.text_value(m->field); end loop;\n  foreach field in array array['tasks','weeks','resources','prerequisites'] loop perform touchline_private.text_array(m->field); end loop;\n  if jsonb_array_length(m->'tasks') not between 1 and 30 then raise exception 'Expected 1 to 30 tasks.' using errcode='22023'; end if;\n  foreach field in array array['hours','weekStart','weekEnd'] loop\n   perform touchline_private.number_value(m->field,0,10000);\n   if (m->>field)::numeric=0 then raise exception 'Module numbers must be positive.' using errcode='22023'; end if;\n  end loop;\n  if m?'number' then perform touchline_private.number_value(m->'number',1,9007199254740991,true); end if;\n  if (m->>'weekStart')::numeric>(m->>'weekEnd')::numeric or (m->>'weekEnd')::numeric>(c->>'weeks')::numeric then raise exception 'Module weeks exceed the curriculum.' using errcode='22023'; end if;\n  for ref in select jsonb_array_elements_text(m->'resources') loop\n   if not(c->'resources'?ref) then raise exception 'Unknown resource.' using errcode='22023'; end if;\n  end loop;\n end loop;\n for m in select * from jsonb_array_elements(c->'modules') loop\n  for ref in select jsonb_array_elements_text(m->'prerequisites') loop\n   if not(ref=any(ids)) then raise exception 'Unknown prerequisite.' using errcode='22023'; end if;\n  end loop;\n end loop;\n perform touchline_private.object_fields(p,array['version','revision','curriculumId','weeklyHours','startDate','modules','experiments']);\n perform touchline_private.text_value(p->'curriculumId');\n if p->'version'<>'1'::jsonb or p->>'curriculumId'<>course_id then raise exception 'Unsupported progress identity or version.' using errcode='22023'; end if;\n perform touchline_private.number_value(p->'revision',0,9007199254740991,true);\n perform touchline_private.number_value(p->'weeklyHours',1,40);\n perform touchline_private.text_value(p->'startDate',10);\n if p->>'startDate'<>'' then\n  if p->>'startDate'!~'^\\d{4}-\\d{2}-\\d{2}$' then raise exception 'Invalid start date.' using errcode='22023'; end if;\n  begin perform (p->>'startDate')::date; exception when others then raise exception 'Invalid start date.' using errcode='22023'; end;\n end if;\n if jsonb_typeof(p->'modules') is distinct from 'object' then raise exception 'Invalid module progress.' using errcode='22023'; end if;\n for key,m in select * from jsonb_each(p->'modules') loop\n  if not(key=any(ids)) then raise exception 'Unknown progress module.' using errcode='22023'; end if;\n  select value into course_module from jsonb_array_elements(c->'modules') where value->>'id'=key;\n  perform touchline_private.object_fields(m,array['status','tasks','notes','evidence','hours']);\n  perform touchline_private.text_value(m->'status');\n  if m->>'status' not in ('not-started','active','complete') then raise exception 'Invalid progress status.' using errcode='22023'; end if;\n  if jsonb_typeof(m->'tasks') is distinct from 'array' or jsonb_array_length(m->'tasks')<>jsonb_array_length(course_module->'tasks') then raise exception 'Invalid task count.' using errcode='22023'; end if;\n  for item in select * from jsonb_array_elements(m->'tasks') loop\n   if jsonb_typeof(item) is distinct from 'boolean' then raise exception 'Task values must be boolean.' using errcode='22023'; end if;\n   if m->>'status'='complete' and item<>'true'::jsonb then raise exception 'Finish every task before completion.' using errcode='22023'; end if;\n  end loop;\n  perform touchline_private.text_value(m->'notes',50000);\n  perform touchline_private.text_value(m->'evidence',50000,m->>'status'='complete');\n  perform touchline_private.number_value(m->'hours',0,10000);\n end loop;\n if jsonb_typeof(p->'experiments') is distinct from 'array' or jsonb_array_length(p->'experiments')>2000 then raise exception 'Invalid experiment list.' using errcode='22023'; end if;\n for e in select * from jsonb_array_elements(p->'experiments') loop\n  perform touchline_private.object_fields(e,array['id','date','module','title','hypothesis','result']);\n  foreach field in array array['id','date','module','title','hypothesis','result'] loop perform touchline_private.text_value(e->field,20000,field='title'); end loop;\n  if not(e->>'module'=any(ids)) then raise exception 'Unknown experiment module.' using errcode='22023'; end if;\n end loop;\nend;\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "void",
+          "strict": false,
+          "language": "plpgsql",
+          "volatility": "i",
+          "securityDefiner": false
+        }
+      },
+      {
+        "key": "public.publish_learning_course(course_id text, course_content jsonb, course_progress jsonb, course_status text, expected_revision bigint, request_id uuid):authenticated:EXECUTE",
+        "kind": "function-grant",
+        "value": false
+      },
+      {
+        "key": "public.publish_learning_course(course_id text, course_content jsonb, course_progress jsonb, course_status text, expected_revision bigint, request_id uuid):service_role:EXECUTE",
+        "kind": "function-grant",
+        "value": false
+      },
+      {
+        "key": "public.save_learning_course(course_id text, course_content jsonb, course_progress jsonb, expected_revision integer):authenticated:EXECUTE",
+        "kind": "function-grant",
+        "value": false
+      },
+      {
+        "key": "public.save_learning_course(course_id text, course_content jsonb, course_progress jsonb, expected_revision integer):service_role:EXECUTE",
+        "kind": "function-grant",
+        "value": false
+      },
+      {
+        "key": "public.save_learning_library(library jsonb, expected_revision bigint, request_id uuid):authenticated:EXECUTE",
+        "kind": "function-grant",
+        "value": false
+      },
+      {
+        "key": "public.save_learning_library(library jsonb, expected_revision bigint, request_id uuid):service_role:EXECUTE",
+        "kind": "function-grant",
+        "value": false
+      },
+      {
+        "key": "touchline_private.is_owner():authenticated:EXECUTE",
+        "kind": "function-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_courses.owner_read",
+        "kind": "policy",
+        "value": {
+          "check": null,
+          "roles": [
+            "authenticated"
+          ],
+          "using": "((user_id = ( SELECT auth.uid() AS uid)) AND ( SELECT touchline_private.is_owner() AS is_owner))",
+          "command": "r",
+          "permissive": true
+        }
+      },
+      {
+        "key": "public.learning_courses.touchline_private_read_guard",
+        "kind": "policy",
+        "value": {
+          "check": null,
+          "roles": [
+            "authenticated"
+          ],
+          "using": "((user_id = ( SELECT auth.uid() AS uid)) AND ( SELECT touchline_private.is_owner() AS is_owner))",
+          "command": "r",
+          "permissive": false
+        }
+      },
+      {
+        "key": "public.learning_libraries.owner_read",
+        "kind": "policy",
+        "value": {
+          "check": null,
+          "roles": [
+            "authenticated"
+          ],
+          "using": "((user_id = ( SELECT auth.uid() AS uid)) AND ( SELECT touchline_private.is_owner() AS is_owner))",
+          "command": "r",
+          "permissive": true
+        }
+      },
+      {
+        "key": "public.learning_libraries.touchline_private_read_guard",
+        "kind": "policy",
+        "value": {
+          "check": null,
+          "roles": [
+            "authenticated"
+          ],
+          "using": "((user_id = ( SELECT auth.uid() AS uid)) AND ( SELECT touchline_private.is_owner() AS is_owner))",
+          "command": "r",
+          "permissive": false
+        }
+      },
+      {
+        "key": "public.learning_courses",
+        "kind": "relation",
+        "value": {
+          "rls": true,
+          "kind": "r",
+          "owner": "postgres",
+          "forced": false,
+          "persistence": "p"
+        }
+      },
+      {
+        "key": "public.learning_libraries",
+        "kind": "relation",
+        "value": {
+          "rls": true,
+          "kind": "r",
+          "owner": "postgres",
+          "forced": false,
+          "persistence": "p"
+        }
+      },
+      {
+        "key": "public.learning_library_snapshots",
+        "kind": "relation",
+        "value": {
+          "rls": false,
+          "kind": "v",
+          "owner": "postgres",
+          "forced": false,
+          "persistence": "p"
+        }
+      },
+      {
+        "key": "public.learning_snapshots",
+        "kind": "relation",
+        "value": {
+          "rls": false,
+          "kind": "v",
+          "owner": "postgres",
+          "forced": false,
+          "persistence": "p"
+        }
+      },
+      {
+        "key": "touchline_private.owner_settings",
+        "kind": "relation",
+        "value": {
+          "rls": true,
+          "kind": "r",
+          "owner": "postgres",
+          "forced": false,
+          "persistence": "p"
+        }
+      },
+      {
+        "key": "touchline_private.write_requests",
+        "kind": "relation",
+        "value": {
+          "rls": true,
+          "kind": "r",
+          "owner": "postgres",
+          "forced": false,
+          "persistence": "p"
+        }
+      },
+      {
+        "key": "public:PUBLIC:USAGE",
+        "kind": "schema-grant",
+        "value": false
+      },
+      {
+        "key": "public:anon:USAGE",
+        "kind": "schema-grant",
+        "value": false
+      },
+      {
+        "key": "public:authenticated:USAGE",
+        "kind": "schema-grant",
+        "value": false
+      },
+      {
+        "key": "public:postgres:USAGE",
+        "kind": "schema-grant",
+        "value": false
+      },
+      {
+        "key": "public:service_role:USAGE",
+        "kind": "schema-grant",
+        "value": false
+      },
+      {
+        "key": "touchline_private:authenticated:USAGE",
+        "kind": "schema-grant",
+        "value": false
+      },
+      {
+        "key": "touchline_private",
+        "kind": "schema-owner",
+        "value": "postgres"
+      },
+      {
+        "key": "public.learning_courses:authenticated:SELECT",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_courses:service_role:DELETE",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_courses:service_role:INSERT",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_courses:service_role:MAINTAIN",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_courses:service_role:REFERENCES",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_courses:service_role:SELECT",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_courses:service_role:TRIGGER",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_courses:service_role:TRUNCATE",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_courses:service_role:UPDATE",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_libraries:authenticated:SELECT",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_libraries:service_role:DELETE",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_libraries:service_role:INSERT",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_libraries:service_role:MAINTAIN",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_libraries:service_role:REFERENCES",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_libraries:service_role:SELECT",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_libraries:service_role:TRIGGER",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_libraries:service_role:TRUNCATE",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_libraries:service_role:UPDATE",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_library_snapshots:authenticated:SELECT",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_library_snapshots:service_role:DELETE",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_library_snapshots:service_role:INSERT",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_library_snapshots:service_role:MAINTAIN",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_library_snapshots:service_role:REFERENCES",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_library_snapshots:service_role:SELECT",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_library_snapshots:service_role:TRIGGER",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_library_snapshots:service_role:TRUNCATE",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_library_snapshots:service_role:UPDATE",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_snapshots:authenticated:SELECT",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_snapshots:service_role:DELETE",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_snapshots:service_role:INSERT",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_snapshots:service_role:MAINTAIN",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_snapshots:service_role:REFERENCES",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_snapshots:service_role:SELECT",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_snapshots:service_role:TRIGGER",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_snapshots:service_role:TRUNCATE",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_snapshots:service_role:UPDATE",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "auth.users.touchline_restrict_signup",
+        "kind": "trigger",
+        "value": {
+          "enabled": "O",
+          "definition": "CREATE TRIGGER touchline_restrict_signup AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION touchline_private.restrict_signup()"
+        }
+      },
+      {
+        "key": "public.learning_library_snapshots",
+        "kind": "view",
+        "value": {
+          "options": [
+            "security_invoker=true"
+          ],
+          "definition": " SELECT user_id,\n    jsonb_build_object('version', version, 'revision', revision, 'focusCurriculumId', focus_curriculum_id) AS snapshot\n   FROM learning_libraries;"
+        }
+      },
+      {
+        "key": "public.learning_snapshots",
+        "kind": "view",
+        "value": {
+          "options": [
+            "security_invoker=true"
+          ],
+          "definition": " SELECT user_id,\n    id,\n    jsonb_build_object('format', 'touchline-snapshot', 'version', format_version, 'curriculum', curriculum, 'progress', progress, 'status', status, 'revision', revision, 'publishedAt', to_char((updated_at AT TIME ZONE 'UTC'::text), 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"'::text)) AS snapshot\n   FROM learning_courses\n  WHERE format_version = 1;"
+        }
+      }
+    ]
+  },
+  {
+    "migrations": [
+      {
+        "id": "001_private_writes.sql",
+        "sha256": "df8195b657214d2c3c75814f0a1f57be3f9104fc1c9debac4b46cae63549ed76"
+      },
+      {
+        "id": "002_bind_existing_owner.sql",
+        "sha256": "09f258063c34b1b690df7d442acb9d7e9708689c1304f1d72ff22c58eeb80019"
+      }
+    ],
+    "catalog": [
+      {
+        "key": "public.learning_courses.curriculum",
+        "kind": "column",
+        "value": {
+          "type": "jsonb",
+          "default": null,
+          "notNull": true,
+          "identity": "",
+          "position": 3,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_courses.format_version",
+        "kind": "column",
+        "value": {
+          "type": "integer",
+          "default": "0",
+          "notNull": true,
+          "identity": "",
+          "position": 8,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_courses.id",
+        "kind": "column",
+        "value": {
+          "type": "text",
+          "default": null,
+          "notNull": true,
+          "identity": "",
+          "position": 2,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_courses.progress",
+        "kind": "column",
+        "value": {
+          "type": "jsonb",
+          "default": null,
+          "notNull": true,
+          "identity": "",
+          "position": 4,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_courses.revision",
+        "kind": "column",
+        "value": {
+          "type": "bigint",
+          "default": "0",
+          "notNull": true,
+          "identity": "",
+          "position": 5,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_courses.status",
+        "kind": "column",
+        "value": {
+          "type": "text",
+          "default": "'active'::text",
+          "notNull": true,
+          "identity": "",
+          "position": 7,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_courses.updated_at",
+        "kind": "column",
+        "value": {
+          "type": "timestamp with time zone",
+          "default": "now()",
+          "notNull": true,
+          "identity": "",
+          "position": 6,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_courses.user_id",
+        "kind": "column",
+        "value": {
+          "type": "uuid",
+          "default": null,
+          "notNull": true,
+          "identity": "",
+          "position": 1,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_libraries.focus_curriculum_id",
+        "kind": "column",
+        "value": {
+          "type": "text",
+          "default": null,
+          "notNull": false,
+          "identity": "",
+          "position": 4,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_libraries.revision",
+        "kind": "column",
+        "value": {
+          "type": "bigint",
+          "default": "0",
+          "notNull": true,
+          "identity": "",
+          "position": 3,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_libraries.user_id",
+        "kind": "column",
+        "value": {
+          "type": "uuid",
+          "default": null,
+          "notNull": true,
+          "identity": "",
+          "position": 1,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_libraries.version",
+        "kind": "column",
+        "value": {
+          "type": "integer",
+          "default": "1",
+          "notNull": true,
+          "identity": "",
+          "position": 2,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_library_snapshots.snapshot",
+        "kind": "column",
+        "value": {
+          "type": "jsonb",
+          "default": null,
+          "notNull": false,
+          "identity": "",
+          "position": 2,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_library_snapshots.user_id",
+        "kind": "column",
+        "value": {
+          "type": "uuid",
+          "default": null,
+          "notNull": false,
+          "identity": "",
+          "position": 1,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_snapshots.id",
+        "kind": "column",
+        "value": {
+          "type": "text",
+          "default": null,
+          "notNull": false,
+          "identity": "",
+          "position": 2,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_snapshots.snapshot",
+        "kind": "column",
+        "value": {
+          "type": "jsonb",
+          "default": null,
+          "notNull": false,
+          "identity": "",
+          "position": 3,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_snapshots.user_id",
+        "kind": "column",
+        "value": {
+          "type": "uuid",
+          "default": null,
+          "notNull": false,
+          "identity": "",
+          "position": 1,
+          "generated": ""
+        }
+      },
+      {
+        "key": "touchline_private.owner_settings.email",
+        "kind": "column",
+        "value": {
+          "type": "text",
+          "default": null,
+          "notNull": true,
+          "identity": "",
+          "position": 2,
+          "generated": ""
+        }
+      },
+      {
+        "key": "touchline_private.owner_settings.owner_user_id",
+        "kind": "column",
+        "value": {
+          "type": "uuid",
+          "default": null,
+          "notNull": false,
+          "identity": "",
+          "position": 3,
+          "generated": ""
+        }
+      },
+      {
+        "key": "touchline_private.owner_settings.singleton",
+        "kind": "column",
+        "value": {
+          "type": "boolean",
+          "default": "true",
+          "notNull": true,
+          "identity": "",
+          "position": 1,
+          "generated": ""
+        }
+      },
+      {
+        "key": "touchline_private.write_requests.operation",
+        "kind": "column",
+        "value": {
+          "type": "text",
+          "default": null,
+          "notNull": true,
+          "identity": "",
+          "position": 3,
+          "generated": ""
+        }
+      },
+      {
+        "key": "touchline_private.write_requests.payload",
+        "kind": "column",
+        "value": {
+          "type": "jsonb",
+          "default": null,
+          "notNull": true,
+          "identity": "",
+          "position": 4,
+          "generated": ""
+        }
+      },
+      {
+        "key": "touchline_private.write_requests.request_id",
+        "kind": "column",
+        "value": {
+          "type": "uuid",
+          "default": null,
+          "notNull": true,
+          "identity": "",
+          "position": 2,
+          "generated": ""
+        }
+      },
+      {
+        "key": "touchline_private.write_requests.result",
+        "kind": "column",
+        "value": {
+          "type": "jsonb",
+          "default": null,
+          "notNull": true,
+          "identity": "",
+          "position": 5,
+          "generated": ""
+        }
+      },
+      {
+        "key": "touchline_private.write_requests.user_id",
+        "kind": "column",
+        "value": {
+          "type": "uuid",
+          "default": null,
+          "notNull": true,
+          "identity": "",
+          "position": 1,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_courses.learning_courses_check",
+        "kind": "constraint",
+        "value": "CHECK ((octet_length(curriculum::text) + octet_length(progress::text)) < 2000000)"
+      },
+      {
+        "key": "public.learning_courses.learning_courses_format_version_check",
+        "kind": "constraint",
+        "value": "CHECK (format_version = ANY (ARRAY[0, 1]))"
+      },
+      {
+        "key": "public.learning_courses.learning_courses_id_check",
+        "kind": "constraint",
+        "value": "CHECK (id ~ '^[a-z0-9][a-z0-9-]{0,59}$'::text)"
+      },
+      {
+        "key": "public.learning_courses.learning_courses_pkey",
+        "kind": "constraint",
+        "value": "PRIMARY KEY (user_id, id)"
+      },
+      {
+        "key": "public.learning_courses.learning_courses_revision_check",
+        "kind": "constraint",
+        "value": "CHECK (revision >= 0 AND revision <= '9007199254740991'::bigint)"
+      },
+      {
+        "key": "public.learning_courses.learning_courses_status_check",
+        "kind": "constraint",
+        "value": "CHECK (status = ANY (ARRAY['active'::text, 'paused'::text, 'completed'::text, 'saved'::text]))"
+      },
+      {
+        "key": "public.learning_courses.learning_courses_user_id_fkey",
+        "kind": "constraint",
+        "value": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+      },
+      {
+        "key": "public.learning_libraries.learning_libraries_pkey",
+        "kind": "constraint",
+        "value": "PRIMARY KEY (user_id)"
+      },
+      {
+        "key": "public.learning_libraries.learning_libraries_revision_check",
+        "kind": "constraint",
+        "value": "CHECK (revision >= 0 AND revision <= '9007199254740991'::bigint)"
+      },
+      {
+        "key": "public.learning_libraries.learning_libraries_user_id_fkey",
+        "kind": "constraint",
+        "value": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+      },
+      {
+        "key": "public.learning_libraries.learning_libraries_user_id_focus_curriculum_id_fkey",
+        "kind": "constraint",
+        "value": "FOREIGN KEY (user_id, focus_curriculum_id) REFERENCES learning_courses(user_id, id)"
+      },
+      {
+        "key": "public.learning_libraries.learning_libraries_version_check",
+        "kind": "constraint",
+        "value": "CHECK (version = 1)"
+      },
+      {
+        "key": "touchline_private.owner_settings.owner_settings_email_check",
+        "kind": "constraint",
+        "value": "CHECK (email = lower(email))"
+      },
+      {
+        "key": "touchline_private.owner_settings.owner_settings_email_key",
+        "kind": "constraint",
+        "value": "UNIQUE (email)"
+      },
+      {
+        "key": "touchline_private.owner_settings.owner_settings_owner_user_id_fkey",
+        "kind": "constraint",
+        "value": "FOREIGN KEY (owner_user_id) REFERENCES auth.users(id)"
+      },
+      {
+        "key": "touchline_private.owner_settings.owner_settings_pkey",
+        "kind": "constraint",
+        "value": "PRIMARY KEY (singleton)"
+      },
+      {
+        "key": "touchline_private.owner_settings.owner_settings_singleton_check",
+        "kind": "constraint",
+        "value": "CHECK (singleton)"
+      },
+      {
+        "key": "touchline_private.write_requests.write_requests_pkey",
+        "kind": "constraint",
+        "value": "PRIMARY KEY (user_id, request_id)"
+      },
+      {
+        "key": "touchline_private.write_requests.write_requests_user_id_fkey",
+        "kind": "constraint",
+        "value": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+      },
+      {
+        "key": "public.publish_learning_course(course_id text, course_content jsonb, course_progress jsonb, course_status text, expected_revision bigint, request_id uuid)",
+        "kind": "function",
+        "value": {
+          "body": "\ndeclare owner_id uuid; result public.learning_courses; old_request touchline_private.write_requests; request_payload jsonb;\nbegin\n owner_id:=touchline_private.require_owner();\n perform touchline_private.validate_publication(course_id,course_content,course_progress);\n if expected_revision is null or expected_revision not between -1 and 9007199254740990 or course_status is null or course_status not in ('active','paused','completed','saved') then raise exception 'Invalid revision or curriculum status.' using errcode='22023'; end if;\n request_payload:=jsonb_build_object('id',course_id,'curriculum',course_content,'progress',course_progress,'status',course_status,'expectedRevision',expected_revision);\n if request_id is not null then\n  select * into old_request from touchline_private.write_requests where user_id=owner_id and write_requests.request_id=publish_learning_course.request_id;\n  if found then\n   if old_request.operation<>'course' or old_request.payload<>request_payload then raise exception 'A retry ID cannot identify a different request.' using errcode='22023'; end if;\n   select * into result from jsonb_populate_record(null::public.learning_courses,old_request.result); return result;\n  end if;\n end if;\n if expected_revision=-1 then\n  insert into public.learning_courses(user_id,id,curriculum,progress,status,format_version) values(owner_id,course_id,course_content,course_progress,course_status,1)\n  on conflict do nothing returning * into result;\n else\n  update public.learning_courses set curriculum=course_content,progress=course_progress,status=course_status,format_version=1,revision=revision+1,updated_at=clock_timestamp()\n  where user_id=owner_id and id=course_id and revision=expected_revision returning * into result;\n end if;\n if result.id is null then raise exception 'Newer cloud progress exists. Download it before uploading.' using errcode='40001'; end if;\n if course_status<>'active' then\n  update public.learning_libraries set focus_curriculum_id=null,revision=revision+1 where user_id=owner_id and focus_curriculum_id=course_id;\n end if;\n if request_id is not null then\n  insert into touchline_private.write_requests values(owner_id,request_id,'course',request_payload,to_jsonb(result));\n end if;\n return result;\nend;\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "learning_courses",
+          "strict": false,
+          "language": "plpgsql",
+          "volatility": "v",
+          "securityDefiner": true
+        }
+      },
+      {
+        "key": "public.save_learning_course(course_id text, course_content jsonb, course_progress jsonb, expected_revision integer)",
+        "kind": "function",
+        "value": {
+          "body": "\n select public.publish_learning_course(course_id,course_content,course_progress,'active',expected_revision::bigint,null);\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "learning_courses",
+          "strict": false,
+          "language": "sql",
+          "volatility": "v",
+          "securityDefiner": true
+        }
+      },
+      {
+        "key": "public.save_learning_library(library jsonb, expected_revision bigint, request_id uuid)",
+        "kind": "function",
+        "value": {
+          "body": "\ndeclare owner_id uuid; focus text; result public.learning_libraries; response jsonb; old_request touchline_private.write_requests; request_payload jsonb;\nbegin\n owner_id:=touchline_private.require_owner();\n perform touchline_private.object_fields(library,array['version','revision','focusCurriculumId']);\n if library->'version'<>'1'::jsonb then raise exception 'Unsupported library version.' using errcode='22023'; end if;\n perform touchline_private.number_value(library->'revision',0,9007199254740991,true);\n if expected_revision is null or expected_revision not between -1 and 9007199254740990 or (library->>'revision')::bigint<>greatest(expected_revision,0) then raise exception 'Invalid library revision.' using errcode='22023'; end if;\n if library->'focusCurriculumId'<>'null'::jsonb then perform touchline_private.text_value(library->'focusCurriculumId'); end if;\n focus:=library->>'focusCurriculumId';\n request_payload:=jsonb_build_object('library',library,'expectedRevision',expected_revision);\n if request_id is not null then\n  select * into old_request from touchline_private.write_requests where user_id=owner_id and write_requests.request_id=save_learning_library.request_id;\n  if found then\n   if old_request.operation<>'library' or old_request.payload<>request_payload then raise exception 'A retry ID cannot identify a different request.' using errcode='22023'; end if;\n   return old_request.result;\n  end if;\n end if;\n if focus is not null and not exists(select 1 from public.learning_courses where user_id=owner_id and id=focus and status='active') then raise exception 'Focus must reference an active published curriculum.' using errcode='22023'; end if;\n if expected_revision=-1 then\n  insert into public.learning_libraries(user_id,focus_curriculum_id) values(owner_id,focus) on conflict do nothing returning * into result;\n else\n  update public.learning_libraries set focus_curriculum_id=focus,revision=revision+1 where user_id=owner_id and revision=expected_revision returning * into result;\n end if;\n if result.user_id is null then raise exception 'Newer library changes exist. Refresh before publishing.' using errcode='40001'; end if;\n response:=jsonb_build_object('version',1,'revision',result.revision,'focusCurriculumId',result.focus_curriculum_id);\n if request_id is not null then insert into touchline_private.write_requests values(owner_id,request_id,'library',request_payload,response); end if;\n return response;\nend;\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "jsonb",
+          "strict": false,
+          "language": "plpgsql",
+          "volatility": "v",
+          "securityDefiner": true
+        }
+      },
+      {
+        "key": "touchline_private.configure_owner(owner_email text, owner_account_id uuid)",
+        "kind": "function",
+        "value": {
+          "body": "\ndeclare chosen uuid; matches integer; current_owner uuid;\nbegin\n if owner_email is null or owner_email<>lower(btrim(owner_email)) or owner_email!~'^[^[:space:]@]+@[^[:space:]@]+$' then\n  raise exception 'Enter a lowercase owner email.' using errcode='22023';\n end if;\n select owner_user_id into current_owner from touchline_private.owner_settings where singleton for update;\n if owner_account_id is not null then\n  select id into chosen from auth.users where id=owner_account_id and email_confirmed_at is not null\n   and not coalesce(is_anonymous,false) and deleted_at is null and (banned_until is null or banned_until<=now());\n  if chosen is null then raise exception 'Select an existing confirmed owner account.' using errcode='22023'; end if;\n elsif current_owner is not null then\n  chosen:=current_owner;\n else\n  select count(*), (array_agg(id))[1] into matches,chosen from auth.users where lower(email)=owner_email and deleted_at is null;\n  if matches>1 then raise exception 'Several accounts match. Configure an explicit owner UUID.' using errcode='22023'; end if;\n  if chosen is not null and not exists(select 1 from auth.users where id=chosen and email_confirmed_at is not null and not coalesce(is_anonymous,false)) then\n   raise exception 'Confirm the existing owner account before configuration.' using errcode='22023';\n  end if;\n end if;\n insert into touchline_private.owner_settings(singleton,email,owner_user_id) values(true,owner_email,chosen)\n on conflict(singleton) do update set email=excluded.email,owner_user_id=excluded.owner_user_id;\n return chosen;\nend;\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "uuid",
+          "strict": false,
+          "language": "plpgsql",
+          "volatility": "v",
+          "securityDefiner": true
+        }
+      },
+      {
+        "key": "touchline_private.is_owner()",
+        "kind": "function",
+        "value": {
+          "body": "\nbegin\n if not (auth.uid() is not null and exists (\n  select 1 from touchline_private.owner_settings s join auth.users u on u.id=s.owner_user_id\n  where u.id=auth.uid() and u.email_confirmed_at is not null and not coalesce(u.is_anonymous,false)\n    and u.deleted_at is null and (u.banned_until is null or u.banned_until<=now())\n )) then return false; end if;\n -- Once migration 004 installs session checks, replay must never weaken them.\n -- The registry is a durable marker. A missing/broken helper fails closed.\n if to_regclass('touchline_private.session_registry') is not null then\n  return touchline_private.session_is_allowed();\n end if;\n return true;\nend;\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "boolean",
+          "strict": false,
+          "language": "plpgsql",
+          "volatility": "s",
+          "securityDefiner": true
+        }
+      },
+      {
+        "key": "touchline_private.number_value(v jsonb, minimum numeric, maximum numeric, integral boolean)",
+        "kind": "function",
+        "value": {
+          "body": "\ndeclare n numeric;\nbegin\n if jsonb_typeof(v) is distinct from 'number' then raise exception 'Invalid numeric field.' using errcode='22023'; end if;\n n:=(v#>>'{}')::numeric;\n if n<minimum or n>maximum or (integral and trunc(n)<>n) then raise exception 'Number is outside its allowed range.' using errcode='22023'; end if;\nend;\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "void",
+          "strict": false,
+          "language": "plpgsql",
+          "volatility": "i",
+          "securityDefiner": false
+        }
+      },
+      {
+        "key": "touchline_private.object_fields(v jsonb, required text[], optional text[])",
+        "kind": "function",
+        "value": {
+          "body": "\nbegin\n if jsonb_typeof(v) is distinct from 'object' or not (v ?& required)\n  or exists(select 1 from jsonb_object_keys(v) k where not(k=any(required||optional))) then\n  raise exception 'Invalid object fields.' using errcode='22023';\n end if;\nend;\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "void",
+          "strict": false,
+          "language": "plpgsql",
+          "volatility": "i",
+          "securityDefiner": false
+        }
+      },
+      {
+        "key": "touchline_private.require_owner()",
+        "kind": "function",
+        "value": {
+          "body": "\nbegin\n perform 1 from touchline_private.owner_settings where singleton for share;\n perform pg_advisory_xact_lock(hashtextextended(auth.uid()::text, 0));\n if not touchline_private.is_owner() then\n  raise exception 'This deployment is private or the session has ended.' using errcode='42501';\n end if;\n return auth.uid();\nend;\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "uuid",
+          "strict": false,
+          "language": "plpgsql",
+          "volatility": "v",
+          "securityDefiner": true
+        }
+      },
+      {
+        "key": "touchline_private.restrict_signup()",
+        "kind": "function",
+        "value": {
+          "body": "\ndeclare settings touchline_private.owner_settings;\nbegin\n select * into settings from touchline_private.owner_settings where singleton for update;\n if not found or settings.owner_user_id is not null or new.email is null or lower(new.email)<>settings.email\n   or coalesce(new.is_anonymous,false) then\n  raise exception 'This is a private learning hub. Account creation is restricted.' using errcode='42501';\n end if;\n -- AFTER INSERT allows the owner UUID foreign key to resolve. The transaction\n -- rolls back the account as well if admission or pinning fails.\n update touchline_private.owner_settings set owner_user_id=new.id where singleton;\n return new;\nend;\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "trigger",
+          "strict": false,
+          "language": "plpgsql",
+          "volatility": "v",
+          "securityDefiner": true
+        }
+      },
+      {
+        "key": "touchline_private.text_array(v jsonb)",
+        "kind": "function",
+        "value": {
+          "body": "\ndeclare item jsonb;\nbegin\n if jsonb_typeof(v) is distinct from 'array' then raise exception 'Expected a text list.' using errcode='22023'; end if;\n for item in select * from jsonb_array_elements(v) loop perform touchline_private.text_value(item); end loop;\nend;\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "void",
+          "strict": false,
+          "language": "plpgsql",
+          "volatility": "i",
+          "securityDefiner": false
+        }
+      },
+      {
+        "key": "touchline_private.text_value(v jsonb, maximum integer, nonblank boolean)",
+        "kind": "function",
+        "value": {
+          "body": "\nbegin\n if jsonb_typeof(v) is distinct from 'string' or (maximum is not null and length(v#>>'{}')>maximum)\n  or (nonblank and (v#>>'{}')!~'[^[:space:]]') then\n  raise exception 'Invalid text field.' using errcode='22023';\n end if;\nend;\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "void",
+          "strict": false,
+          "language": "plpgsql",
+          "volatility": "i",
+          "securityDefiner": false
+        }
+      },
+      {
+        "key": "touchline_private.validate_publication(course_id text, c jsonb, p jsonb)",
+        "kind": "function",
+        "value": {
+          "body": "\ndeclare m jsonb; r jsonb; e jsonb; field text; ref text; key text; item jsonb; course_module jsonb; ids text[]:='{}';\nbegin\n if course_id is null or course_id!~'^[a-z0-9][a-z0-9-]{0,59}$' then raise exception 'Invalid curriculum ID.' using errcode='22023'; end if;\n if octet_length(c::text)+octet_length(p::text)>=2000000 then raise exception 'Publication must be smaller than 2 MB.' using errcode='22023'; end if;\n perform touchline_private.object_fields(c,array['id','title','subtitle','description','weeks','weeklyHours','resources','modules'],array['version','nextPhase','researchDate','totalHours']);\n perform touchline_private.text_value(c->'id');\n if c->>'id'<>course_id or (c?'version' and c->'version'<>'1'::jsonb) then raise exception 'Unsupported curriculum identity or version.' using errcode='22023'; end if;\n foreach field in array array['title','subtitle','description'] loop perform touchline_private.text_value(c->field,null,true); end loop;\n perform touchline_private.number_value(c->'weeks',1,520,true);\n perform touchline_private.number_value(c->'weeklyHours',1,40);\n if c?'totalHours' then perform touchline_private.number_value(c->'totalHours',0,20800); end if;\n if c?'researchDate' then perform touchline_private.text_value(c->'researchDate'); end if;\n if c?'nextPhase' then perform touchline_private.text_array(c->'nextPhase'); end if;\n if jsonb_typeof(c->'resources') is distinct from 'object' then raise exception 'Expected resources.' using errcode='22023'; end if;\n for r in select value from jsonb_each(c->'resources') loop\n  perform touchline_private.object_fields(r,array['title','url','use']);\n  foreach field in array array['title','url','use'] loop perform touchline_private.text_value(r->field); end loop;\n  if r->>'url'!~'^https?://[^[:space:]]+$' then raise exception 'Resources need HTTP or HTTPS URLs.' using errcode='22023'; end if;\n end loop;\n if jsonb_typeof(c->'modules') is distinct from 'array' or jsonb_array_length(c->'modules') not between 1 and 100 then raise exception 'Expected 1 to 100 modules.' using errcode='22023'; end if;\n for m in select * from jsonb_array_elements(c->'modules') loop\n  perform touchline_private.object_fields(m,array['id','title','phase','question','outcome','math','evidence','challenge','reading','dataset','tasks','weeks','resources','prerequisites','hours','weekStart','weekEnd'],array['number']);\n  perform touchline_private.text_value(m->'id');\n  if m->>'id'!~'^[a-zA-Z0-9_-]{1,60}$' or m->>'id'=any(ids) then raise exception 'Invalid or duplicate module ID.' using errcode='22023'; end if;\n  ids:=array_append(ids,m->>'id');\n  foreach field in array array['title','phase','question','outcome','math','evidence','challenge','reading','dataset'] loop perform touchline_private.text_value(m->field); end loop;\n  foreach field in array array['tasks','weeks','resources','prerequisites'] loop perform touchline_private.text_array(m->field); end loop;\n  if jsonb_array_length(m->'tasks') not between 1 and 30 then raise exception 'Expected 1 to 30 tasks.' using errcode='22023'; end if;\n  foreach field in array array['hours','weekStart','weekEnd'] loop\n   perform touchline_private.number_value(m->field,0,10000);\n   if (m->>field)::numeric=0 then raise exception 'Module numbers must be positive.' using errcode='22023'; end if;\n  end loop;\n  if m?'number' then perform touchline_private.number_value(m->'number',1,9007199254740991,true); end if;\n  if (m->>'weekStart')::numeric>(m->>'weekEnd')::numeric or (m->>'weekEnd')::numeric>(c->>'weeks')::numeric then raise exception 'Module weeks exceed the curriculum.' using errcode='22023'; end if;\n  for ref in select jsonb_array_elements_text(m->'resources') loop\n   if not(c->'resources'?ref) then raise exception 'Unknown resource.' using errcode='22023'; end if;\n  end loop;\n end loop;\n for m in select * from jsonb_array_elements(c->'modules') loop\n  for ref in select jsonb_array_elements_text(m->'prerequisites') loop\n   if not(ref=any(ids)) then raise exception 'Unknown prerequisite.' using errcode='22023'; end if;\n  end loop;\n end loop;\n perform touchline_private.object_fields(p,array['version','revision','curriculumId','weeklyHours','startDate','modules','experiments']);\n perform touchline_private.text_value(p->'curriculumId');\n if p->'version'<>'1'::jsonb or p->>'curriculumId'<>course_id then raise exception 'Unsupported progress identity or version.' using errcode='22023'; end if;\n perform touchline_private.number_value(p->'revision',0,9007199254740991,true);\n perform touchline_private.number_value(p->'weeklyHours',1,40);\n perform touchline_private.text_value(p->'startDate',10);\n if p->>'startDate'<>'' then\n  if p->>'startDate'!~'^\\d{4}-\\d{2}-\\d{2}$' then raise exception 'Invalid start date.' using errcode='22023'; end if;\n  begin perform (p->>'startDate')::date; exception when others then raise exception 'Invalid start date.' using errcode='22023'; end;\n end if;\n if jsonb_typeof(p->'modules') is distinct from 'object' then raise exception 'Invalid module progress.' using errcode='22023'; end if;\n for key,m in select * from jsonb_each(p->'modules') loop\n  if not(key=any(ids)) then raise exception 'Unknown progress module.' using errcode='22023'; end if;\n  select value into course_module from jsonb_array_elements(c->'modules') where value->>'id'=key;\n  perform touchline_private.object_fields(m,array['status','tasks','notes','evidence','hours']);\n  perform touchline_private.text_value(m->'status');\n  if m->>'status' not in ('not-started','active','complete') then raise exception 'Invalid progress status.' using errcode='22023'; end if;\n  if jsonb_typeof(m->'tasks') is distinct from 'array' or jsonb_array_length(m->'tasks')<>jsonb_array_length(course_module->'tasks') then raise exception 'Invalid task count.' using errcode='22023'; end if;\n  for item in select * from jsonb_array_elements(m->'tasks') loop\n   if jsonb_typeof(item) is distinct from 'boolean' then raise exception 'Task values must be boolean.' using errcode='22023'; end if;\n   if m->>'status'='complete' and item<>'true'::jsonb then raise exception 'Finish every task before completion.' using errcode='22023'; end if;\n  end loop;\n  perform touchline_private.text_value(m->'notes',50000);\n  perform touchline_private.text_value(m->'evidence',50000,m->>'status'='complete');\n  perform touchline_private.number_value(m->'hours',0,10000);\n end loop;\n if jsonb_typeof(p->'experiments') is distinct from 'array' or jsonb_array_length(p->'experiments')>2000 then raise exception 'Invalid experiment list.' using errcode='22023'; end if;\n for e in select * from jsonb_array_elements(p->'experiments') loop\n  perform touchline_private.object_fields(e,array['id','date','module','title','hypothesis','result']);\n  foreach field in array array['id','date','module','title','hypothesis','result'] loop perform touchline_private.text_value(e->field,20000,field='title'); end loop;\n  if not(e->>'module'=any(ids)) then raise exception 'Unknown experiment module.' using errcode='22023'; end if;\n end loop;\nend;\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "void",
+          "strict": false,
+          "language": "plpgsql",
+          "volatility": "i",
+          "securityDefiner": false
+        }
+      },
+      {
+        "key": "public.publish_learning_course(course_id text, course_content jsonb, course_progress jsonb, course_status text, expected_revision bigint, request_id uuid):authenticated:EXECUTE",
+        "kind": "function-grant",
+        "value": false
+      },
+      {
+        "key": "public.publish_learning_course(course_id text, course_content jsonb, course_progress jsonb, course_status text, expected_revision bigint, request_id uuid):service_role:EXECUTE",
+        "kind": "function-grant",
+        "value": false
+      },
+      {
+        "key": "public.save_learning_course(course_id text, course_content jsonb, course_progress jsonb, expected_revision integer):authenticated:EXECUTE",
+        "kind": "function-grant",
+        "value": false
+      },
+      {
+        "key": "public.save_learning_course(course_id text, course_content jsonb, course_progress jsonb, expected_revision integer):service_role:EXECUTE",
+        "kind": "function-grant",
+        "value": false
+      },
+      {
+        "key": "public.save_learning_library(library jsonb, expected_revision bigint, request_id uuid):authenticated:EXECUTE",
+        "kind": "function-grant",
+        "value": false
+      },
+      {
+        "key": "public.save_learning_library(library jsonb, expected_revision bigint, request_id uuid):service_role:EXECUTE",
+        "kind": "function-grant",
+        "value": false
+      },
+      {
+        "key": "touchline_private.is_owner():authenticated:EXECUTE",
+        "kind": "function-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_courses.owner_read",
+        "kind": "policy",
+        "value": {
+          "check": null,
+          "roles": [
+            "authenticated"
+          ],
+          "using": "((user_id = ( SELECT auth.uid() AS uid)) AND ( SELECT touchline_private.is_owner() AS is_owner))",
+          "command": "r",
+          "permissive": true
+        }
+      },
+      {
+        "key": "public.learning_courses.touchline_private_read_guard",
+        "kind": "policy",
+        "value": {
+          "check": null,
+          "roles": [
+            "authenticated"
+          ],
+          "using": "((user_id = ( SELECT auth.uid() AS uid)) AND ( SELECT touchline_private.is_owner() AS is_owner))",
+          "command": "r",
+          "permissive": false
+        }
+      },
+      {
+        "key": "public.learning_libraries.owner_read",
+        "kind": "policy",
+        "value": {
+          "check": null,
+          "roles": [
+            "authenticated"
+          ],
+          "using": "((user_id = ( SELECT auth.uid() AS uid)) AND ( SELECT touchline_private.is_owner() AS is_owner))",
+          "command": "r",
+          "permissive": true
+        }
+      },
+      {
+        "key": "public.learning_libraries.touchline_private_read_guard",
+        "kind": "policy",
+        "value": {
+          "check": null,
+          "roles": [
+            "authenticated"
+          ],
+          "using": "((user_id = ( SELECT auth.uid() AS uid)) AND ( SELECT touchline_private.is_owner() AS is_owner))",
+          "command": "r",
+          "permissive": false
+        }
+      },
+      {
+        "key": "public.learning_courses",
+        "kind": "relation",
+        "value": {
+          "rls": true,
+          "kind": "r",
+          "owner": "postgres",
+          "forced": false,
+          "persistence": "p"
+        }
+      },
+      {
+        "key": "public.learning_libraries",
+        "kind": "relation",
+        "value": {
+          "rls": true,
+          "kind": "r",
+          "owner": "postgres",
+          "forced": false,
+          "persistence": "p"
+        }
+      },
+      {
+        "key": "public.learning_library_snapshots",
+        "kind": "relation",
+        "value": {
+          "rls": false,
+          "kind": "v",
+          "owner": "postgres",
+          "forced": false,
+          "persistence": "p"
+        }
+      },
+      {
+        "key": "public.learning_snapshots",
+        "kind": "relation",
+        "value": {
+          "rls": false,
+          "kind": "v",
+          "owner": "postgres",
+          "forced": false,
+          "persistence": "p"
+        }
+      },
+      {
+        "key": "touchline_private.owner_settings",
+        "kind": "relation",
+        "value": {
+          "rls": true,
+          "kind": "r",
+          "owner": "postgres",
+          "forced": false,
+          "persistence": "p"
+        }
+      },
+      {
+        "key": "touchline_private.write_requests",
+        "kind": "relation",
+        "value": {
+          "rls": true,
+          "kind": "r",
+          "owner": "postgres",
+          "forced": false,
+          "persistence": "p"
+        }
+      },
+      {
+        "key": "public:PUBLIC:USAGE",
+        "kind": "schema-grant",
+        "value": false
+      },
+      {
+        "key": "public:anon:USAGE",
+        "kind": "schema-grant",
+        "value": false
+      },
+      {
+        "key": "public:authenticated:USAGE",
+        "kind": "schema-grant",
+        "value": false
+      },
+      {
+        "key": "public:postgres:USAGE",
+        "kind": "schema-grant",
+        "value": false
+      },
+      {
+        "key": "public:service_role:USAGE",
+        "kind": "schema-grant",
+        "value": false
+      },
+      {
+        "key": "touchline_private:authenticated:USAGE",
+        "kind": "schema-grant",
+        "value": false
+      },
+      {
+        "key": "touchline_private",
+        "kind": "schema-owner",
+        "value": "postgres"
+      },
+      {
+        "key": "public.learning_courses:authenticated:SELECT",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_courses:service_role:DELETE",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_courses:service_role:INSERT",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_courses:service_role:MAINTAIN",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_courses:service_role:REFERENCES",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_courses:service_role:SELECT",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_courses:service_role:TRIGGER",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_courses:service_role:TRUNCATE",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_courses:service_role:UPDATE",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_libraries:authenticated:SELECT",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_libraries:service_role:DELETE",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_libraries:service_role:INSERT",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_libraries:service_role:MAINTAIN",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_libraries:service_role:REFERENCES",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_libraries:service_role:SELECT",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_libraries:service_role:TRIGGER",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_libraries:service_role:TRUNCATE",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_libraries:service_role:UPDATE",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_library_snapshots:authenticated:SELECT",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_library_snapshots:service_role:DELETE",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_library_snapshots:service_role:INSERT",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_library_snapshots:service_role:MAINTAIN",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_library_snapshots:service_role:REFERENCES",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_library_snapshots:service_role:SELECT",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_library_snapshots:service_role:TRIGGER",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_library_snapshots:service_role:TRUNCATE",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_library_snapshots:service_role:UPDATE",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_snapshots:authenticated:SELECT",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_snapshots:service_role:DELETE",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_snapshots:service_role:INSERT",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_snapshots:service_role:MAINTAIN",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_snapshots:service_role:REFERENCES",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_snapshots:service_role:SELECT",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_snapshots:service_role:TRIGGER",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_snapshots:service_role:TRUNCATE",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_snapshots:service_role:UPDATE",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "auth.users.touchline_restrict_signup",
+        "kind": "trigger",
+        "value": {
+          "enabled": "O",
+          "definition": "CREATE TRIGGER touchline_restrict_signup AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION touchline_private.restrict_signup()"
+        }
+      },
+      {
+        "key": "public.learning_library_snapshots",
+        "kind": "view",
+        "value": {
+          "options": [
+            "security_invoker=true"
+          ],
+          "definition": " SELECT user_id,\n    jsonb_build_object('version', version, 'revision', revision, 'focusCurriculumId', focus_curriculum_id) AS snapshot\n   FROM learning_libraries;"
+        }
+      },
+      {
+        "key": "public.learning_snapshots",
+        "kind": "view",
+        "value": {
+          "options": [
+            "security_invoker=true"
+          ],
+          "definition": " SELECT user_id,\n    id,\n    jsonb_build_object('format', 'touchline-snapshot', 'version', format_version, 'curriculum', curriculum, 'progress', progress, 'status', status, 'revision', revision, 'publishedAt', to_char((updated_at AT TIME ZONE 'UTC'::text), 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"'::text)) AS snapshot\n   FROM learning_courses\n  WHERE format_version = 1;"
+        }
+      }
+    ]
+  },
+  {
+    "migrations": [
+      {
+        "id": "001_private_writes.sql",
+        "sha256": "df8195b657214d2c3c75814f0a1f57be3f9104fc1c9debac4b46cae63549ed76"
+      },
+      {
+        "id": "002_bind_existing_owner.sql",
+        "sha256": "09f258063c34b1b690df7d442acb9d7e9708689c1304f1d72ff22c58eeb80019"
+      },
+      {
+        "id": "003_classify_legacy_publications.sql",
+        "sha256": "9aebb0880dd7c06400f6e7368e7540425a93c3f1bd88ef02189df0674dfd42f4"
+      }
+    ],
+    "catalog": [
+      {
+        "key": "public.learning_courses.curriculum",
+        "kind": "column",
+        "value": {
+          "type": "jsonb",
+          "default": null,
+          "notNull": true,
+          "identity": "",
+          "position": 3,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_courses.format_version",
+        "kind": "column",
+        "value": {
+          "type": "integer",
+          "default": "0",
+          "notNull": true,
+          "identity": "",
+          "position": 8,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_courses.id",
+        "kind": "column",
+        "value": {
+          "type": "text",
+          "default": null,
+          "notNull": true,
+          "identity": "",
+          "position": 2,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_courses.progress",
+        "kind": "column",
+        "value": {
+          "type": "jsonb",
+          "default": null,
+          "notNull": true,
+          "identity": "",
+          "position": 4,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_courses.revision",
+        "kind": "column",
+        "value": {
+          "type": "bigint",
+          "default": "0",
+          "notNull": true,
+          "identity": "",
+          "position": 5,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_courses.status",
+        "kind": "column",
+        "value": {
+          "type": "text",
+          "default": "'active'::text",
+          "notNull": true,
+          "identity": "",
+          "position": 7,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_courses.updated_at",
+        "kind": "column",
+        "value": {
+          "type": "timestamp with time zone",
+          "default": "now()",
+          "notNull": true,
+          "identity": "",
+          "position": 6,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_courses.user_id",
+        "kind": "column",
+        "value": {
+          "type": "uuid",
+          "default": null,
+          "notNull": true,
+          "identity": "",
+          "position": 1,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_libraries.focus_curriculum_id",
+        "kind": "column",
+        "value": {
+          "type": "text",
+          "default": null,
+          "notNull": false,
+          "identity": "",
+          "position": 4,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_libraries.revision",
+        "kind": "column",
+        "value": {
+          "type": "bigint",
+          "default": "0",
+          "notNull": true,
+          "identity": "",
+          "position": 3,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_libraries.user_id",
+        "kind": "column",
+        "value": {
+          "type": "uuid",
+          "default": null,
+          "notNull": true,
+          "identity": "",
+          "position": 1,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_libraries.version",
+        "kind": "column",
+        "value": {
+          "type": "integer",
+          "default": "1",
+          "notNull": true,
+          "identity": "",
+          "position": 2,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_library_snapshots.snapshot",
+        "kind": "column",
+        "value": {
+          "type": "jsonb",
+          "default": null,
+          "notNull": false,
+          "identity": "",
+          "position": 2,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_library_snapshots.user_id",
+        "kind": "column",
+        "value": {
+          "type": "uuid",
+          "default": null,
+          "notNull": false,
+          "identity": "",
+          "position": 1,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_snapshots.id",
+        "kind": "column",
+        "value": {
+          "type": "text",
+          "default": null,
+          "notNull": false,
+          "identity": "",
+          "position": 2,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_snapshots.snapshot",
+        "kind": "column",
+        "value": {
+          "type": "jsonb",
+          "default": null,
+          "notNull": false,
+          "identity": "",
+          "position": 3,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_snapshots.user_id",
+        "kind": "column",
+        "value": {
+          "type": "uuid",
+          "default": null,
+          "notNull": false,
+          "identity": "",
+          "position": 1,
+          "generated": ""
+        }
+      },
+      {
+        "key": "touchline_private.owner_settings.email",
+        "kind": "column",
+        "value": {
+          "type": "text",
+          "default": null,
+          "notNull": true,
+          "identity": "",
+          "position": 2,
+          "generated": ""
+        }
+      },
+      {
+        "key": "touchline_private.owner_settings.owner_user_id",
+        "kind": "column",
+        "value": {
+          "type": "uuid",
+          "default": null,
+          "notNull": false,
+          "identity": "",
+          "position": 3,
+          "generated": ""
+        }
+      },
+      {
+        "key": "touchline_private.owner_settings.singleton",
+        "kind": "column",
+        "value": {
+          "type": "boolean",
+          "default": "true",
+          "notNull": true,
+          "identity": "",
+          "position": 1,
+          "generated": ""
+        }
+      },
+      {
+        "key": "touchline_private.write_requests.operation",
+        "kind": "column",
+        "value": {
+          "type": "text",
+          "default": null,
+          "notNull": true,
+          "identity": "",
+          "position": 3,
+          "generated": ""
+        }
+      },
+      {
+        "key": "touchline_private.write_requests.payload",
+        "kind": "column",
+        "value": {
+          "type": "jsonb",
+          "default": null,
+          "notNull": true,
+          "identity": "",
+          "position": 4,
+          "generated": ""
+        }
+      },
+      {
+        "key": "touchline_private.write_requests.request_id",
+        "kind": "column",
+        "value": {
+          "type": "uuid",
+          "default": null,
+          "notNull": true,
+          "identity": "",
+          "position": 2,
+          "generated": ""
+        }
+      },
+      {
+        "key": "touchline_private.write_requests.result",
+        "kind": "column",
+        "value": {
+          "type": "jsonb",
+          "default": null,
+          "notNull": true,
+          "identity": "",
+          "position": 5,
+          "generated": ""
+        }
+      },
+      {
+        "key": "touchline_private.write_requests.user_id",
+        "kind": "column",
+        "value": {
+          "type": "uuid",
+          "default": null,
+          "notNull": true,
+          "identity": "",
+          "position": 1,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_courses.learning_courses_check",
+        "kind": "constraint",
+        "value": "CHECK ((octet_length(curriculum::text) + octet_length(progress::text)) < 2000000)"
+      },
+      {
+        "key": "public.learning_courses.learning_courses_format_version_check",
+        "kind": "constraint",
+        "value": "CHECK (format_version = ANY (ARRAY[0, 1]))"
+      },
+      {
+        "key": "public.learning_courses.learning_courses_id_check",
+        "kind": "constraint",
+        "value": "CHECK (id ~ '^[a-z0-9][a-z0-9-]{0,59}$'::text)"
+      },
+      {
+        "key": "public.learning_courses.learning_courses_pkey",
+        "kind": "constraint",
+        "value": "PRIMARY KEY (user_id, id)"
+      },
+      {
+        "key": "public.learning_courses.learning_courses_revision_check",
+        "kind": "constraint",
+        "value": "CHECK (revision >= 0 AND revision <= '9007199254740991'::bigint)"
+      },
+      {
+        "key": "public.learning_courses.learning_courses_status_check",
+        "kind": "constraint",
+        "value": "CHECK (status = ANY (ARRAY['active'::text, 'paused'::text, 'completed'::text, 'saved'::text]))"
+      },
+      {
+        "key": "public.learning_courses.learning_courses_user_id_fkey",
+        "kind": "constraint",
+        "value": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+      },
+      {
+        "key": "public.learning_libraries.learning_libraries_pkey",
+        "kind": "constraint",
+        "value": "PRIMARY KEY (user_id)"
+      },
+      {
+        "key": "public.learning_libraries.learning_libraries_revision_check",
+        "kind": "constraint",
+        "value": "CHECK (revision >= 0 AND revision <= '9007199254740991'::bigint)"
+      },
+      {
+        "key": "public.learning_libraries.learning_libraries_user_id_fkey",
+        "kind": "constraint",
+        "value": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+      },
+      {
+        "key": "public.learning_libraries.learning_libraries_user_id_focus_curriculum_id_fkey",
+        "kind": "constraint",
+        "value": "FOREIGN KEY (user_id, focus_curriculum_id) REFERENCES learning_courses(user_id, id)"
+      },
+      {
+        "key": "public.learning_libraries.learning_libraries_version_check",
+        "kind": "constraint",
+        "value": "CHECK (version = 1)"
+      },
+      {
+        "key": "touchline_private.owner_settings.owner_settings_email_check",
+        "kind": "constraint",
+        "value": "CHECK (email = lower(email))"
+      },
+      {
+        "key": "touchline_private.owner_settings.owner_settings_email_key",
+        "kind": "constraint",
+        "value": "UNIQUE (email)"
+      },
+      {
+        "key": "touchline_private.owner_settings.owner_settings_owner_user_id_fkey",
+        "kind": "constraint",
+        "value": "FOREIGN KEY (owner_user_id) REFERENCES auth.users(id)"
+      },
+      {
+        "key": "touchline_private.owner_settings.owner_settings_pkey",
+        "kind": "constraint",
+        "value": "PRIMARY KEY (singleton)"
+      },
+      {
+        "key": "touchline_private.owner_settings.owner_settings_singleton_check",
+        "kind": "constraint",
+        "value": "CHECK (singleton)"
+      },
+      {
+        "key": "touchline_private.write_requests.write_requests_pkey",
+        "kind": "constraint",
+        "value": "PRIMARY KEY (user_id, request_id)"
+      },
+      {
+        "key": "touchline_private.write_requests.write_requests_user_id_fkey",
+        "kind": "constraint",
+        "value": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+      },
+      {
+        "key": "public.publish_learning_course(course_id text, course_content jsonb, course_progress jsonb, course_status text, expected_revision bigint, request_id uuid)",
+        "kind": "function",
+        "value": {
+          "body": "\ndeclare owner_id uuid; result public.learning_courses; old_request touchline_private.write_requests; request_payload jsonb;\nbegin\n owner_id:=touchline_private.require_owner();\n perform touchline_private.validate_publication(course_id,course_content,course_progress);\n if expected_revision is null or expected_revision not between -1 and 9007199254740990 or course_status is null or course_status not in ('active','paused','completed','saved') then raise exception 'Invalid revision or curriculum status.' using errcode='22023'; end if;\n request_payload:=jsonb_build_object('id',course_id,'curriculum',course_content,'progress',course_progress,'status',course_status,'expectedRevision',expected_revision);\n if request_id is not null then\n  select * into old_request from touchline_private.write_requests where user_id=owner_id and write_requests.request_id=publish_learning_course.request_id;\n  if found then\n   if old_request.operation<>'course' or old_request.payload<>request_payload then raise exception 'A retry ID cannot identify a different request.' using errcode='22023'; end if;\n   select * into result from jsonb_populate_record(null::public.learning_courses,old_request.result); return result;\n  end if;\n end if;\n if expected_revision=-1 then\n  insert into public.learning_courses(user_id,id,curriculum,progress,status,format_version) values(owner_id,course_id,course_content,course_progress,course_status,1)\n  on conflict do nothing returning * into result;\n else\n  update public.learning_courses set curriculum=course_content,progress=course_progress,status=course_status,format_version=1,revision=revision+1,updated_at=clock_timestamp()\n  where user_id=owner_id and id=course_id and revision=expected_revision returning * into result;\n end if;\n if result.id is null then raise exception 'Newer cloud progress exists. Download it before uploading.' using errcode='40001'; end if;\n if course_status<>'active' then\n  update public.learning_libraries set focus_curriculum_id=null,revision=revision+1 where user_id=owner_id and focus_curriculum_id=course_id;\n end if;\n if request_id is not null then\n  insert into touchline_private.write_requests values(owner_id,request_id,'course',request_payload,to_jsonb(result));\n end if;\n return result;\nend;\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "learning_courses",
+          "strict": false,
+          "language": "plpgsql",
+          "volatility": "v",
+          "securityDefiner": true
+        }
+      },
+      {
+        "key": "public.save_learning_course(course_id text, course_content jsonb, course_progress jsonb, expected_revision integer)",
+        "kind": "function",
+        "value": {
+          "body": "\n select public.publish_learning_course(course_id,course_content,course_progress,'active',expected_revision::bigint,null);\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "learning_courses",
+          "strict": false,
+          "language": "sql",
+          "volatility": "v",
+          "securityDefiner": true
+        }
+      },
+      {
+        "key": "public.save_learning_library(library jsonb, expected_revision bigint, request_id uuid)",
+        "kind": "function",
+        "value": {
+          "body": "\ndeclare owner_id uuid; focus text; result public.learning_libraries; response jsonb; old_request touchline_private.write_requests; request_payload jsonb;\nbegin\n owner_id:=touchline_private.require_owner();\n perform touchline_private.object_fields(library,array['version','revision','focusCurriculumId']);\n if library->'version'<>'1'::jsonb then raise exception 'Unsupported library version.' using errcode='22023'; end if;\n perform touchline_private.number_value(library->'revision',0,9007199254740991,true);\n if expected_revision is null or expected_revision not between -1 and 9007199254740990 or (library->>'revision')::bigint<>greatest(expected_revision,0) then raise exception 'Invalid library revision.' using errcode='22023'; end if;\n if library->'focusCurriculumId'<>'null'::jsonb then perform touchline_private.text_value(library->'focusCurriculumId'); end if;\n focus:=library->>'focusCurriculumId';\n request_payload:=jsonb_build_object('library',library,'expectedRevision',expected_revision);\n if request_id is not null then\n  select * into old_request from touchline_private.write_requests where user_id=owner_id and write_requests.request_id=save_learning_library.request_id;\n  if found then\n   if old_request.operation<>'library' or old_request.payload<>request_payload then raise exception 'A retry ID cannot identify a different request.' using errcode='22023'; end if;\n   return old_request.result;\n  end if;\n end if;\n if focus is not null and not exists(select 1 from public.learning_courses where user_id=owner_id and id=focus and status='active') then raise exception 'Focus must reference an active published curriculum.' using errcode='22023'; end if;\n if expected_revision=-1 then\n  insert into public.learning_libraries(user_id,focus_curriculum_id) values(owner_id,focus) on conflict do nothing returning * into result;\n else\n  update public.learning_libraries set focus_curriculum_id=focus,revision=revision+1 where user_id=owner_id and revision=expected_revision returning * into result;\n end if;\n if result.user_id is null then raise exception 'Newer library changes exist. Refresh before publishing.' using errcode='40001'; end if;\n response:=jsonb_build_object('version',1,'revision',result.revision,'focusCurriculumId',result.focus_curriculum_id);\n if request_id is not null then insert into touchline_private.write_requests values(owner_id,request_id,'library',request_payload,response); end if;\n return response;\nend;\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "jsonb",
+          "strict": false,
+          "language": "plpgsql",
+          "volatility": "v",
+          "securityDefiner": true
+        }
+      },
+      {
+        "key": "touchline_private.configure_owner(owner_email text, owner_account_id uuid)",
+        "kind": "function",
+        "value": {
+          "body": "\ndeclare chosen uuid; matches integer; current_owner uuid;\nbegin\n if owner_email is null or owner_email<>lower(btrim(owner_email)) or owner_email!~'^[^[:space:]@]+@[^[:space:]@]+$' then\n  raise exception 'Enter a lowercase owner email.' using errcode='22023';\n end if;\n select owner_user_id into current_owner from touchline_private.owner_settings where singleton for update;\n if owner_account_id is not null then\n  select id into chosen from auth.users where id=owner_account_id and email_confirmed_at is not null\n   and not coalesce(is_anonymous,false) and deleted_at is null and (banned_until is null or banned_until<=now());\n  if chosen is null then raise exception 'Select an existing confirmed owner account.' using errcode='22023'; end if;\n elsif current_owner is not null then\n  chosen:=current_owner;\n else\n  select count(*), (array_agg(id))[1] into matches,chosen from auth.users where lower(email)=owner_email and deleted_at is null;\n  if matches>1 then raise exception 'Several accounts match. Configure an explicit owner UUID.' using errcode='22023'; end if;\n  if chosen is not null and not exists(select 1 from auth.users where id=chosen and email_confirmed_at is not null and not coalesce(is_anonymous,false)) then\n   raise exception 'Confirm the existing owner account before configuration.' using errcode='22023';\n  end if;\n end if;\n insert into touchline_private.owner_settings(singleton,email,owner_user_id) values(true,owner_email,chosen)\n on conflict(singleton) do update set email=excluded.email,owner_user_id=excluded.owner_user_id;\n return chosen;\nend;\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "uuid",
+          "strict": false,
+          "language": "plpgsql",
+          "volatility": "v",
+          "securityDefiner": true
+        }
+      },
+      {
+        "key": "touchline_private.is_owner()",
+        "kind": "function",
+        "value": {
+          "body": "\nbegin\n if not (auth.uid() is not null and exists (\n  select 1 from touchline_private.owner_settings s join auth.users u on u.id=s.owner_user_id\n  where u.id=auth.uid() and u.email_confirmed_at is not null and not coalesce(u.is_anonymous,false)\n    and u.deleted_at is null and (u.banned_until is null or u.banned_until<=now())\n )) then return false; end if;\n -- Once migration 004 installs session checks, replay must never weaken them.\n -- The registry is a durable marker. A missing/broken helper fails closed.\n if to_regclass('touchline_private.session_registry') is not null then\n  return touchline_private.session_is_allowed();\n end if;\n return true;\nend;\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "boolean",
+          "strict": false,
+          "language": "plpgsql",
+          "volatility": "s",
+          "securityDefiner": true
+        }
+      },
+      {
+        "key": "touchline_private.number_value(v jsonb, minimum numeric, maximum numeric, integral boolean)",
+        "kind": "function",
+        "value": {
+          "body": "\ndeclare n numeric;\nbegin\n if jsonb_typeof(v) is distinct from 'number' then raise exception 'Invalid numeric field.' using errcode='22023'; end if;\n n:=(v#>>'{}')::numeric;\n if n<minimum or n>maximum or (integral and trunc(n)<>n) then raise exception 'Number is outside its allowed range.' using errcode='22023'; end if;\nend;\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "void",
+          "strict": false,
+          "language": "plpgsql",
+          "volatility": "i",
+          "securityDefiner": false
+        }
+      },
+      {
+        "key": "touchline_private.object_fields(v jsonb, required text[], optional text[])",
+        "kind": "function",
+        "value": {
+          "body": "\nbegin\n if jsonb_typeof(v) is distinct from 'object' or not (v ?& required)\n  or exists(select 1 from jsonb_object_keys(v) k where not(k=any(required||optional))) then\n  raise exception 'Invalid object fields.' using errcode='22023';\n end if;\nend;\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "void",
+          "strict": false,
+          "language": "plpgsql",
+          "volatility": "i",
+          "securityDefiner": false
+        }
+      },
+      {
+        "key": "touchline_private.require_owner()",
+        "kind": "function",
+        "value": {
+          "body": "\nbegin\n perform 1 from touchline_private.owner_settings where singleton for share;\n perform pg_advisory_xact_lock(hashtextextended(auth.uid()::text, 0));\n if not touchline_private.is_owner() then\n  raise exception 'This deployment is private or the session has ended.' using errcode='42501';\n end if;\n return auth.uid();\nend;\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "uuid",
+          "strict": false,
+          "language": "plpgsql",
+          "volatility": "v",
+          "securityDefiner": true
+        }
+      },
+      {
+        "key": "touchline_private.restrict_signup()",
+        "kind": "function",
+        "value": {
+          "body": "\ndeclare settings touchline_private.owner_settings;\nbegin\n select * into settings from touchline_private.owner_settings where singleton for update;\n if not found or settings.owner_user_id is not null or new.email is null or lower(new.email)<>settings.email\n   or coalesce(new.is_anonymous,false) then\n  raise exception 'This is a private learning hub. Account creation is restricted.' using errcode='42501';\n end if;\n -- AFTER INSERT allows the owner UUID foreign key to resolve. The transaction\n -- rolls back the account as well if admission or pinning fails.\n update touchline_private.owner_settings set owner_user_id=new.id where singleton;\n return new;\nend;\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "trigger",
+          "strict": false,
+          "language": "plpgsql",
+          "volatility": "v",
+          "securityDefiner": true
+        }
+      },
+      {
+        "key": "touchline_private.text_array(v jsonb)",
+        "kind": "function",
+        "value": {
+          "body": "\ndeclare item jsonb;\nbegin\n if jsonb_typeof(v) is distinct from 'array' then raise exception 'Expected a text list.' using errcode='22023'; end if;\n for item in select * from jsonb_array_elements(v) loop perform touchline_private.text_value(item); end loop;\nend;\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "void",
+          "strict": false,
+          "language": "plpgsql",
+          "volatility": "i",
+          "securityDefiner": false
+        }
+      },
+      {
+        "key": "touchline_private.text_value(v jsonb, maximum integer, nonblank boolean)",
+        "kind": "function",
+        "value": {
+          "body": "\nbegin\n if jsonb_typeof(v) is distinct from 'string' or (maximum is not null and length(v#>>'{}')>maximum)\n  or (nonblank and (v#>>'{}')!~'[^[:space:]]') then\n  raise exception 'Invalid text field.' using errcode='22023';\n end if;\nend;\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "void",
+          "strict": false,
+          "language": "plpgsql",
+          "volatility": "i",
+          "securityDefiner": false
+        }
+      },
+      {
+        "key": "touchline_private.validate_publication(course_id text, c jsonb, p jsonb)",
+        "kind": "function",
+        "value": {
+          "body": "\ndeclare m jsonb; r jsonb; e jsonb; field text; ref text; key text; item jsonb; course_module jsonb; ids text[]:='{}';\nbegin\n if course_id is null or course_id!~'^[a-z0-9][a-z0-9-]{0,59}$' then raise exception 'Invalid curriculum ID.' using errcode='22023'; end if;\n if octet_length(c::text)+octet_length(p::text)>=2000000 then raise exception 'Publication must be smaller than 2 MB.' using errcode='22023'; end if;\n perform touchline_private.object_fields(c,array['id','title','subtitle','description','weeks','weeklyHours','resources','modules'],array['version','nextPhase','researchDate','totalHours']);\n perform touchline_private.text_value(c->'id');\n if c->>'id'<>course_id or (c?'version' and c->'version'<>'1'::jsonb) then raise exception 'Unsupported curriculum identity or version.' using errcode='22023'; end if;\n foreach field in array array['title','subtitle','description'] loop perform touchline_private.text_value(c->field,null,true); end loop;\n perform touchline_private.number_value(c->'weeks',1,520,true);\n perform touchline_private.number_value(c->'weeklyHours',1,40);\n if c?'totalHours' then perform touchline_private.number_value(c->'totalHours',0,20800); end if;\n if c?'researchDate' then perform touchline_private.text_value(c->'researchDate'); end if;\n if c?'nextPhase' then perform touchline_private.text_array(c->'nextPhase'); end if;\n if jsonb_typeof(c->'resources') is distinct from 'object' then raise exception 'Expected resources.' using errcode='22023'; end if;\n for r in select value from jsonb_each(c->'resources') loop\n  perform touchline_private.object_fields(r,array['title','url','use']);\n  foreach field in array array['title','url','use'] loop perform touchline_private.text_value(r->field); end loop;\n  if r->>'url'!~'^https?://[^[:space:]]+$' then raise exception 'Resources need HTTP or HTTPS URLs.' using errcode='22023'; end if;\n end loop;\n if jsonb_typeof(c->'modules') is distinct from 'array' or jsonb_array_length(c->'modules') not between 1 and 100 then raise exception 'Expected 1 to 100 modules.' using errcode='22023'; end if;\n for m in select * from jsonb_array_elements(c->'modules') loop\n  perform touchline_private.object_fields(m,array['id','title','phase','question','outcome','math','evidence','challenge','reading','dataset','tasks','weeks','resources','prerequisites','hours','weekStart','weekEnd'],array['number']);\n  perform touchline_private.text_value(m->'id');\n  if m->>'id'!~'^[a-zA-Z0-9_-]{1,60}$' or m->>'id'=any(ids) then raise exception 'Invalid or duplicate module ID.' using errcode='22023'; end if;\n  ids:=array_append(ids,m->>'id');\n  foreach field in array array['title','phase','question','outcome','math','evidence','challenge','reading','dataset'] loop perform touchline_private.text_value(m->field); end loop;\n  foreach field in array array['tasks','weeks','resources','prerequisites'] loop perform touchline_private.text_array(m->field); end loop;\n  if jsonb_array_length(m->'tasks') not between 1 and 30 then raise exception 'Expected 1 to 30 tasks.' using errcode='22023'; end if;\n  foreach field in array array['hours','weekStart','weekEnd'] loop\n   perform touchline_private.number_value(m->field,0,10000);\n   if (m->>field)::numeric=0 then raise exception 'Module numbers must be positive.' using errcode='22023'; end if;\n  end loop;\n  if m?'number' then perform touchline_private.number_value(m->'number',1,9007199254740991,true); end if;\n  if (m->>'weekStart')::numeric>(m->>'weekEnd')::numeric or (m->>'weekEnd')::numeric>(c->>'weeks')::numeric then raise exception 'Module weeks exceed the curriculum.' using errcode='22023'; end if;\n  for ref in select jsonb_array_elements_text(m->'resources') loop\n   if not(c->'resources'?ref) then raise exception 'Unknown resource.' using errcode='22023'; end if;\n  end loop;\n end loop;\n for m in select * from jsonb_array_elements(c->'modules') loop\n  for ref in select jsonb_array_elements_text(m->'prerequisites') loop\n   if not(ref=any(ids)) then raise exception 'Unknown prerequisite.' using errcode='22023'; end if;\n  end loop;\n end loop;\n perform touchline_private.object_fields(p,array['version','revision','curriculumId','weeklyHours','startDate','modules','experiments']);\n perform touchline_private.text_value(p->'curriculumId');\n if p->'version'<>'1'::jsonb or p->>'curriculumId'<>course_id then raise exception 'Unsupported progress identity or version.' using errcode='22023'; end if;\n perform touchline_private.number_value(p->'revision',0,9007199254740991,true);\n perform touchline_private.number_value(p->'weeklyHours',1,40);\n perform touchline_private.text_value(p->'startDate',10);\n if p->>'startDate'<>'' then\n  if p->>'startDate'!~'^\\d{4}-\\d{2}-\\d{2}$' then raise exception 'Invalid start date.' using errcode='22023'; end if;\n  begin perform (p->>'startDate')::date; exception when others then raise exception 'Invalid start date.' using errcode='22023'; end;\n end if;\n if jsonb_typeof(p->'modules') is distinct from 'object' then raise exception 'Invalid module progress.' using errcode='22023'; end if;\n for key,m in select * from jsonb_each(p->'modules') loop\n  if not(key=any(ids)) then raise exception 'Unknown progress module.' using errcode='22023'; end if;\n  select value into course_module from jsonb_array_elements(c->'modules') where value->>'id'=key;\n  perform touchline_private.object_fields(m,array['status','tasks','notes','evidence','hours']);\n  perform touchline_private.text_value(m->'status');\n  if m->>'status' not in ('not-started','active','complete') then raise exception 'Invalid progress status.' using errcode='22023'; end if;\n  if jsonb_typeof(m->'tasks') is distinct from 'array' or jsonb_array_length(m->'tasks')<>jsonb_array_length(course_module->'tasks') then raise exception 'Invalid task count.' using errcode='22023'; end if;\n  for item in select * from jsonb_array_elements(m->'tasks') loop\n   if jsonb_typeof(item) is distinct from 'boolean' then raise exception 'Task values must be boolean.' using errcode='22023'; end if;\n   if m->>'status'='complete' and item<>'true'::jsonb then raise exception 'Finish every task before completion.' using errcode='22023'; end if;\n  end loop;\n  perform touchline_private.text_value(m->'notes',50000);\n  perform touchline_private.text_value(m->'evidence',50000,m->>'status'='complete');\n  perform touchline_private.number_value(m->'hours',0,10000);\n end loop;\n if jsonb_typeof(p->'experiments') is distinct from 'array' or jsonb_array_length(p->'experiments')>2000 then raise exception 'Invalid experiment list.' using errcode='22023'; end if;\n for e in select * from jsonb_array_elements(p->'experiments') loop\n  perform touchline_private.object_fields(e,array['id','date','module','title','hypothesis','result']);\n  foreach field in array array['id','date','module','title','hypothesis','result'] loop perform touchline_private.text_value(e->field,20000,field='title'); end loop;\n  if not(e->>'module'=any(ids)) then raise exception 'Unknown experiment module.' using errcode='22023'; end if;\n end loop;\nend;\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "void",
+          "strict": false,
+          "language": "plpgsql",
+          "volatility": "i",
+          "securityDefiner": false
+        }
+      },
+      {
+        "key": "public.publish_learning_course(course_id text, course_content jsonb, course_progress jsonb, course_status text, expected_revision bigint, request_id uuid):authenticated:EXECUTE",
+        "kind": "function-grant",
+        "value": false
+      },
+      {
+        "key": "public.publish_learning_course(course_id text, course_content jsonb, course_progress jsonb, course_status text, expected_revision bigint, request_id uuid):service_role:EXECUTE",
+        "kind": "function-grant",
+        "value": false
+      },
+      {
+        "key": "public.save_learning_course(course_id text, course_content jsonb, course_progress jsonb, expected_revision integer):authenticated:EXECUTE",
+        "kind": "function-grant",
+        "value": false
+      },
+      {
+        "key": "public.save_learning_course(course_id text, course_content jsonb, course_progress jsonb, expected_revision integer):service_role:EXECUTE",
+        "kind": "function-grant",
+        "value": false
+      },
+      {
+        "key": "public.save_learning_library(library jsonb, expected_revision bigint, request_id uuid):authenticated:EXECUTE",
+        "kind": "function-grant",
+        "value": false
+      },
+      {
+        "key": "public.save_learning_library(library jsonb, expected_revision bigint, request_id uuid):service_role:EXECUTE",
+        "kind": "function-grant",
+        "value": false
+      },
+      {
+        "key": "touchline_private.is_owner():authenticated:EXECUTE",
+        "kind": "function-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_courses.owner_read",
+        "kind": "policy",
+        "value": {
+          "check": null,
+          "roles": [
+            "authenticated"
+          ],
+          "using": "((user_id = ( SELECT auth.uid() AS uid)) AND ( SELECT touchline_private.is_owner() AS is_owner))",
+          "command": "r",
+          "permissive": true
+        }
+      },
+      {
+        "key": "public.learning_courses.touchline_private_read_guard",
+        "kind": "policy",
+        "value": {
+          "check": null,
+          "roles": [
+            "authenticated"
+          ],
+          "using": "((user_id = ( SELECT auth.uid() AS uid)) AND ( SELECT touchline_private.is_owner() AS is_owner))",
+          "command": "r",
+          "permissive": false
+        }
+      },
+      {
+        "key": "public.learning_libraries.owner_read",
+        "kind": "policy",
+        "value": {
+          "check": null,
+          "roles": [
+            "authenticated"
+          ],
+          "using": "((user_id = ( SELECT auth.uid() AS uid)) AND ( SELECT touchline_private.is_owner() AS is_owner))",
+          "command": "r",
+          "permissive": true
+        }
+      },
+      {
+        "key": "public.learning_libraries.touchline_private_read_guard",
+        "kind": "policy",
+        "value": {
+          "check": null,
+          "roles": [
+            "authenticated"
+          ],
+          "using": "((user_id = ( SELECT auth.uid() AS uid)) AND ( SELECT touchline_private.is_owner() AS is_owner))",
+          "command": "r",
+          "permissive": false
+        }
+      },
+      {
+        "key": "public.learning_courses",
+        "kind": "relation",
+        "value": {
+          "rls": true,
+          "kind": "r",
+          "owner": "postgres",
+          "forced": false,
+          "persistence": "p"
+        }
+      },
+      {
+        "key": "public.learning_libraries",
+        "kind": "relation",
+        "value": {
+          "rls": true,
+          "kind": "r",
+          "owner": "postgres",
+          "forced": false,
+          "persistence": "p"
+        }
+      },
+      {
+        "key": "public.learning_library_snapshots",
+        "kind": "relation",
+        "value": {
+          "rls": false,
+          "kind": "v",
+          "owner": "postgres",
+          "forced": false,
+          "persistence": "p"
+        }
+      },
+      {
+        "key": "public.learning_snapshots",
+        "kind": "relation",
+        "value": {
+          "rls": false,
+          "kind": "v",
+          "owner": "postgres",
+          "forced": false,
+          "persistence": "p"
+        }
+      },
+      {
+        "key": "touchline_private.owner_settings",
+        "kind": "relation",
+        "value": {
+          "rls": true,
+          "kind": "r",
+          "owner": "postgres",
+          "forced": false,
+          "persistence": "p"
+        }
+      },
+      {
+        "key": "touchline_private.write_requests",
+        "kind": "relation",
+        "value": {
+          "rls": true,
+          "kind": "r",
+          "owner": "postgres",
+          "forced": false,
+          "persistence": "p"
+        }
+      },
+      {
+        "key": "public:PUBLIC:USAGE",
+        "kind": "schema-grant",
+        "value": false
+      },
+      {
+        "key": "public:anon:USAGE",
+        "kind": "schema-grant",
+        "value": false
+      },
+      {
+        "key": "public:authenticated:USAGE",
+        "kind": "schema-grant",
+        "value": false
+      },
+      {
+        "key": "public:postgres:USAGE",
+        "kind": "schema-grant",
+        "value": false
+      },
+      {
+        "key": "public:service_role:USAGE",
+        "kind": "schema-grant",
+        "value": false
+      },
+      {
+        "key": "touchline_private:authenticated:USAGE",
+        "kind": "schema-grant",
+        "value": false
+      },
+      {
+        "key": "touchline_private",
+        "kind": "schema-owner",
+        "value": "postgres"
+      },
+      {
+        "key": "public.learning_courses:authenticated:SELECT",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_courses:service_role:DELETE",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_courses:service_role:INSERT",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_courses:service_role:MAINTAIN",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_courses:service_role:REFERENCES",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_courses:service_role:SELECT",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_courses:service_role:TRIGGER",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_courses:service_role:TRUNCATE",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_courses:service_role:UPDATE",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_libraries:authenticated:SELECT",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_libraries:service_role:DELETE",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_libraries:service_role:INSERT",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_libraries:service_role:MAINTAIN",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_libraries:service_role:REFERENCES",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_libraries:service_role:SELECT",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_libraries:service_role:TRIGGER",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_libraries:service_role:TRUNCATE",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_libraries:service_role:UPDATE",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_library_snapshots:authenticated:SELECT",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_library_snapshots:service_role:DELETE",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_library_snapshots:service_role:INSERT",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_library_snapshots:service_role:MAINTAIN",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_library_snapshots:service_role:REFERENCES",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_library_snapshots:service_role:SELECT",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_library_snapshots:service_role:TRIGGER",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_library_snapshots:service_role:TRUNCATE",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_library_snapshots:service_role:UPDATE",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_snapshots:authenticated:SELECT",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_snapshots:service_role:DELETE",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_snapshots:service_role:INSERT",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_snapshots:service_role:MAINTAIN",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_snapshots:service_role:REFERENCES",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_snapshots:service_role:SELECT",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_snapshots:service_role:TRIGGER",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_snapshots:service_role:TRUNCATE",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_snapshots:service_role:UPDATE",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "auth.users.touchline_restrict_signup",
+        "kind": "trigger",
+        "value": {
+          "enabled": "O",
+          "definition": "CREATE TRIGGER touchline_restrict_signup AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION touchline_private.restrict_signup()"
+        }
+      },
+      {
+        "key": "public.learning_library_snapshots",
+        "kind": "view",
+        "value": {
+          "options": [
+            "security_invoker=true"
+          ],
+          "definition": " SELECT user_id,\n    jsonb_build_object('version', version, 'revision', revision, 'focusCurriculumId', focus_curriculum_id) AS snapshot\n   FROM learning_libraries;"
+        }
+      },
+      {
+        "key": "public.learning_snapshots",
+        "kind": "view",
+        "value": {
+          "options": [
+            "security_invoker=true"
+          ],
+          "definition": " SELECT user_id,\n    id,\n    jsonb_build_object('format', 'touchline-snapshot', 'version', format_version, 'curriculum', curriculum, 'progress', progress, 'status', status, 'revision', revision, 'publishedAt', to_char((updated_at AT TIME ZONE 'UTC'::text), 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"'::text)) AS snapshot\n   FROM learning_courses\n  WHERE format_version = 1;"
+        }
+      }
+    ]
+  },
+  {
+    "migrations": [
+      {
+        "id": "001_private_writes.sql",
+        "sha256": "df8195b657214d2c3c75814f0a1f57be3f9104fc1c9debac4b46cae63549ed76"
+      },
+      {
+        "id": "002_bind_existing_owner.sql",
+        "sha256": "09f258063c34b1b690df7d442acb9d7e9708689c1304f1d72ff22c58eeb80019"
+      },
+      {
+        "id": "003_classify_legacy_publications.sql",
+        "sha256": "9aebb0880dd7c06400f6e7368e7540425a93c3f1bd88ef02189df0674dfd42f4"
+      },
+      {
+        "id": "004_session_access.sql",
+        "sha256": "b3c1a3a64292beaf9cb2c768dbda768ad002152ad37813ae9938e1efae1dfcc8"
+      }
+    ],
+    "catalog": [
+      {
+        "key": "public.learning_courses.curriculum",
+        "kind": "column",
+        "value": {
+          "type": "jsonb",
+          "default": null,
+          "notNull": true,
+          "identity": "",
+          "position": 3,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_courses.format_version",
+        "kind": "column",
+        "value": {
+          "type": "integer",
+          "default": "0",
+          "notNull": true,
+          "identity": "",
+          "position": 8,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_courses.id",
+        "kind": "column",
+        "value": {
+          "type": "text",
+          "default": null,
+          "notNull": true,
+          "identity": "",
+          "position": 2,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_courses.progress",
+        "kind": "column",
+        "value": {
+          "type": "jsonb",
+          "default": null,
+          "notNull": true,
+          "identity": "",
+          "position": 4,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_courses.revision",
+        "kind": "column",
+        "value": {
+          "type": "bigint",
+          "default": "0",
+          "notNull": true,
+          "identity": "",
+          "position": 5,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_courses.status",
+        "kind": "column",
+        "value": {
+          "type": "text",
+          "default": "'active'::text",
+          "notNull": true,
+          "identity": "",
+          "position": 7,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_courses.updated_at",
+        "kind": "column",
+        "value": {
+          "type": "timestamp with time zone",
+          "default": "now()",
+          "notNull": true,
+          "identity": "",
+          "position": 6,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_courses.user_id",
+        "kind": "column",
+        "value": {
+          "type": "uuid",
+          "default": null,
+          "notNull": true,
+          "identity": "",
+          "position": 1,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_libraries.focus_curriculum_id",
+        "kind": "column",
+        "value": {
+          "type": "text",
+          "default": null,
+          "notNull": false,
+          "identity": "",
+          "position": 4,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_libraries.revision",
+        "kind": "column",
+        "value": {
+          "type": "bigint",
+          "default": "0",
+          "notNull": true,
+          "identity": "",
+          "position": 3,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_libraries.user_id",
+        "kind": "column",
+        "value": {
+          "type": "uuid",
+          "default": null,
+          "notNull": true,
+          "identity": "",
+          "position": 1,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_libraries.version",
+        "kind": "column",
+        "value": {
+          "type": "integer",
+          "default": "1",
+          "notNull": true,
+          "identity": "",
+          "position": 2,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_library_snapshots.snapshot",
+        "kind": "column",
+        "value": {
+          "type": "jsonb",
+          "default": null,
+          "notNull": false,
+          "identity": "",
+          "position": 2,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_library_snapshots.user_id",
+        "kind": "column",
+        "value": {
+          "type": "uuid",
+          "default": null,
+          "notNull": false,
+          "identity": "",
+          "position": 1,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_snapshots.id",
+        "kind": "column",
+        "value": {
+          "type": "text",
+          "default": null,
+          "notNull": false,
+          "identity": "",
+          "position": 2,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_snapshots.snapshot",
+        "kind": "column",
+        "value": {
+          "type": "jsonb",
+          "default": null,
+          "notNull": false,
+          "identity": "",
+          "position": 3,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_snapshots.user_id",
+        "kind": "column",
+        "value": {
+          "type": "uuid",
+          "default": null,
+          "notNull": false,
+          "identity": "",
+          "position": 1,
+          "generated": ""
+        }
+      },
+      {
+        "key": "touchline_private.owner_settings.email",
+        "kind": "column",
+        "value": {
+          "type": "text",
+          "default": null,
+          "notNull": true,
+          "identity": "",
+          "position": 2,
+          "generated": ""
+        }
+      },
+      {
+        "key": "touchline_private.owner_settings.owner_user_id",
+        "kind": "column",
+        "value": {
+          "type": "uuid",
+          "default": null,
+          "notNull": false,
+          "identity": "",
+          "position": 3,
+          "generated": ""
+        }
+      },
+      {
+        "key": "touchline_private.owner_settings.singleton",
+        "kind": "column",
+        "value": {
+          "type": "boolean",
+          "default": "true",
+          "notNull": true,
+          "identity": "",
+          "position": 1,
+          "generated": ""
+        }
+      },
+      {
+        "key": "touchline_private.session_registry.account_id",
+        "kind": "column",
+        "value": {
+          "type": "uuid",
+          "default": null,
+          "notNull": true,
+          "identity": "",
+          "position": 2,
+          "generated": ""
+        }
+      },
+      {
+        "key": "touchline_private.session_registry.label",
+        "kind": "column",
+        "value": {
+          "type": "text",
+          "default": null,
+          "notNull": false,
+          "identity": "",
+          "position": 3,
+          "generated": ""
+        }
+      },
+      {
+        "key": "touchline_private.session_registry.last_seen_at",
+        "kind": "column",
+        "value": {
+          "type": "timestamp with time zone",
+          "default": null,
+          "notNull": false,
+          "identity": "",
+          "position": 4,
+          "generated": ""
+        }
+      },
+      {
+        "key": "touchline_private.session_registry.revoked_at",
+        "kind": "column",
+        "value": {
+          "type": "timestamp with time zone",
+          "default": null,
+          "notNull": false,
+          "identity": "",
+          "position": 5,
+          "generated": ""
+        }
+      },
+      {
+        "key": "touchline_private.session_registry.session_id",
+        "kind": "column",
+        "value": {
+          "type": "uuid",
+          "default": null,
+          "notNull": true,
+          "identity": "",
+          "position": 1,
+          "generated": ""
+        }
+      },
+      {
+        "key": "touchline_private.write_requests.operation",
+        "kind": "column",
+        "value": {
+          "type": "text",
+          "default": null,
+          "notNull": true,
+          "identity": "",
+          "position": 3,
+          "generated": ""
+        }
+      },
+      {
+        "key": "touchline_private.write_requests.payload",
+        "kind": "column",
+        "value": {
+          "type": "jsonb",
+          "default": null,
+          "notNull": true,
+          "identity": "",
+          "position": 4,
+          "generated": ""
+        }
+      },
+      {
+        "key": "touchline_private.write_requests.request_id",
+        "kind": "column",
+        "value": {
+          "type": "uuid",
+          "default": null,
+          "notNull": true,
+          "identity": "",
+          "position": 2,
+          "generated": ""
+        }
+      },
+      {
+        "key": "touchline_private.write_requests.result",
+        "kind": "column",
+        "value": {
+          "type": "jsonb",
+          "default": null,
+          "notNull": true,
+          "identity": "",
+          "position": 5,
+          "generated": ""
+        }
+      },
+      {
+        "key": "touchline_private.write_requests.user_id",
+        "kind": "column",
+        "value": {
+          "type": "uuid",
+          "default": null,
+          "notNull": true,
+          "identity": "",
+          "position": 1,
+          "generated": ""
+        }
+      },
+      {
+        "key": "public.learning_courses.learning_courses_check",
+        "kind": "constraint",
+        "value": "CHECK ((octet_length(curriculum::text) + octet_length(progress::text)) < 2000000)"
+      },
+      {
+        "key": "public.learning_courses.learning_courses_format_version_check",
+        "kind": "constraint",
+        "value": "CHECK (format_version = ANY (ARRAY[0, 1]))"
+      },
+      {
+        "key": "public.learning_courses.learning_courses_id_check",
+        "kind": "constraint",
+        "value": "CHECK (id ~ '^[a-z0-9][a-z0-9-]{0,59}$'::text)"
+      },
+      {
+        "key": "public.learning_courses.learning_courses_pkey",
+        "kind": "constraint",
+        "value": "PRIMARY KEY (user_id, id)"
+      },
+      {
+        "key": "public.learning_courses.learning_courses_revision_check",
+        "kind": "constraint",
+        "value": "CHECK (revision >= 0 AND revision <= '9007199254740991'::bigint)"
+      },
+      {
+        "key": "public.learning_courses.learning_courses_status_check",
+        "kind": "constraint",
+        "value": "CHECK (status = ANY (ARRAY['active'::text, 'paused'::text, 'completed'::text, 'saved'::text]))"
+      },
+      {
+        "key": "public.learning_courses.learning_courses_user_id_fkey",
+        "kind": "constraint",
+        "value": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+      },
+      {
+        "key": "public.learning_libraries.learning_libraries_pkey",
+        "kind": "constraint",
+        "value": "PRIMARY KEY (user_id)"
+      },
+      {
+        "key": "public.learning_libraries.learning_libraries_revision_check",
+        "kind": "constraint",
+        "value": "CHECK (revision >= 0 AND revision <= '9007199254740991'::bigint)"
+      },
+      {
+        "key": "public.learning_libraries.learning_libraries_user_id_fkey",
+        "kind": "constraint",
+        "value": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+      },
+      {
+        "key": "public.learning_libraries.learning_libraries_user_id_focus_curriculum_id_fkey",
+        "kind": "constraint",
+        "value": "FOREIGN KEY (user_id, focus_curriculum_id) REFERENCES learning_courses(user_id, id)"
+      },
+      {
+        "key": "public.learning_libraries.learning_libraries_version_check",
+        "kind": "constraint",
+        "value": "CHECK (version = 1)"
+      },
+      {
+        "key": "touchline_private.owner_settings.owner_settings_email_check",
+        "kind": "constraint",
+        "value": "CHECK (email = lower(email))"
+      },
+      {
+        "key": "touchline_private.owner_settings.owner_settings_email_key",
+        "kind": "constraint",
+        "value": "UNIQUE (email)"
+      },
+      {
+        "key": "touchline_private.owner_settings.owner_settings_owner_user_id_fkey",
+        "kind": "constraint",
+        "value": "FOREIGN KEY (owner_user_id) REFERENCES auth.users(id)"
+      },
+      {
+        "key": "touchline_private.owner_settings.owner_settings_pkey",
+        "kind": "constraint",
+        "value": "PRIMARY KEY (singleton)"
+      },
+      {
+        "key": "touchline_private.owner_settings.owner_settings_singleton_check",
+        "kind": "constraint",
+        "value": "CHECK (singleton)"
+      },
+      {
+        "key": "touchline_private.session_registry.session_registry_account_id_fkey",
+        "kind": "constraint",
+        "value": "FOREIGN KEY (account_id) REFERENCES auth.users(id)"
+      },
+      {
+        "key": "touchline_private.session_registry.session_registry_label_check",
+        "kind": "constraint",
+        "value": "CHECK (label IS NULL OR length(label) >= 1 AND length(label) <= 80 AND label = btrim(label) AND label !~ '[[:cntrl:]]'::text)"
+      },
+      {
+        "key": "touchline_private.session_registry.session_registry_pkey",
+        "kind": "constraint",
+        "value": "PRIMARY KEY (session_id)"
+      },
+      {
+        "key": "touchline_private.write_requests.write_requests_pkey",
+        "kind": "constraint",
+        "value": "PRIMARY KEY (user_id, request_id)"
+      },
+      {
+        "key": "touchline_private.write_requests.write_requests_user_id_fkey",
+        "kind": "constraint",
+        "value": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+      },
+      {
+        "key": "public.list_touchline_sessions()",
+        "kind": "function",
+        "value": {
+          "body": "\ndeclare owner_id uuid := touchline_private.require_owner(); result jsonb;\nbegin\n select coalesce(jsonb_agg(jsonb_build_object('sessionId',s.id,'label',coalesce(r.label,'Unknown device'),\n  'createdAt',s.created_at,'lastSeenAt',r.last_seen_at,'isCurrent',s.id=touchline_private.current_session_id())\n  order by s.created_at desc nulls last,s.id),'[]'::jsonb) into result\n from auth.sessions s left join touchline_private.session_registry r on r.session_id=s.id\n where s.user_id=owner_id and r.revoked_at is null;\n return result;\nend;\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "jsonb",
+          "strict": false,
+          "language": "plpgsql",
+          "volatility": "v",
+          "securityDefiner": true
+        }
+      },
+      {
+        "key": "public.publish_learning_course(course_id text, course_content jsonb, course_progress jsonb, course_status text, expected_revision bigint, request_id uuid)",
+        "kind": "function",
+        "value": {
+          "body": "\ndeclare owner_id uuid; result public.learning_courses; old_request touchline_private.write_requests; request_payload jsonb;\nbegin\n owner_id:=touchline_private.require_owner();\n perform touchline_private.validate_publication(course_id,course_content,course_progress);\n if expected_revision is null or expected_revision not between -1 and 9007199254740990 or course_status is null or course_status not in ('active','paused','completed','saved') then raise exception 'Invalid revision or curriculum status.' using errcode='22023'; end if;\n request_payload:=jsonb_build_object('id',course_id,'curriculum',course_content,'progress',course_progress,'status',course_status,'expectedRevision',expected_revision);\n if request_id is not null then\n  select * into old_request from touchline_private.write_requests where user_id=owner_id and write_requests.request_id=publish_learning_course.request_id;\n  if found then\n   if old_request.operation<>'course' or old_request.payload<>request_payload then raise exception 'A retry ID cannot identify a different request.' using errcode='22023'; end if;\n   select * into result from jsonb_populate_record(null::public.learning_courses,old_request.result); return result;\n  end if;\n end if;\n if expected_revision=-1 then\n  insert into public.learning_courses(user_id,id,curriculum,progress,status,format_version) values(owner_id,course_id,course_content,course_progress,course_status,1)\n  on conflict do nothing returning * into result;\n else\n  update public.learning_courses set curriculum=course_content,progress=course_progress,status=course_status,format_version=1,revision=revision+1,updated_at=clock_timestamp()\n  where user_id=owner_id and id=course_id and revision=expected_revision returning * into result;\n end if;\n if result.id is null then raise exception 'Newer cloud progress exists. Download it before uploading.' using errcode='40001'; end if;\n if course_status<>'active' then\n  update public.learning_libraries set focus_curriculum_id=null,revision=revision+1 where user_id=owner_id and focus_curriculum_id=course_id;\n end if;\n if request_id is not null then\n  insert into touchline_private.write_requests values(owner_id,request_id,'course',request_payload,to_jsonb(result));\n end if;\n return result;\nend;\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "learning_courses",
+          "strict": false,
+          "language": "plpgsql",
+          "volatility": "v",
+          "securityDefiner": true
+        }
+      },
+      {
+        "key": "public.register_touchline_session(device_label text)",
+        "kind": "function",
+        "value": {
+          "body": "\ndeclare owner_id uuid := touchline_private.require_owner(); sid uuid := touchline_private.current_session_id();\nbegin\n if device_label is null or length(btrim(device_label)) not between 1 and 80 or device_label~'[[:cntrl:]]' then\n  raise exception 'Enter a device label of 1 to 80 characters.' using errcode='22023';\n end if;\n insert into touchline_private.session_registry(session_id,account_id,label,last_seen_at)\n values(sid,owner_id,btrim(device_label),now())\n on conflict(session_id) do update set label=excluded.label,last_seen_at=excluded.last_seen_at\n where session_registry.account_id=owner_id and session_registry.revoked_at is null;\n if not found then raise exception 'The session has ended.' using errcode='42501'; end if;\n return jsonb_build_object('sessionId',sid,'accountId',owner_id);\nend;\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "jsonb",
+          "strict": false,
+          "language": "plpgsql",
+          "volatility": "v",
+          "securityDefiner": true
+        }
+      },
+      {
+        "key": "public.revoke_touchline_session(target_session_id uuid)",
+        "kind": "function",
+        "value": {
+          "body": "\ndeclare owner_id uuid := touchline_private.require_owner();\nbegin\n if not exists(select 1 from auth.sessions where id=target_session_id and user_id=owner_id) then\n  raise exception 'This account does not have that live session.' using errcode='22023';\n end if;\n insert into touchline_private.session_registry(session_id,account_id,revoked_at)\n values(target_session_id,owner_id,now())\n on conflict(session_id) do update set revoked_at=coalesce(session_registry.revoked_at,excluded.revoked_at)\n where session_registry.account_id=owner_id;\n if not found then raise exception 'This account cannot revoke that session.' using errcode='42501'; end if;\n return true;\nend;\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "boolean",
+          "strict": false,
+          "language": "plpgsql",
+          "volatility": "v",
+          "securityDefiner": true
+        }
+      },
+      {
+        "key": "public.save_learning_course(course_id text, course_content jsonb, course_progress jsonb, expected_revision integer)",
+        "kind": "function",
+        "value": {
+          "body": "\n select public.publish_learning_course(course_id,course_content,course_progress,'active',expected_revision::bigint,null);\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "learning_courses",
+          "strict": false,
+          "language": "sql",
+          "volatility": "v",
+          "securityDefiner": true
+        }
+      },
+      {
+        "key": "public.save_learning_library(library jsonb, expected_revision bigint, request_id uuid)",
+        "kind": "function",
+        "value": {
+          "body": "\ndeclare owner_id uuid; focus text; result public.learning_libraries; response jsonb; old_request touchline_private.write_requests; request_payload jsonb;\nbegin\n owner_id:=touchline_private.require_owner();\n perform touchline_private.object_fields(library,array['version','revision','focusCurriculumId']);\n if library->'version'<>'1'::jsonb then raise exception 'Unsupported library version.' using errcode='22023'; end if;\n perform touchline_private.number_value(library->'revision',0,9007199254740991,true);\n if expected_revision is null or expected_revision not between -1 and 9007199254740990 or (library->>'revision')::bigint<>greatest(expected_revision,0) then raise exception 'Invalid library revision.' using errcode='22023'; end if;\n if library->'focusCurriculumId'<>'null'::jsonb then perform touchline_private.text_value(library->'focusCurriculumId'); end if;\n focus:=library->>'focusCurriculumId';\n request_payload:=jsonb_build_object('library',library,'expectedRevision',expected_revision);\n if request_id is not null then\n  select * into old_request from touchline_private.write_requests where user_id=owner_id and write_requests.request_id=save_learning_library.request_id;\n  if found then\n   if old_request.operation<>'library' or old_request.payload<>request_payload then raise exception 'A retry ID cannot identify a different request.' using errcode='22023'; end if;\n   return old_request.result;\n  end if;\n end if;\n if focus is not null and not exists(select 1 from public.learning_courses where user_id=owner_id and id=focus and status='active') then raise exception 'Focus must reference an active published curriculum.' using errcode='22023'; end if;\n if expected_revision=-1 then\n  insert into public.learning_libraries(user_id,focus_curriculum_id) values(owner_id,focus) on conflict do nothing returning * into result;\n else\n  update public.learning_libraries set focus_curriculum_id=focus,revision=revision+1 where user_id=owner_id and revision=expected_revision returning * into result;\n end if;\n if result.user_id is null then raise exception 'Newer library changes exist. Refresh before publishing.' using errcode='40001'; end if;\n response:=jsonb_build_object('version',1,'revision',result.revision,'focusCurriculumId',result.focus_curriculum_id);\n if request_id is not null then insert into touchline_private.write_requests values(owner_id,request_id,'library',request_payload,response); end if;\n return response;\nend;\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "jsonb",
+          "strict": false,
+          "language": "plpgsql",
+          "volatility": "v",
+          "securityDefiner": true
+        }
+      },
+      {
+        "key": "touchline_private.configure_owner(owner_email text, owner_account_id uuid)",
+        "kind": "function",
+        "value": {
+          "body": "\ndeclare chosen uuid; matches integer; current_owner uuid;\nbegin\n if owner_email is null or owner_email<>lower(btrim(owner_email)) or owner_email!~'^[^[:space:]@]+@[^[:space:]@]+$' then\n  raise exception 'Enter a lowercase owner email.' using errcode='22023';\n end if;\n select owner_user_id into current_owner from touchline_private.owner_settings where singleton for update;\n if owner_account_id is not null then\n  select id into chosen from auth.users where id=owner_account_id and email_confirmed_at is not null\n   and not coalesce(is_anonymous,false) and deleted_at is null and (banned_until is null or banned_until<=now());\n  if chosen is null then raise exception 'Select an existing confirmed owner account.' using errcode='22023'; end if;\n elsif current_owner is not null then\n  chosen:=current_owner;\n else\n  select count(*), (array_agg(id))[1] into matches,chosen from auth.users where lower(email)=owner_email and deleted_at is null;\n  if matches>1 then raise exception 'Several accounts match. Configure an explicit owner UUID.' using errcode='22023'; end if;\n  if chosen is not null and not exists(select 1 from auth.users where id=chosen and email_confirmed_at is not null and not coalesce(is_anonymous,false)) then\n   raise exception 'Confirm the existing owner account before configuration.' using errcode='22023';\n  end if;\n end if;\n insert into touchline_private.owner_settings(singleton,email,owner_user_id) values(true,owner_email,chosen)\n on conflict(singleton) do update set email=excluded.email,owner_user_id=excluded.owner_user_id;\n return chosen;\nend;\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "uuid",
+          "strict": false,
+          "language": "plpgsql",
+          "volatility": "v",
+          "securityDefiner": true
+        }
+      },
+      {
+        "key": "touchline_private.current_session_id()",
+        "kind": "function",
+        "value": {
+          "body": "\ndeclare claim text := auth.jwt()->>'session_id';\nbegin\n if claim is null or claim !~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$' then return null; end if;\n return claim::uuid;\nend;\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "uuid",
+          "strict": false,
+          "language": "plpgsql",
+          "volatility": "s",
+          "securityDefiner": true
+        }
+      },
+      {
+        "key": "touchline_private.is_owner()",
+        "kind": "function",
+        "value": {
+          "body": "\n select auth.uid() is not null and exists (\n  select 1 from touchline_private.owner_settings o join auth.users u on u.id=o.owner_user_id\n  where u.id=auth.uid() and u.email_confirmed_at is not null and not coalesce(u.is_anonymous,false)\n   and u.deleted_at is null and (u.banned_until is null or u.banned_until<=now())\n   and touchline_private.session_is_allowed()\n );\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "boolean",
+          "strict": false,
+          "language": "sql",
+          "volatility": "s",
+          "securityDefiner": true
+        }
+      },
+      {
+        "key": "touchline_private.number_value(v jsonb, minimum numeric, maximum numeric, integral boolean)",
+        "kind": "function",
+        "value": {
+          "body": "\ndeclare n numeric;\nbegin\n if jsonb_typeof(v) is distinct from 'number' then raise exception 'Invalid numeric field.' using errcode='22023'; end if;\n n:=(v#>>'{}')::numeric;\n if n<minimum or n>maximum or (integral and trunc(n)<>n) then raise exception 'Number is outside its allowed range.' using errcode='22023'; end if;\nend;\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "void",
+          "strict": false,
+          "language": "plpgsql",
+          "volatility": "i",
+          "securityDefiner": false
+        }
+      },
+      {
+        "key": "touchline_private.object_fields(v jsonb, required text[], optional text[])",
+        "kind": "function",
+        "value": {
+          "body": "\nbegin\n if jsonb_typeof(v) is distinct from 'object' or not (v ?& required)\n  or exists(select 1 from jsonb_object_keys(v) k where not(k=any(required||optional))) then\n  raise exception 'Invalid object fields.' using errcode='22023';\n end if;\nend;\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "void",
+          "strict": false,
+          "language": "plpgsql",
+          "volatility": "i",
+          "securityDefiner": false
+        }
+      },
+      {
+        "key": "touchline_private.require_owner()",
+        "kind": "function",
+        "value": {
+          "body": "\nbegin\n perform 1 from touchline_private.owner_settings where singleton for share;\n -- Serialize revocation with publication, then recheck the session after waiting.\n perform pg_advisory_xact_lock(hashtextextended(auth.uid()::text, 0));\n if not touchline_private.is_owner() then\n  raise exception 'This deployment is private or the session has ended.' using errcode='42501';\n end if;\n return auth.uid();\nend;\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "uuid",
+          "strict": false,
+          "language": "plpgsql",
+          "volatility": "v",
+          "securityDefiner": true
+        }
+      },
+      {
+        "key": "touchline_private.restrict_signup()",
+        "kind": "function",
+        "value": {
+          "body": "\ndeclare settings touchline_private.owner_settings;\nbegin\n select * into settings from touchline_private.owner_settings where singleton for update;\n if not found or settings.owner_user_id is not null or new.email is null or lower(new.email)<>settings.email\n   or coalesce(new.is_anonymous,false) then\n  raise exception 'This is a private learning hub. Account creation is restricted.' using errcode='42501';\n end if;\n -- AFTER INSERT allows the owner UUID foreign key to resolve. The transaction\n -- rolls back the account as well if admission or pinning fails.\n update touchline_private.owner_settings set owner_user_id=new.id where singleton;\n return new;\nend;\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "trigger",
+          "strict": false,
+          "language": "plpgsql",
+          "volatility": "v",
+          "securityDefiner": true
+        }
+      },
+      {
+        "key": "touchline_private.session_is_allowed()",
+        "kind": "function",
+        "value": {
+          "body": "\n select exists(select 1 from auth.sessions s\n  where s.id=touchline_private.current_session_id() and s.user_id=auth.uid()\n   and not exists(select 1 from touchline_private.session_registry r where r.session_id=s.id and r.revoked_at is not null));\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "boolean",
+          "strict": false,
+          "language": "sql",
+          "volatility": "s",
+          "securityDefiner": true
+        }
+      },
+      {
+        "key": "touchline_private.text_array(v jsonb)",
+        "kind": "function",
+        "value": {
+          "body": "\ndeclare item jsonb;\nbegin\n if jsonb_typeof(v) is distinct from 'array' then raise exception 'Expected a text list.' using errcode='22023'; end if;\n for item in select * from jsonb_array_elements(v) loop perform touchline_private.text_value(item); end loop;\nend;\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "void",
+          "strict": false,
+          "language": "plpgsql",
+          "volatility": "i",
+          "securityDefiner": false
+        }
+      },
+      {
+        "key": "touchline_private.text_value(v jsonb, maximum integer, nonblank boolean)",
+        "kind": "function",
+        "value": {
+          "body": "\nbegin\n if jsonb_typeof(v) is distinct from 'string' or (maximum is not null and length(v#>>'{}')>maximum)\n  or (nonblank and (v#>>'{}')!~'[^[:space:]]') then\n  raise exception 'Invalid text field.' using errcode='22023';\n end if;\nend;\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "void",
+          "strict": false,
+          "language": "plpgsql",
+          "volatility": "i",
+          "securityDefiner": false
+        }
+      },
+      {
+        "key": "touchline_private.validate_publication(course_id text, c jsonb, p jsonb)",
+        "kind": "function",
+        "value": {
+          "body": "\ndeclare m jsonb; r jsonb; e jsonb; field text; ref text; key text; item jsonb; course_module jsonb; ids text[]:='{}';\nbegin\n if course_id is null or course_id!~'^[a-z0-9][a-z0-9-]{0,59}$' then raise exception 'Invalid curriculum ID.' using errcode='22023'; end if;\n if octet_length(c::text)+octet_length(p::text)>=2000000 then raise exception 'Publication must be smaller than 2 MB.' using errcode='22023'; end if;\n perform touchline_private.object_fields(c,array['id','title','subtitle','description','weeks','weeklyHours','resources','modules'],array['version','nextPhase','researchDate','totalHours']);\n perform touchline_private.text_value(c->'id');\n if c->>'id'<>course_id or (c?'version' and c->'version'<>'1'::jsonb) then raise exception 'Unsupported curriculum identity or version.' using errcode='22023'; end if;\n foreach field in array array['title','subtitle','description'] loop perform touchline_private.text_value(c->field,null,true); end loop;\n perform touchline_private.number_value(c->'weeks',1,520,true);\n perform touchline_private.number_value(c->'weeklyHours',1,40);\n if c?'totalHours' then perform touchline_private.number_value(c->'totalHours',0,20800); end if;\n if c?'researchDate' then perform touchline_private.text_value(c->'researchDate'); end if;\n if c?'nextPhase' then perform touchline_private.text_array(c->'nextPhase'); end if;\n if jsonb_typeof(c->'resources') is distinct from 'object' then raise exception 'Expected resources.' using errcode='22023'; end if;\n for r in select value from jsonb_each(c->'resources') loop\n  perform touchline_private.object_fields(r,array['title','url','use']);\n  foreach field in array array['title','url','use'] loop perform touchline_private.text_value(r->field); end loop;\n  if r->>'url'!~'^https?://[^[:space:]]+$' then raise exception 'Resources need HTTP or HTTPS URLs.' using errcode='22023'; end if;\n end loop;\n if jsonb_typeof(c->'modules') is distinct from 'array' or jsonb_array_length(c->'modules') not between 1 and 100 then raise exception 'Expected 1 to 100 modules.' using errcode='22023'; end if;\n for m in select * from jsonb_array_elements(c->'modules') loop\n  perform touchline_private.object_fields(m,array['id','title','phase','question','outcome','math','evidence','challenge','reading','dataset','tasks','weeks','resources','prerequisites','hours','weekStart','weekEnd'],array['number']);\n  perform touchline_private.text_value(m->'id');\n  if m->>'id'!~'^[a-zA-Z0-9_-]{1,60}$' or m->>'id'=any(ids) then raise exception 'Invalid or duplicate module ID.' using errcode='22023'; end if;\n  ids:=array_append(ids,m->>'id');\n  foreach field in array array['title','phase','question','outcome','math','evidence','challenge','reading','dataset'] loop perform touchline_private.text_value(m->field); end loop;\n  foreach field in array array['tasks','weeks','resources','prerequisites'] loop perform touchline_private.text_array(m->field); end loop;\n  if jsonb_array_length(m->'tasks') not between 1 and 30 then raise exception 'Expected 1 to 30 tasks.' using errcode='22023'; end if;\n  foreach field in array array['hours','weekStart','weekEnd'] loop\n   perform touchline_private.number_value(m->field,0,10000);\n   if (m->>field)::numeric=0 then raise exception 'Module numbers must be positive.' using errcode='22023'; end if;\n  end loop;\n  if m?'number' then perform touchline_private.number_value(m->'number',1,9007199254740991,true); end if;\n  if (m->>'weekStart')::numeric>(m->>'weekEnd')::numeric or (m->>'weekEnd')::numeric>(c->>'weeks')::numeric then raise exception 'Module weeks exceed the curriculum.' using errcode='22023'; end if;\n  for ref in select jsonb_array_elements_text(m->'resources') loop\n   if not(c->'resources'?ref) then raise exception 'Unknown resource.' using errcode='22023'; end if;\n  end loop;\n end loop;\n for m in select * from jsonb_array_elements(c->'modules') loop\n  for ref in select jsonb_array_elements_text(m->'prerequisites') loop\n   if not(ref=any(ids)) then raise exception 'Unknown prerequisite.' using errcode='22023'; end if;\n  end loop;\n end loop;\n perform touchline_private.object_fields(p,array['version','revision','curriculumId','weeklyHours','startDate','modules','experiments']);\n perform touchline_private.text_value(p->'curriculumId');\n if p->'version'<>'1'::jsonb or p->>'curriculumId'<>course_id then raise exception 'Unsupported progress identity or version.' using errcode='22023'; end if;\n perform touchline_private.number_value(p->'revision',0,9007199254740991,true);\n perform touchline_private.number_value(p->'weeklyHours',1,40);\n perform touchline_private.text_value(p->'startDate',10);\n if p->>'startDate'<>'' then\n  if p->>'startDate'!~'^\\d{4}-\\d{2}-\\d{2}$' then raise exception 'Invalid start date.' using errcode='22023'; end if;\n  begin perform (p->>'startDate')::date; exception when others then raise exception 'Invalid start date.' using errcode='22023'; end;\n end if;\n if jsonb_typeof(p->'modules') is distinct from 'object' then raise exception 'Invalid module progress.' using errcode='22023'; end if;\n for key,m in select * from jsonb_each(p->'modules') loop\n  if not(key=any(ids)) then raise exception 'Unknown progress module.' using errcode='22023'; end if;\n  select value into course_module from jsonb_array_elements(c->'modules') where value->>'id'=key;\n  perform touchline_private.object_fields(m,array['status','tasks','notes','evidence','hours']);\n  perform touchline_private.text_value(m->'status');\n  if m->>'status' not in ('not-started','active','complete') then raise exception 'Invalid progress status.' using errcode='22023'; end if;\n  if jsonb_typeof(m->'tasks') is distinct from 'array' or jsonb_array_length(m->'tasks')<>jsonb_array_length(course_module->'tasks') then raise exception 'Invalid task count.' using errcode='22023'; end if;\n  for item in select * from jsonb_array_elements(m->'tasks') loop\n   if jsonb_typeof(item) is distinct from 'boolean' then raise exception 'Task values must be boolean.' using errcode='22023'; end if;\n   if m->>'status'='complete' and item<>'true'::jsonb then raise exception 'Finish every task before completion.' using errcode='22023'; end if;\n  end loop;\n  perform touchline_private.text_value(m->'notes',50000);\n  perform touchline_private.text_value(m->'evidence',50000,m->>'status'='complete');\n  perform touchline_private.number_value(m->'hours',0,10000);\n end loop;\n if jsonb_typeof(p->'experiments') is distinct from 'array' or jsonb_array_length(p->'experiments')>2000 then raise exception 'Invalid experiment list.' using errcode='22023'; end if;\n for e in select * from jsonb_array_elements(p->'experiments') loop\n  perform touchline_private.object_fields(e,array['id','date','module','title','hypothesis','result']);\n  foreach field in array array['id','date','module','title','hypothesis','result'] loop perform touchline_private.text_value(e->field,20000,field='title'); end loop;\n  if not(e->>'module'=any(ids)) then raise exception 'Unknown experiment module.' using errcode='22023'; end if;\n end loop;\nend;\n",
+          "owner": "postgres",
+          "config": [
+            "search_path=\"\""
+          ],
+          "return": "void",
+          "strict": false,
+          "language": "plpgsql",
+          "volatility": "i",
+          "securityDefiner": false
+        }
+      },
+      {
+        "key": "public.list_touchline_sessions():authenticated:EXECUTE",
+        "kind": "function-grant",
+        "value": false
+      },
+      {
+        "key": "public.list_touchline_sessions():service_role:EXECUTE",
+        "kind": "function-grant",
+        "value": false
+      },
+      {
+        "key": "public.publish_learning_course(course_id text, course_content jsonb, course_progress jsonb, course_status text, expected_revision bigint, request_id uuid):authenticated:EXECUTE",
+        "kind": "function-grant",
+        "value": false
+      },
+      {
+        "key": "public.publish_learning_course(course_id text, course_content jsonb, course_progress jsonb, course_status text, expected_revision bigint, request_id uuid):service_role:EXECUTE",
+        "kind": "function-grant",
+        "value": false
+      },
+      {
+        "key": "public.register_touchline_session(device_label text):authenticated:EXECUTE",
+        "kind": "function-grant",
+        "value": false
+      },
+      {
+        "key": "public.register_touchline_session(device_label text):service_role:EXECUTE",
+        "kind": "function-grant",
+        "value": false
+      },
+      {
+        "key": "public.revoke_touchline_session(target_session_id uuid):authenticated:EXECUTE",
+        "kind": "function-grant",
+        "value": false
+      },
+      {
+        "key": "public.revoke_touchline_session(target_session_id uuid):service_role:EXECUTE",
+        "kind": "function-grant",
+        "value": false
+      },
+      {
+        "key": "public.save_learning_course(course_id text, course_content jsonb, course_progress jsonb, expected_revision integer):authenticated:EXECUTE",
+        "kind": "function-grant",
+        "value": false
+      },
+      {
+        "key": "public.save_learning_course(course_id text, course_content jsonb, course_progress jsonb, expected_revision integer):service_role:EXECUTE",
+        "kind": "function-grant",
+        "value": false
+      },
+      {
+        "key": "public.save_learning_library(library jsonb, expected_revision bigint, request_id uuid):authenticated:EXECUTE",
+        "kind": "function-grant",
+        "value": false
+      },
+      {
+        "key": "public.save_learning_library(library jsonb, expected_revision bigint, request_id uuid):service_role:EXECUTE",
+        "kind": "function-grant",
+        "value": false
+      },
+      {
+        "key": "touchline_private.is_owner():authenticated:EXECUTE",
+        "kind": "function-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_courses.owner_read",
+        "kind": "policy",
+        "value": {
+          "check": null,
+          "roles": [
+            "authenticated"
+          ],
+          "using": "((user_id = ( SELECT auth.uid() AS uid)) AND ( SELECT touchline_private.is_owner() AS is_owner))",
+          "command": "r",
+          "permissive": true
+        }
+      },
+      {
+        "key": "public.learning_courses.touchline_private_read_guard",
+        "kind": "policy",
+        "value": {
+          "check": null,
+          "roles": [
+            "authenticated"
+          ],
+          "using": "((user_id = ( SELECT auth.uid() AS uid)) AND ( SELECT touchline_private.is_owner() AS is_owner))",
+          "command": "r",
+          "permissive": false
+        }
+      },
+      {
+        "key": "public.learning_libraries.owner_read",
+        "kind": "policy",
+        "value": {
+          "check": null,
+          "roles": [
+            "authenticated"
+          ],
+          "using": "((user_id = ( SELECT auth.uid() AS uid)) AND ( SELECT touchline_private.is_owner() AS is_owner))",
+          "command": "r",
+          "permissive": true
+        }
+      },
+      {
+        "key": "public.learning_libraries.touchline_private_read_guard",
+        "kind": "policy",
+        "value": {
+          "check": null,
+          "roles": [
+            "authenticated"
+          ],
+          "using": "((user_id = ( SELECT auth.uid() AS uid)) AND ( SELECT touchline_private.is_owner() AS is_owner))",
+          "command": "r",
+          "permissive": false
+        }
+      },
+      {
+        "key": "public.learning_courses",
+        "kind": "relation",
+        "value": {
+          "rls": true,
+          "kind": "r",
+          "owner": "postgres",
+          "forced": false,
+          "persistence": "p"
+        }
+      },
+      {
+        "key": "public.learning_libraries",
+        "kind": "relation",
+        "value": {
+          "rls": true,
+          "kind": "r",
+          "owner": "postgres",
+          "forced": false,
+          "persistence": "p"
+        }
+      },
+      {
+        "key": "public.learning_library_snapshots",
+        "kind": "relation",
+        "value": {
+          "rls": false,
+          "kind": "v",
+          "owner": "postgres",
+          "forced": false,
+          "persistence": "p"
+        }
+      },
+      {
+        "key": "public.learning_snapshots",
+        "kind": "relation",
+        "value": {
+          "rls": false,
+          "kind": "v",
+          "owner": "postgres",
+          "forced": false,
+          "persistence": "p"
+        }
+      },
+      {
+        "key": "touchline_private.owner_settings",
+        "kind": "relation",
+        "value": {
+          "rls": true,
+          "kind": "r",
+          "owner": "postgres",
+          "forced": false,
+          "persistence": "p"
+        }
+      },
+      {
+        "key": "touchline_private.session_registry",
+        "kind": "relation",
+        "value": {
+          "rls": true,
+          "kind": "r",
+          "owner": "postgres",
+          "forced": false,
+          "persistence": "p"
+        }
+      },
+      {
+        "key": "touchline_private.write_requests",
+        "kind": "relation",
+        "value": {
+          "rls": true,
+          "kind": "r",
+          "owner": "postgres",
+          "forced": false,
+          "persistence": "p"
+        }
+      },
+      {
+        "key": "public:PUBLIC:USAGE",
+        "kind": "schema-grant",
+        "value": false
+      },
+      {
+        "key": "public:anon:USAGE",
+        "kind": "schema-grant",
+        "value": false
+      },
+      {
+        "key": "public:authenticated:USAGE",
+        "kind": "schema-grant",
+        "value": false
+      },
+      {
+        "key": "public:postgres:USAGE",
+        "kind": "schema-grant",
+        "value": false
+      },
+      {
+        "key": "public:service_role:USAGE",
+        "kind": "schema-grant",
+        "value": false
+      },
+      {
+        "key": "touchline_private:authenticated:USAGE",
+        "kind": "schema-grant",
+        "value": false
+      },
+      {
+        "key": "touchline_private",
+        "kind": "schema-owner",
+        "value": "postgres"
+      },
+      {
+        "key": "public.learning_courses:authenticated:SELECT",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_courses:service_role:DELETE",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_courses:service_role:INSERT",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_courses:service_role:MAINTAIN",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_courses:service_role:REFERENCES",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_courses:service_role:SELECT",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_courses:service_role:TRIGGER",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_courses:service_role:TRUNCATE",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_courses:service_role:UPDATE",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_libraries:authenticated:SELECT",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_libraries:service_role:DELETE",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_libraries:service_role:INSERT",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_libraries:service_role:MAINTAIN",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_libraries:service_role:REFERENCES",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_libraries:service_role:SELECT",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_libraries:service_role:TRIGGER",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_libraries:service_role:TRUNCATE",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_libraries:service_role:UPDATE",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_library_snapshots:authenticated:SELECT",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_library_snapshots:service_role:DELETE",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_library_snapshots:service_role:INSERT",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_library_snapshots:service_role:MAINTAIN",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_library_snapshots:service_role:REFERENCES",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_library_snapshots:service_role:SELECT",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_library_snapshots:service_role:TRIGGER",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_library_snapshots:service_role:TRUNCATE",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_library_snapshots:service_role:UPDATE",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_snapshots:authenticated:SELECT",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_snapshots:service_role:DELETE",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_snapshots:service_role:INSERT",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_snapshots:service_role:MAINTAIN",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_snapshots:service_role:REFERENCES",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_snapshots:service_role:SELECT",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_snapshots:service_role:TRIGGER",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_snapshots:service_role:TRUNCATE",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "public.learning_snapshots:service_role:UPDATE",
+        "kind": "table-grant",
+        "value": false
+      },
+      {
+        "key": "auth.users.touchline_restrict_signup",
+        "kind": "trigger",
+        "value": {
+          "enabled": "O",
+          "definition": "CREATE TRIGGER touchline_restrict_signup AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION touchline_private.restrict_signup()"
+        }
+      },
+      {
+        "key": "public.learning_library_snapshots",
+        "kind": "view",
+        "value": {
+          "options": [
+            "security_invoker=true"
+          ],
+          "definition": " SELECT user_id,\n    jsonb_build_object('version', version, 'revision', revision, 'focusCurriculumId', focus_curriculum_id) AS snapshot\n   FROM learning_libraries;"
+        }
+      },
+      {
+        "key": "public.learning_snapshots",
+        "kind": "view",
+        "value": {
+          "options": [
+            "security_invoker=true"
+          ],
+          "definition": " SELECT user_id,\n    id,\n    jsonb_build_object('format', 'touchline-snapshot', 'version', format_version, 'curriculum', curriculum, 'progress', progress, 'status', status, 'revision', revision, 'publishedAt', to_char((updated_at AT TIME ZONE 'UTC'::text), 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"'::text)) AS snapshot\n   FROM learning_courses\n  WHERE format_version = 1;"
+        }
+      }
+    ]
+  }
+]

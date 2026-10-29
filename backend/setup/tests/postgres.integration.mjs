@@ -1,0 +1,64 @@
+import test from 'node:test';import assert from 'node:assert/strict';import pg from 'pg';import {readFile} from 'node:fs/promises';
+import {canonical} from '../security.mjs';
+import {PostgresStore} from '../postgres.mjs';import {SetupAdmin} from '../admin.mjs';import {randomBytes} from 'node:crypto';
+const socket=process.env.TOUCHLINE_TEST_PG_SOCKET;
+if(!socket?.includes('touchline-db-')||!socket.endsWith('/socket'))throw Error('This test requires the disposable cluster launcher.');
+const pool=new pg.Pool({host:socket,port:5432,user:'postgres',database:'postgres',password:'',ssl:false,max:4,connectionTimeoutMillis:3000});
+await pool.query(await readFile(new URL('../schema.sql',import.meta.url),'utf8'));
+const first=new PostgresStore(pool),second=new PostgresStore(pool);
+test.after(()=>pool.end());
+test('PostgreSQL atomically creates and consumes state across service instances',async()=>{const row={id:'flow',version:0,expiresAt:1,phase:'awaiting-discovery'};assert.deepEqual((await Promise.all([first.create(row),second.create(row)])).sort(),[false,true]);const results=await Promise.all([first.compareAndSwap('flow',0,{...row,version:1,phase:'exchanging-discovery'}),second.compareAndSwap('flow',0,{...row,version:1,phase:'exchanging-discovery'})]);assert.equal(results.filter(Boolean).length,1);assert.equal((await second.read('flow')).version,1);assert.ok((await first.expiredIds()).includes('flow'));});
+test('PostgreSQL persists consumed bootstrap state across new instances',async()=>{const config={store:first,bootstrapKey:randomBytes(32).toString('base64url'),bootstrapExpiresAt:Date.now()+60000,key:randomBytes(32)};const session=await new SetupAdmin(config).unlock(config.bootstrapKey);const restarted=new SetupAdmin({...config,store:second});await assert.rejects(restarted.unlock(config.bootstrapKey),{code:'bootstrap_consumed'});assert.equal((await restarted.session(session.sessionToken)).context.verified,true);assert.ok(!(await first.expiredIds(Date.now()+3600000)).includes('setup-admin'));});
+test('PostgreSQL keys are parameterized and failed writes preserve previous version',async()=>{const id="x'; drop table touchline_connector.documents; --";await first.create({id,version:0});assert.equal((await first.read(id)).id,id);await assert.rejects(first.compareAndSwap(id,0,{id,version:2}),{code:'invalid_document'});assert.equal((await first.read(id)).version,0);const broken=new PostgresStore({query:()=>{throw Error('postgres://secret:password@private');}});await assert.rejects(broken.read('anything'),error=>error.code==='storage_unavailable'&&!error.message.includes('password'));});
+test('public hub and flow checkpoint commit together; cancelled flows cannot publish',async()=>{const id='guarded-flow',row={id,version:0,expiresAt:Date.now()+60000,phase:'preparing'};await first.create(row);const description={format:'touchline-hub',version:1,hubId:'00000000-0000-4000-8000-000000000001',name:'Hub',hubOrigin:'https://hub.example.com',backend:{type:'supabase',url:'https://abcdefghijklmnopqrst.supabase.co',publishableKey:'sb_publishable_test'},contracts:{snapshot:1,progress:1},auth:{email:'otp',providers:[]}};const result=await first.commitPublicHub(id,0,description,Date.now());assert.equal(result.flow.version,1);assert.deepEqual((await second.read('public-hub')).description,description);await second.compareAndSwap(id,1,{...result.flow,version:2,phase:'cancelled'});await assert.rejects(first.commitPublicHub(id,1,{...description,name:'Late publication'},Date.now()),{code:'operation_cancelled'});assert.equal((await first.read('public-hub')).description.name,'Hub');});
+test('real provider adapter prepares only shipped SQL in a disposable database',async()=>{
+ await pool.query('create database setup_learning_test');const projectPool=new pg.Pool({host:socket,port:5432,user:'postgres',database:'setup_learning_test',password:'',ssl:false,max:4});test.after(()=>projectPool.end());
+ const {SupabaseProvider}=await import('../provider.mjs'),{SetupService}=await import('../core.mjs'),{loadMigrations}=await import('../migrations.mjs');
+ await projectPool.query(await readFile(new URL('../../tests/fixtures/auth.sql',import.meta.url),'utf8'));await projectPool.query('delete from auth.sessions; delete from auth.users;');
+ await projectPool.query(await readFile(new URL('./platform-baseline.sql',import.meta.url),'utf8'));
+ const evidence=JSON.parse(await readFile(new URL('../catalog-evidence.json',import.meta.url),'utf8'));
+ const catalogQuery=(await readFile(new URL('../catalog.sql',import.meta.url),'utf8')).trim().replace(/;$/,'');
+ const assertCatalog=async stage=>{
+  const {rows:[snapshot]}=await projectPool.query(`select catalog,current_setting('server_version_num')::integer/10000 as major from (${catalogQuery}) snapshot`);
+  const maintainKeys=new Set(['learning_courses','learning_libraries','learning_library_snapshots','learning_snapshots'].map(name=>`public.${name}:service_role:MAINTAIN`));
+  const expected=evidence[stage].catalog.filter(item=>!([15,16].includes(snapshot.major)&&item.kind==='table-grant'&&maintainKeys.has(item.key)&&item.value===false));
+  if(canonical(snapshot.catalog)===canonical(expected))return;
+  // This database contains only test fixtures. Report one bounded difference,
+  // never provider request bodies, connection settings, or real deployment data.
+  const actualByKey=new Map(snapshot.catalog.map(item=>[`${item.kind}:${item.key}`,item]));
+  const expectedByKey=new Map(expected.map(item=>[`${item.kind}:${item.key}`,item]));
+  const key=[...new Set([...actualByKey.keys(),...expectedByKey.keys()])].sort().find(key=>canonical(actualByKey.get(key)??null)!==canonical(expectedByKey.get(key)??null));
+  const message=`PostgreSQL ${snapshot.major}, migration ${stage}, first catalog difference: ${canonical({key:key??"array order or duplicate key",expected:expectedByKey.get(key)??null,actual:actualByKey.get(key)??null}).slice(0,1800)}`;
+  console.error(message);assert.fail(message);
+ };
+ const migrations=await loadMigrations(),calls=[];let auth={site_url:'',uri_allow_list:'',disable_signup:false,external_email_enabled:true,mailer_autoconfirm:false,external_anonymous_users_enabled:false,external_google_enabled:false,external_apple_enabled:false};
+ const apps={discovery:{clientId:'discovery-app',clientSecret:'discovery-private',redirectUri:'https://connector.example.com/setup/callback/discovery'},install:{clientId:'install-app',clientSecret:'install-private',redirectUri:'https://connector.example.com/setup/callback/install'}};
+ const json=value=>new Response(JSON.stringify(value),{headers:{'Content-Type':'application/json'}});
+ const request=async(address,options)=>{const url=new URL(address);assert.equal(url.origin,'https://api.supabase.com');assert.equal(options.redirect,'error');calls.push([url.pathname,options.method]);
+  if(url.pathname==='/v1/oauth/token')return json({access_token:'access-secret',refresh_token:'refresh-secret',token_type:'Bearer',expires_in:3600});
+  if(url.pathname==='/v1/oauth/revoke')return new Response(null,{status:204});
+  if(url.pathname==='/v1/projects')return json([{ref:'abcdefghijklmnopqrst',organization_slug:'org-one',name:'Dedicated project'}]);
+  if(url.pathname.endsWith('/config/auth')){if(options.method==='PATCH')auth={...auth,...JSON.parse(options.body)};return json(auth);}
+  if(url.pathname.endsWith('/api-keys'))return json([{type:'publishable',api_key:'sb_publishable_example'},{type:'secret',api_key:'sb_secret_never_expose'}]);
+  const body=JSON.parse(options.body);
+  if(url.pathname.endsWith('/database/migrations')){await projectPool.query(body.query);await assertCatalog(calls.filter(([path])=>path.endsWith('/database/migrations')).length);return json({});}
+  if(url.pathname.includes('/database/query')){const result=await projectPool.query(body.query,body.parameters);return json(result.rows);}
+  throw Error('Unexpected provider endpoint');
+ };
+ const provider=await SupabaseProvider.create({apps,migrations,request});const context={ownerId:'test-owner',sessionId:'session',csrfToken:'csrf',verified:true,expiresAt:Date.now()+3600000};
+ const service=new SetupService({store:first,provider,apps,migrations,key:randomBytes(32),authenticate:async value=>value,verifyPublished:async description=>{assert.equal(description.backend.publishableKey,'sb_publishable_example');return true;}});
+ await projectPool.query('create schema unrelated_app');assert.equal((await provider.inspect({accessToken:'test'},'abcdefghijklmnopqrst',{ownerEmail:'owner@example.com'})).compatibility,'unknown');assert.equal(calls.filter(([path])=>path.endsWith('/database/migrations')).length,0);await projectPool.query('drop schema unrelated_app');
+ await projectPool.query("create schema storage; create table storage.buckets(id text); insert into storage.buckets values('existing')");assert.equal((await provider.inspect({accessToken:'test'},'abcdefghijklmnopqrst',{ownerEmail:'owner@example.com'})).compatibility,'unknown');await projectPool.query('delete from storage.buckets');
+ const start=await service.begin(context);await service.callback(context,'discovery',{state:new URL(start.authorizeUrl).searchParams.get('state'),code:'discovery-code'});
+ const review=await service.review(context,start.id,{projectRef:'abcdefghijklmnopqrst',ownerEmail:'owner@example.com',hubName:'My hub',hubOrigin:'https://hub.example.com'});assert.equal(review.inspection.compatibility,'empty');
+ const authorization=await service.authorizeInstall(context,start.id,review.reviewHash);await service.callback(context,'install',{state:new URL(authorization.authorizeUrl).searchParams.get('state'),code:'install-code'});
+ let result;for(let i=0;i<12;i++){result=await service.prepare(context,start.id,review.reviewHash);if(result.phase==='complete')break;}assert.equal(result.phase,'complete');assert.equal(result.hub.name,'My hub');assert.equal(calls.filter(([path])=>path.endsWith('/database/migrations')).length,4);assert.ok(!JSON.stringify(result).includes('sb_secret'));
+ assert.equal((await projectPool.query('select email from touchline_private.owner_settings')).rows[0].email,'owner@example.com');
+ const inspected=await provider.inspect({accessToken:'test'},'abcdefghijklmnopqrst',{ownerEmail:'owner@example.com'});assert.equal(inspected.compatibility,'touchline');
+ await assert.rejects(provider.inspect({accessToken:'test'},'abcdefghijklmnopqrst',{ownerEmail:'different@example.com'}),{code:'incompatible_owner'});
+ await projectPool.query("insert into auth.users(id,email,email_confirmed_at) values('00000000-0000-4000-8000-000000000004','owner@example.com',now())");assert.equal((await provider.inspect({accessToken:'test'},'abcdefghijklmnopqrst',{ownerEmail:'owner@example.com'})).compatibility,'touchline');
+ await projectPool.query("update auth.users set email_confirmed_at=null");await assert.rejects(provider.inspect({accessToken:'test'},'abcdefghijklmnopqrst',{ownerEmail:'owner@example.com'}),{code:'incompatible_owner'});await projectPool.query("update auth.users set email_confirmed_at=now()");
+ await projectPool.query('grant select(id) on public.learning_courses to anon');assert.equal((await provider.inspect({accessToken:'test'},'abcdefghijklmnopqrst',{ownerEmail:'owner@example.com'})).compatibility,'unknown');await projectPool.query('revoke select(id) on public.learning_courses from anon');
+ await projectPool.query("alter table auth.users disable trigger touchline_restrict_signup; insert into auth.users(id,email,email_confirmed_at) values('00000000-0000-4000-8000-000000000005','other@example.com',now()); alter table auth.users enable trigger touchline_restrict_signup;");await assert.rejects(provider.inspect({accessToken:'test'},'abcdefghijklmnopqrst',{ownerEmail:'owner@example.com'}),{code:'incompatible_owner'});
+ await projectPool.query('create table public.unrelated_data(id integer)');assert.equal((await provider.inspect({accessToken:'test'},'abcdefghijklmnopqrst',{ownerEmail:'owner@example.com'})).compatibility,'unknown');
+});

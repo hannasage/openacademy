@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "flat-type-hierarchy",
+        "value": "*",
+        "files": [
+          "hosted/setup-guide.html"
+        ],
+        "createdAt": "2026-10-29T08:37:47.473Z",
+        "reason": "The detector cannot resolve the generated /setup-assets/setup.css path. Browser checks measure body 16px, h1 32px, and h2 24px on this exact guide."
+      }
+    ]
+  }
+}
