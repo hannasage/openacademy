@@ -3,154 +3,65 @@ import UniformTypeIdentifiers
 
 struct ContentView: View {
     @Environment(\.hubPalette) private var palette
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    @State private var columns: NavigationSplitViewVisibility = .all
     @EnvironmentObject private var store: HubStore
-    @State private var selected: String?
+    @StateObject private var navigation = ReadingNavigation()
     @State private var showingConnection = false
     @State private var showingAppearance = false
     @State private var importing = false
-    private var current: LearningBackup? { store.courses.first { $0.id == selected } }
+    private var current: LearningBackup? { store.courses.first { $0.id == navigation.selected } }
 
     var body: some View {
-        NavigationSplitView {
-            List(selection: $selected) {
-                Section {
-                    ForEach(store.courses) { backup in
-                        NavigationLink(value: backup.id) {
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text(backup.curriculum.title).font(.headline)
-                                Text("\(backup.state.modules.values.filter { $0.status == "complete" }.count) of \(backup.curriculum.modules.count) modules complete")
-                                    .font(.subheadline).foregroundStyle(palette.muted)
-                            }.padding(.vertical, 4)
+        TabView {
+            NavigationSplitView(columnVisibility: $columns) {
+                ReadingLibraryView(copies: store.courses, selection: $navigation.selected, message: store.message, busy: store.busy, lastRefresh: store.lastRefresh)
+                    .navigationTitle("Library")
+                    .toolbar {
+                        ToolbarItemGroup(placement: .topBarTrailing) {
+                            Button { showingAppearance = true } label: { Label("Appearance", systemImage: "paintpalette") }
+                            Button { importing = true } label: { Label("Import file", systemImage: "square.and.arrow.down") }
+                            Button { showingConnection = true } label: { Label("Backend and account", systemImage: "person.crop.circle") }
                         }
                     }
-                } header: { Text("Your curricula") }
-                .listRowBackground(palette.surface)
-                Section {
-                    Text(store.message).font(.subheadline).foregroundStyle(palette.muted)
-                    if let refreshed = store.lastRefresh {
-                        Text("Downloaded \(refreshed.formatted(date: .abbreviated, time: .shortened))").font(.caption)
+            } detail: {
+                if let copy = current {
+                    NavigationStack(path: Binding(get: { navigation.path(for: copy.id) }, set: { navigation.setPath($0, for: copy.id) })) {
+                        ReadingCourseView(copy: copy, resume: { navigation.resume(copy) })
+                            .navigationDestination(for: ReadingRoute.self) { route in
+                                ReadingDestination(copy: copy, route: route)
+                            }
                     }
-                }.listRowBackground(palette.surface)
-            }
-            .hubSurface()
-            .navigationTitle("Touchline")
-            .toolbar {
-                ToolbarItemGroup(placement: .topBarTrailing) {
-                    Button { showingAppearance = true } label: { Label("Appearance", systemImage: "paintpalette") }
-                    Button { importing = true } label: { Label("Import file", systemImage: "square.and.arrow.down") }
-                    Button { showingConnection = true } label: { Label("Backend and account", systemImage: "person.crop.circle") }
-                }
-                ToolbarItem(placement: .bottomBar) {
-                    Button { Task { await store.refresh() } } label: { Label("Refresh published courses", systemImage: "arrow.clockwise") }
-                        .disabled(store.busy || !store.signedIn)
-                }
-            }
-            .overlay { if store.busy { ProgressView("Updating…").padding().background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12)) } }
-        } detail: {
-            NavigationStack {
-                if let backup = current {
-                    CourseView(backup: backup)
                 } else {
                     ContentUnavailableView("Choose a curriculum", systemImage: "books.vertical", description: Text("Read a lesson, revisit your progress, or open a source."))
                         .hubSurface()
                 }
-            }.id(store.readingIdentity)
+            }
+            .navigationSplitViewStyle(.balanced)
+            .onChange(of: navigation.selected) { _, selected in
+                if sizeClass == .regular { columns = selected == nil ? .all : .detailOnly }
+            }
+            .tabItem { Label("Library", systemImage: "books.vertical") }
+            NavigationStack {
+                ReadingDownloadsView(copies: store.courses, message: store.message, lastRefresh: store.lastRefresh,
+                    busy: store.busy, signedIn: store.signedIn,
+                    refresh: { Task { await store.refresh() } }, connect: { showingConnection = true })
+            }
+            .tabItem { Label("Devices", systemImage: "ipad.and.iphone") }
         }
         .background(palette.background)
+        .environment(\.openURL, OpenURLAction { url in
+            ProcessInfo.processInfo.arguments.contains("--touchline-ui-test") ? .discarded : .systemAction(url)
+        })
         .sheet(isPresented: $showingAppearance) { AppearanceView() }
         .sheet(isPresented: $showingConnection) { ConnectionView().environmentObject(store) }
         .fileImporter(isPresented: $importing, allowedContentTypes: [.json]) { result in
             if case .success(let url) = result { Task { await store.importFile(url) } }
             if case .failure(let error) = result { store.message = error.localizedDescription }
         }
+        .onReceive(store.$courses) { navigation.reconcile($0) }
+        .onChange(of: store.readingIdentity) { _, _ in navigation.reconcile(store.courses) }
         .task { await store.restoreSession() }
-    }
-}
-struct CourseView: View {
-    @Environment(\.hubPalette) private var palette
-    let backup: LearningBackup
-    var body: some View {
-        List {
-            Section {
-                Text(backup.curriculum.description)
-                LabeledContent("Duration", value: "\(backup.curriculum.weeks) weeks")
-                LabeledContent("Study time", value: "\(backup.state.modules.values.reduce(0) { $0 + $1.hours }.formatted()) hours")
-                Text("This is a saved reading copy. Update progress in the desktop hub, publish it, then refresh here.")
-                    .font(.subheadline).foregroundStyle(palette.muted)
-            }.listRowBackground(palette.surface)
-            Section("Learning path") {
-                ForEach(backup.curriculum.modules) { module in
-                    NavigationLink {
-                        ModuleView(module: module, course: backup.curriculum, progress: backup.state.modules[module.id])
-                    } label: {
-                        HStack {
-                            Image(systemName: backup.state.modules[module.id]?.status == "complete" ? "checkmark.circle.fill" : "circle")
-                                .foregroundStyle(.tint)
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(module.title)
-                                Text("Weeks \(module.weekStart.formatted())–\(module.weekEnd.formatted()) · \(module.phase)")
-                                    .font(.caption).foregroundStyle(palette.muted)
-                            }
-                        }.padding(.vertical, 4)
-                    }.listRowBackground(palette.surface)
-                }
-            }
-            if !backup.state.experiments.isEmpty {
-                Section("Experiments") {
-                    ForEach(backup.state.experiments) { experiment in
-                        NavigationLink(experiment.title) {
-                            List {
-                                Section("Hypothesis and setup") { Text(experiment.hypothesis) }.listRowBackground(palette.surface)
-                                Section("Result and next step") { Text(experiment.result.isEmpty ? "Planned. Results are not recorded yet." : experiment.result) }.listRowBackground(palette.surface)
-                                Section { Text(experiment.date) }.listRowBackground(palette.surface)
-                            }.hubSurface().navigationTitle(experiment.title).textSelection(.enabled)
-                        }
-                    }
-                }.listRowBackground(palette.surface)
-            }
-        }.hubSurface().navigationTitle(backup.curriculum.title).navigationBarTitleDisplayMode(.inline)
-    }
-}
-struct ModuleView: View {
-    @Environment(\.hubPalette) private var palette
-    let module: LearningModule
-    let course: Curriculum
-    let progress: ModuleProgress?
-    var body: some View {
-        List {
-            Section {
-                Text(module.question).font(.title2).fontDesign(.serif)
-                Text(module.outcome)
-                LabeledContent("Status", value: progress?.status.replacingOccurrences(of: "-", with: " ") ?? "Not started")
-            }.listRowBackground(palette.surface)
-            Section("The experiment") {
-                ForEach(Array(module.tasks.enumerated()), id: \.offset) { index, task in
-                    Label(task, systemImage: (progress?.tasks.indices.contains(index) == true && progress?.tasks[index] == true) ? "checkmark.circle.fill" : "circle")
-                        .padding(.vertical, 4)
-                }
-            }.listRowBackground(palette.surface)
-            Section("Ideas behind the code") { Text(module.math) }.listRowBackground(palette.surface)
-            Section("Your rhythm") { ForEach(module.weeks, id: \.self) { Text($0) } }.listRowBackground(palette.surface)
-            Section("Data") { Text(module.dataset) }.listRowBackground(palette.surface)
-            Section("Read with a question") {
-                Text(module.reading)
-                ForEach(module.resources, id: \.self) { id in
-                    if let resource = course.resources[id], let url = URL(string: resource.url) {
-                        Link(destination: url) {
-                            VStack(alignment: .leading, spacing: 6) {
-                                Label(resource.title, systemImage: "arrow.up.right.square")
-                                Text(resource.use).font(.subheadline).foregroundStyle(palette.muted)
-                            }.padding(.vertical, 4)
-                        }
-                    }
-                }
-            }.listRowBackground(palette.surface)
-            Section("Show what you know") { Text(module.evidence); Text(module.challenge) }.listRowBackground(palette.surface)
-            if let progress {
-                Section("Your evidence") { Text(progress.evidence.isEmpty ? "No evidence recorded yet." : progress.evidence) }.listRowBackground(palette.surface)
-                Section("Your notes") { Text(progress.notes.isEmpty ? "No notes recorded yet." : progress.notes) }.listRowBackground(palette.surface)
-            }
-        }.hubSurface().navigationTitle(module.title).navigationBarTitleDisplayMode(.inline).textSelection(.enabled)
     }
 }
 struct ConnectionView: View {

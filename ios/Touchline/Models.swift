@@ -56,6 +56,10 @@ struct LearningProgress: Codable {
 }
 struct LearningBackup: Codable, Identifiable {
     var readerID: String? = nil
+    var readingStatus: LibraryStatus? = nil
+    var readingSource: ReadingCopySource = .imported
+    var downloadedAt: Date? = nil
+    var isPublishedFocus = false
     var id: String { readerID ?? curriculum.id }
     enum CodingKeys: String, CodingKey { case curriculum, state }
     let curriculum: Curriculum
@@ -143,4 +147,27 @@ struct HubDescription: Codable {
     let backend: Backend
     let contracts: Contracts
     let auth: Auth
+}
+
+
+enum ReadingCopySource { case bundled, imported, downloaded
+    var label: String {
+        switch self { case .bundled: return "Included on this device"; case .imported: return "Imported reading copy"; case .downloaded: return "Downloaded" }
+    }
+}
+extension LearningBackup {
+    var completedModules: Int { curriculum.modules.filter { state.modules[$0.id]?.status == "complete" }.count }
+    var nextModule: LearningModule? { curriculum.modules.first { state.modules[$0.id]?.status != "complete" } ?? curriculum.modules.first }
+    var progressLabel: String { "\(completedModules) of \(curriculum.modules.count) modules complete" }
+}
+
+
+extension PublishedLibrary {
+    func encode(to encoder: Encoder) throws {
+        var values = encoder.container(keyedBy: CodingKeys.self)
+        try values.encode(version, forKey: .version)
+        try values.encode(revision, forKey: .revision)
+        if let focusCurriculumId { try values.encode(focusCurriculumId, forKey: .focusCurriculumId) }
+        else { try values.encodeNil(forKey: .focusCurriculumId) }
+    }
 }

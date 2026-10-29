@@ -18,6 +18,7 @@ final class HubStore: ObservableObject {
     private var imports: [LearningBackup] = []
     private var importsLoadFailed = false
     private var downloaded: [PublishedCourse] = []
+    private var publishedLibrary: PublishedLibrary?
     private var scope: AccountScope?
     private var service: HubService?
     private let makeService: (Connection) -> HubService
@@ -35,6 +36,25 @@ final class HubStore: ObservableObject {
             if isolated { return OfflineTestHubService() }
             return SupabaseHubService(connection: connection)
         })
+        if isolated && ProcessInfo.processInfo.arguments.contains("--touchline-ui-test-reading"), let curriculum, let cache {
+            do {
+                let account = UUID()
+                connection = Connection(url: "https://example.invalid", publishableKey: "sb_publishable_test")
+                service = OfflineTestHubService(accountID: account)
+                let scope = try AccountScope.legacy(connection: connection, accountID: account)
+                let records = try ["reading-one", "reading-two"].enumerated().map { index, id in
+                    var json = try JSONSerialization.jsonObject(with: JSONEncoder().encode(curriculum)) as! [String: Any]
+                    json["id"] = id
+                    json["title"] = index == 0 ? "Soccer forecasts and the experiments behind reliable probabilities" : "Creative coding with light, color, and motion"
+                    let course = try JSONDecoder().decode(Curriculum.self, from: JSONSerialization.data(withJSONObject: json))
+                    let first = course.modules[0]
+                    let progress = LearningProgress(version: 1, revision: 1, curriculumId: id, weeklyHours: course.weeklyHours, startDate: "", modules: [first.id: ModuleProgress(status: "active", tasks: first.tasks.map { _ in false }, notes: index == 0 ? "First course notes" : "Second course notes", evidence: "", hours: Double(index + 1))], experiments: [Experiment(id: "experiment-" + id, date: "2026-10-28", module: first.id, title: "Experiment for " + id, hypothesis: "An isolated test hypothesis", result: index == 0 ? "First result" : "Second result")])
+                    return PublishedCourse(format: "touchline-snapshot", version: 1, curriculum: course, progress: progress, status: index == 0 ? .active : .paused, revision: 1, publishedAt: "2026-10-28T12:00:00Z")
+                }
+                try cache.save(records, scope: scope, refreshedAt: Date(timeIntervalSince1970: 1_793_188_800), library: PublishedLibrary(version: 1, revision: 1, focusCurriculumId: "reading-one"))
+                try activate(accountID: account)
+            } catch { message = "The reading test fixture failed: " + error.localizedDescription }
+        }
         if isolated && ProcessInfo.processInfo.arguments.contains("--touchline-ui-test-signout-retry") {
             let account = UUID()
             connection = Connection(url: "https://example.invalid", publishableKey: "sb_publishable_test")
@@ -59,11 +79,18 @@ final class HubStore: ObservableObject {
     }
     private func render() {
         var local = imports
-        if let bundled, !local.contains(where: { $0.curriculum.id == bundled.curriculum.id }) { local.append(bundled) }
-        courses = local.map { item in var item = item; item.readerID = "local:" + item.curriculum.id; return item }
+        if var bundled, !local.contains(where: { $0.curriculum.id == bundled.curriculum.id }) { bundled.readingSource = .bundled; local.append(bundled) }
+        var next = local.map { item in var item = item; item.readerID = "local:" + item.curriculum.id; return item }
         if let scope {
-            courses += downloaded.map { snapshot in var item = snapshot.backup; item.readerID = scope.storageKey + ":" + item.curriculum.id; return item }
+            next += downloaded.map { snapshot in
+                var item = snapshot.backup
+                item.readerID = scope.storageKey + ":" + item.curriculum.id
+                item.readingStatus = snapshot.status; item.readingSource = .downloaded; item.downloadedAt = lastRefresh
+                item.isPublishedFocus = snapshot.status == .active && publishedLibrary?.focusCurriculumId == snapshot.curriculum.id
+                return item
+            }
         }
+        courses = next
     }
     private func installService() {
         service?.onAccountChange = nil
@@ -76,7 +103,7 @@ final class HubStore: ObservableObject {
     }
     private func invalidateAccount(removeDownloads: Bool) {
         let old = scope
-        generation += 1; readingIdentity = UUID(); scope = nil; downloaded = []; signedIn = false; lastRefresh = nil
+        generation += 1; readingIdentity = UUID(); scope = nil; downloaded = []; publishedLibrary = nil; signedIn = false; lastRefresh = nil
         defaults.removeObject(forKey: "touchline.activeScope")
         render()
         message = "The account session ended. Private downloads are hidden."
@@ -99,11 +126,11 @@ final class HubStore: ObservableObject {
     private func activate(accountID: UUID) throws {
         try requireCompletedCleanup()
         let next = try AccountScope.legacy(connection: connection, accountID: accountID)
-        if scope != next { readingIdentity = UUID(); downloaded = []; lastRefresh = nil; scope = next; render() }
+        if scope != next { readingIdentity = UUID(); downloaded = []; publishedLibrary = nil; lastRefresh = nil; scope = next; render() }
         signedIn = true
         defaults.set(try JSONEncoder().encode(next), forKey: "touchline.activeScope")
         let saved = try cache?.load(scope: next)
-        downloaded = saved?.records ?? []; lastRefresh = saved?.refreshedAt; render()
+        downloaded = saved?.records ?? []; publishedLibrary = saved?.library; lastRefresh = saved?.refreshedAt; render()
     }
     func connect(_ value: Connection) async {
         guard !busy else { return }
@@ -170,9 +197,19 @@ final class HubStore: ObservableObject {
                 return try reader.decode(JSONSerialization.data(withJSONObject: snapshot), schema: "published-course.v1.schema.json")
             }
             try self.requireGeneration(epoch)
+            let libraryBytes = try await service.fetchLibrary(accountID: scope.accountID)
+            try self.requireGeneration(epoch)
+            var library: PublishedLibrary?
+            if let libraryBytes {
+                guard libraryBytes.count <= 10_000, let rows = try JSONSerialization.jsonObject(with: libraryBytes) as? [[String: Any]], rows.count <= 1 else { throw HubError.message("The published library is invalid.") }
+                if let row = rows.first {
+                    guard let value = row["snapshot"] else { throw HubError.message("The published library is missing its snapshot.") }
+                    library = try reader.decode(JSONSerialization.data(withJSONObject: value), schema: "published-library.v1.schema.json")
+                }
+            }
             let now = Date()
-            try cache.save(snapshots, scope: scope, refreshedAt: now)
-            self.downloaded = snapshots; self.lastRefresh = now; self.render()
+            try cache.save(snapshots, scope: scope, refreshedAt: now, library: library)
+            self.publishedLibrary = library; self.downloaded = snapshots; self.lastRefresh = now; self.render()
             self.message = snapshots.isEmpty ? "No published courses yet. Publish from the desktop hub." : "Downloaded \(snapshots.count) curricula for offline reading."
         }
     }
