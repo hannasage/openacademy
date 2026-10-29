@@ -51,7 +51,8 @@ class HubTests(unittest.TestCase):
         self.assertEqual(self.request('PUT','/api/state',saved)[0],200)
         current=self.request('GET','/api/state')[1]
         self.assertEqual(current['modules']['m01']['notes'],'A second observation')
-        backup=json.loads((self.server.data_dir/'soccer-ml/state.backup.json').read_text())
+        record_id = self.request('GET', '/api/record?plan=soccer-ml')[1]['recordId']
+        backup=json.loads((self.server.data_dir/'records'/record_id/'record.backup.json').read_text())['state']
         self.assertEqual(backup['modules']['m01']['notes'],'A useful observation')
 
     def test_reject_stale_tab(self):
@@ -84,7 +85,7 @@ class HubTests(unittest.TestCase):
     def test_damaged_file_is_preserved(self):
         path=self.server.data_dir/'soccer-ml/state.json';path.parent.mkdir();path.write_text('{damaged')
         self.assertEqual(self.request('GET','/api/state')[0],500)
-        self.assertEqual(self.request('PUT','/api/state',initial(self.course))[0],400)
+        self.assertEqual(self.request('PUT','/api/state',initial(self.course))[0],500)
         self.assertEqual(path.read_text(),'{damaged')
 
     def test_reject_foreign_origin_and_path_traversal(self):

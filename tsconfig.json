@@ -26,7 +26,8 @@
     "web.jsx",
     "appearance.jsx",
     "sync.js",
-    "types/**/*.d.ts"
+    "types/**/*.d.ts",
+    "web/**/*.js"
   ],
   "exclude": [
     "node_modules",

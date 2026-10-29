@@ -79,7 +79,9 @@ interface Window {
   updateProjectionProgress?: (done: number, total: number) => void;
   touchline: {
     snapshot: () => Promise<LearningBackup>;
-    importCloud: (backup: LearningBackup) => Promise<void>;
+    invalidateAccountScope: () => Promise<void>;
+    setAccountScope: (origin: CloudOrigin | null) => Promise<void>;
+    importCloud: (backup: LearningBackup, origin?: CloudOrigin) => Promise<boolean>;
     download: (value: unknown, name: string) => void;
   };
 }

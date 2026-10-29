@@ -21,7 +21,8 @@ test('an isolated server persists state across restart without using the applica
     const recovered = await (await fetch(`${server.url}/api/state?plan=soccer-ml`)).json();
     assert.equal(recovered.weeklyHours, 7);
     assert.equal(recovered.revision, 1);
-    assert.equal(JSON.parse(await readFile(`${directory}/soccer-ml/state.json`, 'utf8')).weeklyHours, 7);
+    const record = await (await fetch(`${server.url}/api/record?plan=soccer-ml`)).json();
+    assert.equal(JSON.parse(await readFile(`${directory}/records/${record.recordId}/record.json`, 'utf8')).state.weeklyHours, 7);
   } finally {
     await server.close();
   }

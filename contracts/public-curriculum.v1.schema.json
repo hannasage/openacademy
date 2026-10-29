@@ -1,0 +1,191 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:touchline:contract:public-curriculum.v1",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "pattern": "\\S"
+    },
+    "subtitle": {
+      "type": "string",
+      "pattern": "\\S"
+    },
+    "description": {
+      "type": "string",
+      "pattern": "\\S"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{0,59}$"
+    },
+    "version": {
+      "const": 1
+    },
+    "weeks": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 520
+    },
+    "weeklyHours": {
+      "type": "number",
+      "minimum": 1,
+      "maximum": 40
+    },
+    "resources": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "pattern": "^https?://[^\\s]+$"
+          },
+          "use": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "url",
+          "use"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "modules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "phase": {
+            "type": "string"
+          },
+          "question": {
+            "type": "string"
+          },
+          "outcome": {
+            "type": "string"
+          },
+          "math": {
+            "type": "string"
+          },
+          "evidence": {
+            "type": "string"
+          },
+          "challenge": {
+            "type": "string"
+          },
+          "reading": {
+            "type": "string"
+          },
+          "dataset": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]{1,60}$"
+          },
+          "tasks": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "maxItems": 30
+          },
+          "weeks": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "resources": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "prerequisites": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "hours": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 10000
+          },
+          "weekStart": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 10000
+          },
+          "weekEnd": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 10000
+          },
+          "number": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "title",
+          "phase",
+          "question",
+          "outcome",
+          "math",
+          "evidence",
+          "challenge",
+          "reading",
+          "dataset",
+          "id",
+          "tasks",
+          "weeks",
+          "resources",
+          "prerequisites",
+          "hours",
+          "weekStart",
+          "weekEnd"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 1,
+      "maxItems": 100
+    },
+    "nextPhase": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "researchDate": {
+      "type": "string"
+    },
+    "totalHours": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 20800
+    }
+  },
+  "required": [
+    "title",
+    "subtitle",
+    "description",
+    "id",
+    "weeks",
+    "weeklyHours",
+    "resources",
+    "modules"
+  ],
+  "additionalProperties": false
+}

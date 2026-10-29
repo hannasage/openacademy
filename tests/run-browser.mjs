@@ -4,6 +4,8 @@ import {createIsolatedServer} from './browser/server.mjs';
 import {isolateContext} from './browser/network.mjs';
 import {verifyPersistence, verifyStaleWrite} from './browser/persistence.mjs';
 
+import {verifyDrafts, verifyRecordScopes, verifyAccountInvalidation} from './browser/drafts.mjs';
+
 const server = await createIsolatedServer();
 let browser;
 try {
@@ -13,11 +15,14 @@ try {
   });
   const context = await browser.newContext({serviceWorkers: 'block'});
   const externalRequests = await isolateContext(context, server.url);
-  const page = await context.newPage();
   const errors = [];
-  page.on('pageerror', error => errors.push(error.message));
+  context.on('page', page => page.on('pageerror', error => errors.push(error.message)));
+  const page = await context.newPage();
   await verifyPersistence({page, server});
   await verifyStaleWrite(server);
+  await verifyDrafts({page, server});
+  await verifyRecordScopes({page, server});
+  await verifyAccountInvalidation({page, server});
   const blocked = await page.evaluate(async () => {
     try { await fetch('https://touchline-test-egress.invalid/probe'); return false; }
     catch { return true; }

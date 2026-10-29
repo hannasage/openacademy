@@ -1,0 +1,382 @@
+[
+  {
+    "name": "curriculum",
+    "schema": "curriculum.v1.schema.json",
+    "file": "valid/curriculum.json",
+    "valid": true
+  },
+  {
+    "name": "progress",
+    "schema": "progress.v1.schema.json",
+    "file": "valid/progress.json",
+    "valid": true
+  },
+  {
+    "name": "legacy-backup",
+    "schema": "legacy-backup.v1.schema.json",
+    "file": "valid/legacy-backup.json",
+    "valid": true
+  },
+  {
+    "name": "legacy-backup-unmarked",
+    "schema": "legacy-backup.v1.schema.json",
+    "file": "valid/legacy-backup-unmarked.json",
+    "valid": true
+  },
+  {
+    "name": "legacy-extensions",
+    "schema": "local-record.v2.schema.json",
+    "file": "valid/legacy-extensions.json",
+    "valid": true
+  },
+  {
+    "name": "local-record",
+    "schema": "local-record.v2.schema.json",
+    "file": "valid/local-record.json",
+    "valid": true
+  },
+  {
+    "name": "cloud-record",
+    "schema": "local-record.v2.schema.json",
+    "file": "valid/cloud-record.json",
+    "valid": true
+  },
+  {
+    "name": "library",
+    "schema": "library.v1.schema.json",
+    "file": "valid/library.json",
+    "valid": true
+  },
+  {
+    "name": "library-unfocused",
+    "schema": "library.v1.schema.json",
+    "file": "valid/library-unfocused.json",
+    "valid": true
+  },
+  {
+    "name": "publication-binding",
+    "schema": "publication-binding.v1.schema.json",
+    "file": "valid/publication-binding.json",
+    "valid": true
+  },
+  {
+    "name": "published-course",
+    "schema": "published-course.v1.schema.json",
+    "file": "valid/published-course.json",
+    "valid": true
+  },
+  {
+    "name": "published-library",
+    "schema": "published-library.v1.schema.json",
+    "file": "valid/published-library.json",
+    "valid": true
+  },
+  {
+    "name": "hub-description",
+    "schema": "hub-description.v1.schema.json",
+    "file": "valid/hub-description.json",
+    "valid": true
+  },
+  {
+    "name": "conflict-error",
+    "schema": "error.v1.schema.json",
+    "file": "valid/conflict-error.json",
+    "valid": true
+  },
+  {
+    "name": "field-error",
+    "schema": "error.v1.schema.json",
+    "file": "valid/field-error.json",
+    "valid": true
+  },
+  {
+    "name": "snapshot-extension",
+    "schema": "published-course.v1.schema.json",
+    "file": "invalid/snapshot-extension.json",
+    "valid": false
+  },
+  {
+    "name": "snapshot-progress-extension",
+    "schema": "published-course.v1.schema.json",
+    "file": "invalid/snapshot-progress-extension.json",
+    "valid": false
+  },
+  {
+    "name": "snapshot-draft",
+    "schema": "published-course.v1.schema.json",
+    "file": "invalid/snapshot-draft.json",
+    "valid": false
+  },
+  {
+    "name": "unknown-record-version",
+    "schema": "local-record.v2.schema.json",
+    "file": "invalid/unknown-record-version.json",
+    "valid": false
+  },
+  {
+    "name": "unknown-progress-version",
+    "schema": "progress.v1.schema.json",
+    "file": "invalid/unknown-progress-version.json",
+    "valid": false
+  },
+  {
+    "name": "unknown-curriculum-version",
+    "schema": "curriculum.v1.schema.json",
+    "file": "invalid/unknown-curriculum-version.json",
+    "valid": false
+  },
+  {
+    "name": "invalid-record-id",
+    "schema": "local-record.v2.schema.json",
+    "file": "invalid/invalid-record-id.json",
+    "valid": false
+  },
+  {
+    "name": "invalid-status",
+    "schema": "local-record.v2.schema.json",
+    "file": "invalid/invalid-status.json",
+    "valid": false
+  },
+  {
+    "name": "record-focus-flag",
+    "schema": "local-record.v2.schema.json",
+    "file": "invalid/record-focus-flag.json",
+    "valid": false
+  },
+  {
+    "name": "boolean-revision",
+    "schema": "progress.v1.schema.json",
+    "file": "invalid/boolean-revision.json",
+    "valid": false
+  },
+  {
+    "name": "unsafe-revision",
+    "schema": "progress.v1.schema.json",
+    "file": "invalid/unsafe-revision.json",
+    "valid": false
+  },
+  {
+    "name": "negative-revision",
+    "schema": "progress.v1.schema.json",
+    "file": "invalid/negative-revision.json",
+    "valid": false
+  },
+  {
+    "name": "incomplete-complete",
+    "schema": "progress.v1.schema.json",
+    "file": "invalid/incomplete-complete.json",
+    "valid": false
+  },
+  {
+    "name": "wrong-task-type",
+    "schema": "progress.v1.schema.json",
+    "file": "invalid/wrong-task-type.json",
+    "valid": false
+  },
+  {
+    "name": "blank-experiment-title",
+    "schema": "progress.v1.schema.json",
+    "file": "invalid/blank-experiment-title.json",
+    "valid": false
+  },
+  {
+    "name": "bad-backend-origin",
+    "schema": "hub-description.v1.schema.json",
+    "file": "invalid/bad-backend-origin.json",
+    "valid": false
+  },
+  {
+    "name": "http-hub-origin",
+    "schema": "hub-description.v1.schema.json",
+    "file": "invalid/http-hub-origin.json",
+    "valid": false
+  },
+  {
+    "name": "duplicate-provider",
+    "schema": "hub-description.v1.schema.json",
+    "file": "invalid/duplicate-provider.json",
+    "valid": false
+  },
+  {
+    "name": "secret-key",
+    "schema": "hub-description.v1.schema.json",
+    "file": "invalid/secret-key.json",
+    "valid": false
+  },
+  {
+    "name": "arbitrary-key",
+    "schema": "hub-description.v1.schema.json",
+    "file": "invalid/arbitrary-key.json",
+    "valid": false
+  },
+  {
+    "name": "hub-secret-field",
+    "schema": "hub-description.v1.schema.json",
+    "file": "invalid/hub-secret-field.json",
+    "valid": false
+  },
+  {
+    "name": "mixed-origin",
+    "schema": "local-record.v2.schema.json",
+    "file": "invalid/mixed-origin.json",
+    "valid": false
+  },
+  {
+    "name": "semantic-curriculum-mismatch",
+    "schema": "local-record.v2.schema.json",
+    "file": "valid/semantic-curriculum-mismatch.json",
+    "valid": true,
+    "semanticValid": false,
+    "reason": "state.curriculumId must match curriculum.id"
+  },
+  {
+    "name": "semantic-module-reference",
+    "schema": "local-record.v2.schema.json",
+    "file": "valid/semantic-module-reference.json",
+    "valid": true,
+    "semanticValid": false,
+    "reason": "selectedModuleId must identify a curriculum module"
+  },
+  {
+    "name": "semantic-draft-module",
+    "schema": "local-record.v2.schema.json",
+    "file": "valid/semantic-draft-module.json",
+    "valid": true,
+    "semanticValid": false,
+    "reason": "Draft module must identify a curriculum module"
+  },
+  {
+    "name": "semantic-task-count",
+    "schema": "local-record.v2.schema.json",
+    "file": "valid/semantic-task-count.json",
+    "valid": true,
+    "semanticValid": false,
+    "reason": "Task count must equal the selected curriculum module task count"
+  },
+  {
+    "name": "semantic-resource-reference",
+    "schema": "local-record.v2.schema.json",
+    "file": "valid/semantic-resource-reference.json",
+    "valid": true,
+    "semanticValid": false,
+    "reason": "Resource reference must exist"
+  },
+  {
+    "name": "semantic-prerequisite-reference",
+    "schema": "local-record.v2.schema.json",
+    "file": "valid/semantic-prerequisite-reference.json",
+    "valid": true,
+    "semanticValid": false,
+    "reason": "Prerequisite reference must exist"
+  },
+  {
+    "name": "semantic-week-range",
+    "schema": "local-record.v2.schema.json",
+    "file": "valid/semantic-week-range.json",
+    "valid": true,
+    "semanticValid": false,
+    "reason": "Module weeks must fit curriculum duration"
+  },
+  {
+    "name": "semantic-start-date",
+    "schema": "local-record.v2.schema.json",
+    "file": "valid/semantic-start-date.json",
+    "valid": true,
+    "semanticValid": false,
+    "reason": "Date must exist in the calendar"
+  },
+  {
+    "name": "semantic-publish-date",
+    "schema": "published-course.v1.schema.json",
+    "file": "valid/semantic-publish-date.json",
+    "valid": true,
+    "semanticValid": false,
+    "reason": "Timestamp must exist in the calendar"
+  },
+  {
+    "name": "semantic-origin-port",
+    "schema": "hub-description.v1.schema.json",
+    "file": "valid/semantic-origin-port.json",
+    "valid": true,
+    "semanticValid": false,
+    "reason": "Port must be in the valid URL range"
+  },
+  {
+    "name": "hub-legacy-anon-key",
+    "schema": "hub-description.v1.schema.json",
+    "file": "valid/hub-legacy-anon-key.json",
+    "valid": true,
+    "semanticValid": true,
+    "reason": "Synthetic structural example, not a valid credential"
+  },
+  {
+    "name": "semantic-service-role-key",
+    "schema": "hub-description.v1.schema.json",
+    "file": "valid/semantic-service-role-key.json",
+    "valid": true,
+    "semanticValid": false,
+    "reason": "A decoded legacy JWT role must be anon; service_role must never be accepted"
+  },
+  {
+    "name": "library-response",
+    "schema": "library-response.v1.schema.json",
+    "file": "valid/library-response.json",
+    "valid": true
+  },
+  {
+    "name": "semantic-duplicate-module-id",
+    "schema": "local-record.v2.schema.json",
+    "file": "valid/semantic-duplicate-module-id.json",
+    "valid": true,
+    "semanticValid": false,
+    "reason": "Module IDs must be unique"
+  },
+  {
+    "name": "semantic-progress-module",
+    "schema": "local-record.v2.schema.json",
+    "file": "valid/semantic-progress-module.json",
+    "valid": true,
+    "semanticValid": false,
+    "reason": "Progress module must exist in curriculum"
+  },
+  {
+    "name": "semantic-experiment-module",
+    "schema": "local-record.v2.schema.json",
+    "file": "valid/semantic-experiment-module.json",
+    "valid": true,
+    "semanticValid": false,
+    "reason": "Experiment module must exist in curriculum"
+  },
+  {
+    "name": "empty-draft-id",
+    "schema": "local-record.v2.schema.json",
+    "file": "invalid/empty-draft-id.json",
+    "valid": false
+  },
+  {
+    "name": "semantic-draft-date",
+    "schema": "local-record.v2.schema.json",
+    "file": "valid/semantic-draft-date.json",
+    "valid": true,
+    "semanticValid": false,
+    "reason": "Draft date must exist in the calendar"
+  },
+  {
+    "name": "uppercase-account-id",
+    "schema": "local-record.v2.schema.json",
+    "file": "invalid/uppercase-account-id.json",
+    "valid": false
+  },
+  {
+    "name": "legacy-envelope-extension",
+    "schema": "legacy-backup.v1.schema.json",
+    "file": "invalid/legacy-envelope-extension.json",
+    "valid": false
+  },
+  {
+    "name": "legacy-optional-metadata",
+    "schema": "local-record.v2.schema.json",
+    "file": "valid/legacy-optional-metadata.json",
+    "valid": true
+  }
+]

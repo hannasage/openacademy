@@ -1,0 +1,76 @@
+{
+  "format": "touchline-snapshot",
+  "version": 1,
+  "curriculum": {
+    "id": "fixture-course",
+    "version": 1,
+    "title": "Prediction practice",
+    "subtitle": "A small contract fixture",
+    "description": "Train and evaluate one baseline.",
+    "weeks": 1,
+    "weeklyHours": 10,
+    "totalHours": 10,
+    "resources": {
+      "guide": {
+        "title": "Synthetic guide",
+        "url": "https://example.org/guide",
+        "use": "Fixture only."
+      }
+    },
+    "modules": [
+      {
+        "id": "baseline",
+        "number": 1,
+        "title": "A baseline",
+        "phase": "Practice",
+        "question": "Does the baseline improve?",
+        "outcome": "Compare predictions.",
+        "math": "Mean",
+        "evidence": "A result file",
+        "challenge": "Change one assumption.",
+        "reading": "Read the guide.",
+        "dataset": "Synthetic rows",
+        "tasks": [
+          "Record a baseline.",
+          "Compare a change."
+        ],
+        "weeks": [
+          "Week 1"
+        ],
+        "resources": [
+          "guide"
+        ],
+        "prerequisites": [],
+        "hours": 10,
+        "weekStart": 1,
+        "weekEnd": 1
+      }
+    ],
+    "extension": {
+      "draft": "private"
+    }
+  },
+  "progress": {
+    "version": 1,
+    "revision": 0,
+    "curriculumId": "fixture-course",
+    "weeklyHours": 10,
+    "startDate": "",
+    "modules": {
+      "baseline": {
+        "status": "active",
+        "tasks": [
+          true,
+          false
+        ],
+        "notes": "Keep the split fixed.",
+        "evidence": "",
+        "hours": 1
+      }
+    },
+    "experiments": []
+  },
+  "status": "active",
+  "revision": 7,
+  "publishedAt": "2026-01-01T12:00:00Z"
+}

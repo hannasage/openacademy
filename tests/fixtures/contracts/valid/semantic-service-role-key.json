@@ -1,0 +1,23 @@
+{
+  "format": "touchline-hub",
+  "version": 1,
+  "hubId": "22222222-2222-4222-8222-222222222222",
+  "name": "Fixture hub",
+  "hubOrigin": "https://learn.example.org",
+  "backend": {
+    "type": "supabase",
+    "url": "https://fixture.supabase.co",
+    "publishableKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UifQ.ZmFrZV9zaWduYXR1cmU"
+  },
+  "contracts": {
+    "snapshot": 1,
+    "progress": 1
+  },
+  "auth": {
+    "email": "otp",
+    "providers": [
+      "google",
+      "apple"
+    ]
+  }
+}

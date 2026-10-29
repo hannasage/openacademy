@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:touchline:contract:error.v1",
+  "type": "object",
+  "properties": {
+    "error": {
+      "type": "string",
+      "minLength": 1
+    },
+    "code": {
+      "type": "string",
+      "minLength": 1
+    },
+    "field": {
+      "type": "string",
+      "minLength": 1
+    },
+    "retryable": {
+      "type": "boolean"
+    },
+    "currentRevision": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    }
+  },
+  "required": [
+    "error",
+    "code",
+    "retryable"
+  ],
+  "additionalProperties": false
+}
