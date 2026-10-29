@@ -1,5 +1,5 @@
 import { discoverHub, validateHub, uuid } from "./discovery.js";
-import { projectPublication } from "../publication.js";
+import {PublicationController} from "../publications/controller.js";
 const HUB_KEY = "touchline-hub:v1", RETURN_KEY = "touchline-account-return:v1";
 /** @param {unknown} error */
 const message = (error) => error instanceof Error ? error.message : String(error);
@@ -8,6 +8,12 @@ class ConnectionController {
   constructor(deps) {
     this.deps = deps;
     this.now = deps.now ?? Date.now;
+    this.publications = new PublicationController({storage:deps.storage,accounts:deps.accounts,authorize:async()=>{
+      if(this.state.phase!=='ready')throw Error('Sign in before publishing or downloading.');
+      const result=await this.verified(false);const revision=this.authRevision;
+      if(result.origin.accountId!==this.state.accountId){await this.invalidate();throw Error('The account changed. Sign in before publishing.');}
+      return {...result,check:()=>{this.check(result.epoch);if(revision!==this.authRevision)throw Error('The account session changed. Retry this request.');}};
+    },completed:()=>this.loadPrivate(),denied:error=>this.verificationFailed(error)});
   }
   deps;
   /** @type {import("./types").ConnectionState} */
@@ -69,6 +75,7 @@ class ConnectionController {
   }
   clearAccount() {
     this.epoch += 1;
+    this.publications.clear();
     this.revisions = {};
     this.update({ needsVerificationRetry:false, accountId: null, currentSessionId: null, courses: [], sessions: [], unavailableCourses:0, phase: this.state.hub ? "signin" : "disconnected" });
   }
@@ -358,35 +365,9 @@ class ConnectionController {
     if (result.error) throw Error("Account sign-out failed. Your private records are hidden. Retry sign-out.");
     this.update({ needsSignOut: false, message: "Signed out. Local learning remains on this computer." });
   });
-  publish = () => this.run(async () => {
-    const { transfer, epoch } = await this.verified();
-    const backup = projectPublication(await this.deps.accounts.snapshot());
-    this.check(epoch);
-    const { data, error } = await transfer.rpc("save_learning_course", { course_id: backup.curriculum.id, course_content: backup.curriculum, course_progress: backup.state, expected_revision: Object.hasOwn(this.revisions, backup.curriculum.id) ? this.revisions[backup.curriculum.id] : -1 });
-    this.check(epoch);
-    if (error) throw error;
-    this.revisions[backup.curriculum.id] = data.revision;
-    this.saveRevisions();
-    await this.loadPrivate();
-    this.update({ message: "Published. Refresh the native app to read this copy." });
-  });
+  // Kept for callers that have not yet moved to explicit curriculum selection.
+  publish = async () => {await this.publications.refresh();};
   /** @param {string} id */
-  download = (id) => this.run(async () => {
-    const { transfer, epoch, origin } = await this.verified();
-    const { data, error } = await transfer.from("learning_courses").select("*").eq("id", id).single();
-    this.check(epoch);
-    if (error) throw error;
-    const imported = await this.deps.accounts.importCloud({ curriculum: data.curriculum, state: data.progress }, origin);
-    this.check(epoch);
-    if (!imported) {
-      this.update({ message: "Download canceled. Your saved copy is unchanged." });
-      return;
-    }
-    this.revisions[id] = data.revision;
-    this.saveRevisions();
-    this.update({ message: "Downloaded " + data.curriculum.title });
-  });
+  download = id => this.publications.review(id);
 }
-export {
-  ConnectionController
-};
+export {ConnectionController};

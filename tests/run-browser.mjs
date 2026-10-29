@@ -7,6 +7,7 @@ import {verifyPersistence, verifyStaleWrite} from './browser/persistence.mjs';
 import {verifyDrafts, verifyRecordScopes, verifyAccountInvalidation} from './browser/drafts.mjs';
 
 import {verifyConnection} from './browser/connection.mjs';
+import {verifyPublications} from './browser/publications.mjs';
 
 import {verifyLearningScreens,verifyRecoveredStartup,verifyStatusWriterConflict,verifyEditsDuringStatusSave} from './browser/learning-screens.mjs';
 import {verifyJournalImport} from './browser/journal-import.mjs';
@@ -32,6 +33,14 @@ try {
   await verifyShell({page,server});
   await verifyStartupRecovery({page,server});
   await verifyConnection({page,server});
+  const publicationsServer=await createIsolatedServer();
+  const publicationsContext=await browser.newContext({serviceWorkers:'block'});
+  try {
+    await isolateContext(publicationsContext,publicationsServer.url);
+    const publicationsPage=await publicationsContext.newPage();
+    publicationsPage.on('pageerror',error=>errors.push(error.message));
+    await verifyPublications({page:publicationsPage,server:publicationsServer});
+  } finally {await publicationsContext.close();await publicationsServer.close();}
   await verifyLearningScreens({page,server});
   await verifyRecoveredStartup({page,server});
   await verifyStatusWriterConflict({page,server});

@@ -79,6 +79,9 @@ interface Window {
   updateProjectionProgress?: (done: number, total: number) => void;
   touchline: {
     snapshot: () => Promise<LearningBackup>;
+    publicationRecords: () => Promise<{records:LocalRecord[];focusRecordId:string|null}>;
+    prepareCloudImport: (backup:LearningBackup,origin:CloudOrigin,status:LibraryStatus,targetRecordId?:string) => Promise<{token:string;local:LocalRecord|null}>;
+    commitCloudImport: (token:string) => Promise<{recordId:string;revision:number}>;
     invalidateAccountScope: () => Promise<void>;
     setAccountScope: (origin: CloudOrigin | null) => Promise<void>;
     importCloud: (backup: LearningBackup, origin?: CloudOrigin) => Promise<boolean>;
