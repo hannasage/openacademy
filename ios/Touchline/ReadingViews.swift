@@ -81,7 +81,7 @@ struct ReadingCourseView: View {
                 Text(copy.isPublishedFocus ? "Your published focus" : copy.readingSource.label).font(.subheadline).foregroundStyle(palette.muted)
                 Text(copy.progressLabel)
                 LabeledContent("Study time", value: hoursLabel(copy.state.modules.values.reduce(0) { $0 + $1.hours }))
-                Button("Continue reading", action: resume).buttonStyle(.borderedProminent).controlSize(.large).accessibilityIdentifier("continue-reading")
+                Button("Continue reading", action: resume).buttonStyle(.borderedProminent).tint(palette.accent).foregroundStyle(palette.primaryText).controlSize(.large).accessibilityIdentifier("continue-reading")
                 Text("Reading another curriculum does not change your focus.").font(.subheadline).foregroundStyle(palette.muted)
             }.listRowBackground(palette.surface)
             Section("Learning path") {
@@ -258,7 +258,7 @@ struct ReadingDownloadsView: View {
                 Text("Keep learning offline").font(.largeTitle.bold()).accessibilityAddTraits(.isHeader)
                 Text("These reading copies are saved on this device. Linked books and datasets need their own downloads.").foregroundStyle(palette.muted)
                 Button("Backend and account", action: connect).buttonStyle(.bordered).controlSize(.large)
-                Button("Refresh published courses", action: refresh).buttonStyle(.borderedProminent).controlSize(.large).disabled(busy || !signedIn)
+                Button("Refresh published courses", action: refresh).buttonStyle(.borderedProminent).tint(palette.accent).foregroundStyle(palette.primaryText).controlSize(.large).disabled(busy || !signedIn)
             }.listRowBackground(palette.background)
             Section("Saved on this device") {
                 ForEach(copies) { copy in

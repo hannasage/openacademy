@@ -10,10 +10,12 @@ enum ThemePair: String, CaseIterable, Identifiable {
 enum AppearanceMode: String, CaseIterable, Identifiable {
     case dark, light, system
     var id: String { rawValue }
+    func resolvedScheme(system: ColorScheme) -> ColorScheme { scheme ?? system }
     var scheme: ColorScheme? { self == .system ? nil : (self == .dark ? .dark : .light) }
 }
 
 struct HubPalette {
+    let colorScheme: ColorScheme
     let name: String
     let background: Color
     let surface: Color
@@ -21,21 +23,25 @@ struct HubPalette {
     let muted: Color
     let accent: Color
     let link: Color
+    let border: Color
+    let primaryText: Color
 
     init(pair: ThemePair, dark: Bool) {
+        colorScheme = dark ? .dark : .light
         name = dark ? pair.darkName : pair.lightName
         let values: [UInt32]
         switch (pair, dark) {
-        case (.bloom, true): values = [0x0e0620, 0x180d38, 0xf5eaff, 0xa080cc, 0xFF39AB]
-        case (.bloom, false): values = [0xFCF8FF, 0xFFFFFF, 0x17202A, 0x485463, 0xB56AFF]
-        case (.coast, true): values = [0x1b1f2a, 0x242b3a, 0xe5e9f0, 0xa7b0c0, 0x35D9FF]
-        case (.coast, false): values = [0xF6FBFF, 0xFFFFFF, 0x17202A, 0x485463, 0x00C8FF]
+        case (.bloom, true): values = [0x0e0620, 0x180d38, 0xf5eaff, 0xa080cc, 0xFF39AB, 0x2e1060]
+        case (.bloom, false): values = [0xFCF8FF, 0xFFFFFF, 0x17202A, 0x485463, 0xB56AFF, 0xbfcbd8]
+        case (.coast, true): values = [0x1b1f2a, 0x242b3a, 0xe5e9f0, 0xa7b0c0, 0x35D9FF, 0x3a435a]
+        case (.coast, false): values = [0xF6FBFF, 0xFFFFFF, 0x17202A, 0x485463, 0x00C8FF, 0xbfcbd8]
         }
         func color(_ value: UInt32) -> Color {
             Color(red: Double((value >> 16) & 255)/255, green: Double((value >> 8) & 255)/255, blue: Double(value & 255)/255)
         }
         background = color(values[0]); surface = color(values[1]); text = color(values[2])
         muted = color(values[3]); accent = color(values[4])
+        border = color(values[5]); primaryText = color(pair == .coast && !dark ? 0x101820 : 0x17202a)
         // Projection UI uses its text color for readable accents on light surfaces.
         link = dark ? accent : text
     }
@@ -51,21 +57,44 @@ extension EnvironmentValues {
     }
 }
 
+enum AppearancePreferences {
+    static let pairKey = "touchline.themePair"
+    static let modeKey = "touchline.appearanceMode"
+    static func pair(rawValue: String) -> ThemePair { ThemePair(rawValue: rawValue) ?? .bloom }
+    static func mode(rawValue: String) -> AppearanceMode { AppearanceMode(rawValue: rawValue) ?? .system }
+    // UI tests retain only appearance across relaunch. Learning and account fixtures stay isolated.
+    static let defaults: UserDefaults = {
+        let process = ProcessInfo.processInfo
+        guard process.arguments.contains("--touchline-ui-test") || process.environment["XCTestConfigurationFilePath"] != nil else { return .standard }
+        let id = process.environment["TOUCHLINE_APPEARANCE_TEST_SUITE"].flatMap(UUID.init(uuidString:)) ?? UUID()
+        return UserDefaults(suiteName: "Touchline-Appearance-Tests-" + id.uuidString)!
+    }()
+}
+
 struct AppearanceRoot: View {
-    @AppStorage("touchline.themePair") private var pair = "bloom"
-    @AppStorage("touchline.appearanceMode") private var mode = "system"
+    @AppStorage private var pair: String
+    @AppStorage private var mode: String
+    private let defaults: UserDefaults
+    init(defaults: UserDefaults = AppearancePreferences.defaults) {
+        self.defaults = defaults
+        _pair = AppStorage(wrappedValue: "bloom", AppearancePreferences.pairKey, store: defaults)
+        _mode = AppStorage(wrappedValue: "system", AppearancePreferences.modeKey, store: defaults)
+    }
     var body: some View {
-        ResolvedAppearance(pair: ThemePair(rawValue: pair) ?? .bloom)
-            .preferredColorScheme((AppearanceMode(rawValue: mode) ?? .system).scheme)
+        ResolvedAppearance(pair: AppearancePreferences.pair(rawValue: pair), mode: AppearancePreferences.mode(rawValue: mode))
+            .defaultAppStorage(defaults)
     }
 }
 
 private struct ResolvedAppearance: View {
     @Environment(\.colorScheme) private var colorScheme
     let pair: ThemePair
+    let mode: AppearanceMode
     var body: some View {
-        let palette = HubPalette(pair: pair, dark: colorScheme == .dark)
+        let resolvedScheme = mode.resolvedScheme(system: colorScheme)
+        let palette = HubPalette(pair: pair, dark: resolvedScheme == .dark)
         ContentView()
+            .environment(\.colorScheme, resolvedScheme)
             .environment(\.hubPalette, palette)
             .tint(palette.link)
             .foregroundStyle(palette.text)
@@ -80,57 +109,9 @@ private struct HubSurface: ViewModifier {
             .background(palette.background)
             .toolbarBackground(palette.background, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarColorScheme(palette.colorScheme, for: .navigationBar)
     }
 }
 extension View {
     func hubSurface() -> some View { modifier(HubSurface()) }
-}
-
-struct AppearanceView: View {
-    @AppStorage("touchline.themePair") private var pair = "bloom"
-    @AppStorage("touchline.appearanceMode") private var mode = "system"
-    @Environment(\.hubPalette) private var palette
-    @Environment(\.dismiss) private var dismiss
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section("Theme pair") {
-                    ForEach(ThemePair.allCases) { choice in
-                        Button { pair = choice.rawValue } label: {
-                            HStack(spacing: 12) {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(choice.darkName)
-                                    Text(choice.lightName).font(.subheadline).foregroundStyle(palette.muted)
-                                }
-                                Spacer()
-                                ForEach([true, false], id: \.self) { dark in
-                                    let swatch = HubPalette(pair: choice, dark: dark)
-                                    RoundedRectangle(cornerRadius: 4).fill(swatch.background)
-                                        .overlay(RoundedRectangle(cornerRadius: 4).stroke(swatch.accent, lineWidth: 2))
-                                        .frame(width: 16, height: 24).accessibilityHidden(true)
-                                }
-                                Image(systemName: pair == choice.rawValue ? "checkmark.circle.fill" : "circle")
-                            }.frame(minHeight: 44).foregroundStyle(palette.text)
-                        }.accessibilityAddTraits(pair == choice.rawValue ? [.isSelected] : [])
-                    }
-                }.listRowBackground(palette.surface)
-                Section("Mode") {
-                    Picker("Mode", selection: $mode) {
-                        ForEach(AppearanceMode.allCases) { choice in
-                            Text(choice.rawValue.capitalized).tag(choice.rawValue)
-                        }
-                    }.pickerStyle(.segmented).padding(.vertical, 8)
-                }.listRowBackground(palette.surface)
-                Section {
-                    Text(palette.name)
-                    if mode == "system" { Text("Following your device appearance.") }
-                    Text("Saved on this device.")
-                }.foregroundStyle(palette.muted).listRowBackground(palette.surface)
-            }
-            .hubSurface()
-            .navigationTitle("Appearance")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
-        }
-    }
 }
