@@ -54,7 +54,7 @@ struct ContentView: View {
                     ContentUnavailableView("Choose a curriculum", systemImage: "books.vertical", description: Text("Read a lesson, revisit your progress, or open a source."))
                         .hubSurface()
                 }
-            }
+            }.id(store.readingIdentity)
         }
         .background(palette.background)
         .sheet(isPresented: $showingAppearance) { AppearanceView() }
@@ -88,7 +88,7 @@ struct CourseView: View {
                                 .foregroundStyle(.tint)
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(module.title)
-                                Text("Weeks \(module.weekStart)–\(module.weekEnd) · \(module.phase)")
+                                Text("Weeks \(module.weekStart.formatted())–\(module.weekEnd.formatted()) · \(module.phase)")
                                     .font(.caption).foregroundStyle(palette.muted)
                             }
                         }.padding(.vertical, 4)
@@ -177,7 +177,11 @@ struct ConnectionView: View {
                     Button("Sign in") {
                         Task { await store.signIn(email: email, password: password); password = "" }
                     }.disabled(email.isEmpty || password.isEmpty)
-                    if store.signedIn { Button("Sign out and remove downloaded copies", role: .destructive) { Task { await store.signOut() } } }
+                    if store.signedIn || store.needsSignOutRetry {
+                        Button(store.needsSignOutRetry ? "Retry sign-out and cleanup" : "Sign out and remove downloaded copies", role: .destructive) {
+                            Task { await store.signOut() }
+                        }.accessibilityIdentifier("sign-out")
+                    }
                     Text("Create and confirm your owner account in the desktop hub first. This app only signs in to your chosen backend.")
                         .font(.subheadline).foregroundStyle(palette.muted)
                 }.listRowBackground(palette.surface)
