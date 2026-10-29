@@ -54,7 +54,59 @@ Downloaded courses remain readable without a connection.
 The last download time appears in the course list.
 External sources require internet access.
 Sign out to remove downloaded private courses from this device.
-Changing backends also clears downloaded courses.
+Changing backends hides the previous account and removes its downloaded file.
+Local imports and the bundled curriculum remain available.
+If removal fails, the app reports the failure and keeps private content hidden.
+Use Retry sign-out and cleanup when storage or account access is available.
+
+## Data and recovery
+
+Each account has a separate cache file keyed by hub, canonical backend origin, and account ID.
+The app saves a complete replacement before it changes the visible downloads.
+A failed request, invalid snapshot, or failed write leaves the last valid copy intact.
+Local imports use separate identities, even when their curriculum IDs match a cloud download.
+Import collections have a 20 MB limit; larger replacements leave the saved file intact.
+If the saved import file cannot be read, new imports are blocked and the original bytes stay intact.
+Restore that file from a known valid backup and restart the app before importing more curricula.
+
+The old `courses.json` file has no account identity.
+The app leaves that file untouched and excludes it from the active library.
+Import a trusted original backup to recover a local reading copy.
+The app never assigns the old cache to the next account that signs in.
+
+Writes request iOS file protection until the first device unlock after restart.
+The simulator does not expose the protection attribute, so this requires a physical-device check before release.
+Appearance preferences remain separate from learning records.
+
+`ContractReader` validates the bundled P02 schemas before decoding data.
+It supports only the schema keywords used in those contracts and rejects unknown keywords and unresolved references.
+It also checks curriculum references, calendar dates, versions, and backend origins.
+It is not a general JSON Schema validator.
+Shared schemas and fixtures are Xcode folder resources referenced from the repository root, with no copied fork.
+
+## Tests
+
+The shared Touchline scheme includes `TouchlineTests` and `TouchlineUITests`.
+Tests use temporary storage, isolated preferences, and an injected service that makes no network requests.
+The application test host also starts with isolated storage and network disabled.
+Unit tests cover shared fixtures, account changes, duplicate curriculum IDs, corrupt data, failed writes, sign-out cleanup, and offline relaunch.
+The interface test opens the bundled library and relaunches it without a backend.
+
+List available destinations on the current machine:
+
+```sh
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun simctl list devices available
+```
+
+Run the suite from the repository root on both device classes:
+
+```sh
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project ios/Touchline.xcodeproj -scheme Touchline -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=18.5' -derivedDataPath /tmp/touchline-native-tests CODE_SIGNING_ALLOWED=NO test
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project ios/Touchline.xcodeproj -scheme Touchline -destination 'platform=iOS Simulator,name=iPad Pro 11-inch (M4),OS=18.5' -derivedDataPath /tmp/touchline-native-tests CODE_SIGNING_ALLOWED=NO test
+```
+
+If those devices are absent, choose an installed iPhone and iPad from the destination list.
+Device signing and production account tests remain separate release steps.
 
 ## Dependencies
 
