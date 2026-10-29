@@ -98,3 +98,153 @@ final class ReadingUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Soccer → machine learning"].waitForExistence(timeout: 15))
     }
 }
+
+final class ConnectionUITests: XCTestCase {
+    private func launch(largeText: Bool = false) -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments = ["--touchline-ui-test", "--touchline-ui-test-connection"]
+        app.launchEnvironment["TOUCHLINE_APPEARANCE_TEST_SUITE"] = UUID().uuidString
+        if largeText { app.launchArguments += ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"] }
+        app.launch()
+        let devices = app.buttons["Devices"].firstMatch
+        XCTAssertTrue(devices.waitForExistence(timeout: 15)); devices.tap()
+        let account = app.buttons["Backend and account"].firstMatch
+        reveal(account, app: app)
+        XCTAssertTrue(account.waitForExistence(timeout: 10)); account.tap()
+        return app
+    }
+    private func reveal(_ element: XCUIElement, app: XCUIApplication) {
+        for _ in 0..<12 {
+            if element.isHittable { return }
+            let scroll = app.scrollViews.firstMatch
+            let collection = app.collectionViews.firstMatch
+            let table = app.tables.firstMatch
+            if scroll.exists { scroll.swipeUp() }
+            else if collection.exists { collection.swipeUp() }
+            else if table.exists { table.swipeUp() }
+            else { app.swipeUp() }
+        }
+    }
+    private func shot(_ name: String, app: XCUIApplication) {
+        let attachment = XCTAttachment(screenshot: app.screenshot()); attachment.name = name; attachment.lifetime = .keepAlways; add(attachment)
+    }
+    private func connect(_ app: XCUIApplication) {
+        let address = app.textFields["Hub address"]
+        reveal(address, app: app); address.tap(); address.typeText("https://learn.example.org")
+        let find = app.buttons["Find my hub"]; reveal(find, app: app); find.tap()
+        let use = app.buttons["Use this hub"]; XCTAssertTrue(use.waitForExistence(timeout: 5)); reveal(use, app: app)
+        shot("P14 hub review", app: app); use.tap()
+        let email = app.textFields["Email"]; XCTAssertTrue(email.waitForExistence(timeout: 5)); reveal(email, app: app)
+        shot("P14 email sign-in", app: app); email.tap(); email.typeText("fixture@example.org")
+        let send = app.buttons["Email me a sign-in code"]; reveal(send, app: app); send.tap()
+    }
+    func testReviewCodeAndSelectedOfflineDownloads() {
+        let app = launch(); shot("P14 find hub", app: app); connect(app)
+        let code = app.textFields["Sign-in code"]; XCTAssertTrue(code.waitForExistence(timeout: 5)); reveal(code, app: app)
+        shot("P14 enter code", app: app); code.tap(); code.typeText("123456")
+        let verify = app.buttons["Verify & continue"]; reveal(verify, app: app); verify.tap()
+        let soccer = app.switches["download-choice-soccer"]
+        XCTAssertTrue(soccer.waitForExistence(timeout: 5)); XCTAssertEqual(soccer.value as? String, "1")
+        let shaders = app.switches["download-choice-shaders"]; reveal(shaders, app: app); shaders.tap()
+        shot("P14 choose downloads", app: app)
+        let download = app.buttons["Download selected · 2"]; reveal(download, app: app); download.tap()
+        let message = app.staticTexts["connection-message"]
+        XCTAssertTrue(message.waitForExistence(timeout: 5))
+        XCTAssertTrue(message.label.contains("Downloaded 2 curricula"))
+        app.navigationBars.buttons["Done"].tap()
+        let devices = app.buttons["Devices"].firstMatch; XCTAssertTrue(devices.exists); devices.tap()
+        XCTAssertTrue(app.staticTexts["Creative coding with shaders"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["Photography fundamentals"].exists)
+        shot("P14 saved downloads", app: app)
+    }
+    func testAppearancePreservesConnectedSelectionsAndSavedCopies() {
+        let originalAppearance = XCUIDevice.shared.appearance
+        defer { XCUIDevice.shared.appearance = originalAppearance == .unspecified ? .light : originalAppearance }
+        XCUIDevice.shared.appearance = .dark
+        let app = launch(); connect(app)
+        let code = app.textFields["Sign-in code"]
+        XCTAssertTrue(code.waitForExistence(timeout: 5)); reveal(code, app: app); code.tap(); code.typeText("123456")
+        let verify = app.buttons["Verify & continue"]; reveal(verify, app: app); verify.tap()
+        let shaders = app.switches["download-choice-shaders"]
+        XCTAssertTrue(shaders.waitForExistence(timeout: 5)); reveal(shaders, app: app); shaders.tap()
+        func changeAppearance(_ pair: String, _ mode: String, _ name: String) {
+            app.navigationBars.buttons["Done"].tap()
+            let trigger = app.buttons["appearance-trigger"].firstMatch
+            XCTAssertTrue(trigger.waitForExistence(timeout: 5)); trigger.tap()
+            let choice = app.buttons["appearance-pair-" + pair]
+            XCTAssertTrue(choice.waitForExistence(timeout: 5)); choice.tap()
+            app.buttons["appearance-mode-" + mode].tap()
+            XCTAssertEqual(app.staticTexts["appearance-current"].label, name)
+            app.buttons["appearance-done"].tap()
+            let account = app.buttons["Backend and account"].firstMatch
+            reveal(account, app: app); account.tap()
+        }
+        func captureContinueReading(_ name: String) {
+            app.buttons["Library"].firstMatch.tap()
+            let resume = app.buttons["continue-reading"]
+            if !resume.waitForExistence(timeout: 2) {
+                let course = app.buttons["course-soccer-downloaded"]
+                if !course.isHittable, app.buttons["ToggleSidebar"].exists { app.buttons["ToggleSidebar"].tap() }
+                XCTAssertTrue(course.waitForExistence(timeout: 5)); reveal(course, app: app); course.tap()
+            }
+            reveal(resume, app: app); XCTAssertTrue(resume.isHittable)
+            shot(name + " Continue reading", app: app); resume.tap()
+            XCTAssertTrue(app.navigationBars["Start with a forecast"].waitForExistence(timeout: 5))
+            app.navigationBars["Start with a forecast"].buttons.element(boundBy: 0).tap()
+            app.buttons["Devices"].firstMatch.tap()
+        }
+        changeAppearance("coast", "light", "Coastal Day")
+        for id in ["soccer", "shaders"] {
+            let choice = app.switches["download-choice-" + id]
+            XCTAssertTrue(choice.waitForExistence(timeout: 5)); XCTAssertEqual(choice.value as? String, "1")
+        }
+        shot("Joined Coastal Day selected curricula", app: app)
+        let download = app.buttons["Download selected · 2"]; reveal(download, app: app); download.tap()
+        let message = app.staticTexts["connection-message"]
+        XCTAssertTrue(message.waitForExistence(timeout: 5)); XCTAssertTrue(message.label.contains("Downloaded 2 curricula"))
+        app.navigationBars.buttons["Done"].tap()
+        shot("Joined Coastal Day saved curricula", app: app)
+        captureContinueReading("Joined Coastal Day")
+        let account = app.buttons["Backend and account"].firstMatch; reveal(account, app: app); account.tap()
+        changeAppearance("bloom", "dark", "Noir Bloom")
+        XCTAssertEqual(app.buttons.matching(identifier: "Remove download").count, 2)
+        app.navigationBars.buttons["Done"].tap()
+        for title in ["Soccer → machine learning", "Creative coding with shaders"] {
+            XCTAssertTrue(app.staticTexts[title].waitForExistence(timeout: 5))
+        }
+        XCTAssertFalse(app.staticTexts["Photography fundamentals"].exists)
+        shot("Joined Noir Bloom saved curricula", app: app)
+        captureContinueReading("Joined Noir Bloom")
+    }
+    func testDeniedCameraAndCancelledReviewKeepLocalLibrary() {
+        let app = launch()
+        let scan = app.buttons["Scan hub QR code"]; XCTAssertTrue(scan.waitForExistence(timeout: 5)); scan.tap()
+        XCTAssertTrue(app.staticTexts["camera-message"].waitForExistence(timeout: 5))
+        let address = app.textFields["Hub address"]; reveal(address, app: app); address.tap(); address.typeText("https://learn.example.org")
+        let find = app.buttons["Find my hub"]; reveal(find, app: app); find.tap()
+        let cancel = app.buttons["Cancel"]; XCTAssertTrue(cancel.waitForExistence(timeout: 5)); reveal(cancel, app: app); cancel.tap()
+        XCTAssertTrue(app.buttons["Find my hub"].exists)
+        app.navigationBars.buttons["Done"].tap()
+        XCTAssertTrue(app.buttons["Backend and account"].waitForExistence(timeout: 5))
+    }
+    func testOfflineSavedCopyCanBeRemovedWithoutLoadingCatalog() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--touchline-ui-test", "--touchline-ui-test-reading"]
+        app.launch()
+        let devices = app.buttons["Devices"].firstMatch
+        XCTAssertTrue(devices.waitForExistence(timeout: 15)); devices.tap()
+        let account = app.buttons["Backend and account"].firstMatch; reveal(account, app: app); account.tap()
+        let remove = app.buttons["remove-download-reading-one"]
+        XCTAssertTrue(remove.waitForExistence(timeout: 5)); reveal(remove, app: app); remove.tap()
+        XCTAssertFalse(remove.exists)
+        let other = app.buttons["remove-download-reading-two"]
+        XCTAssertTrue(other.exists)
+        shot("P14 offline download removal", app: app)
+    }
+    func testConnectionRemainsScrollableWithAccessibilityText() {
+        let app = launch(largeText: true)
+        let find = app.buttons["Find my hub"]; reveal(find, app: app); XCTAssertTrue(find.isHittable)
+        shot("P14 accessible connection", app: app)
+        app.navigationBars.buttons["Done"].tap()
+    }
+}

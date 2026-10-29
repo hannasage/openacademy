@@ -36,16 +36,29 @@ struct CachedDownload: Codable {
     let records: [PublishedCourse]
     let refreshedAt: Date
     var library: PublishedLibrary? = nil
+    var downloadedAt: [String: Date]? = nil
+}
+struct ReadingCleanup: Codable {
+    let format: String
+    let version: Int
+    let scope: AccountScope?
 }
 protocol ReadingCache {
     var hasUnownedLegacyCache: Bool { get }
+    func loadCleanup() throws -> ReadingCleanup?
+    func saveCleanup(scope: AccountScope?) throws
+    func clearCleanup() throws
     func load(scope: AccountScope) throws -> CachedDownload?
     func save(_ records: [PublishedCourse], scope: AccountScope, refreshedAt: Date, library: PublishedLibrary?) throws
+    func save(_ records: [PublishedCourse], scope: AccountScope, refreshedAt: Date, library: PublishedLibrary?, downloadedAt: [String: Date]) throws
     func remove(scope: AccountScope) throws
     func loadImports() throws -> [LearningBackup]
     func saveImports(_ records: [LearningBackup]) throws
 }
 extension ReadingCache {
+    func save(_ records: [PublishedCourse], scope: AccountScope, refreshedAt: Date, library: PublishedLibrary?, downloadedAt: [String: Date]) throws {
+        try save(records, scope: scope, refreshedAt: refreshedAt, library: library)
+    }
     func save(_ records: [PublishedCourse], scope: AccountScope, refreshedAt: Date) throws {
         try save(records, scope: scope, refreshedAt: refreshedAt, library: nil)
     }
@@ -66,13 +79,32 @@ final class FileReadingCache: ReadingCache {
     }
     private func location(_ scope: AccountScope) -> URL { directory.appendingPathComponent(scope.storageKey + ".json") }
     var hasUnownedLegacyCache: Bool { FileManager.default.fileExists(atPath: directory.appendingPathComponent("courses.json").path) }
+    private var cleanupURL: URL { directory.appendingPathComponent("pending-cleanup-v1.json") }
+    func loadCleanup() throws -> ReadingCleanup? {
+        guard FileManager.default.fileExists(atPath: cleanupURL.path) else { return nil }
+        try safe(cleanupURL)
+        let bytes = try Data(contentsOf: cleanupURL)
+        guard bytes.count <= 4096, let object = try JSONSerialization.jsonObject(with: bytes) as? [String: Any], Set(object.keys).isSubset(of: ["format", "version", "scope"]) else { throw HubError.message("Saved cleanup information is invalid.") }
+        if let scope = object["scope"] as? [String: Any], Set(scope.keys) != Set(["hubID", "backendOrigin", "accountID"]) { throw HubError.message("Saved cleanup identity is invalid.") }
+        let intent = try JSONDecoder().decode(ReadingCleanup.self, from: bytes)
+        guard intent.format == "touchline-native-cleanup", intent.version == 1 else { throw HubError.message("Saved cleanup information has an unsupported version.") }
+        if let scope = intent.scope, try AccountScope.canonicalOrigin(scope.backendOrigin) != scope.backendOrigin { throw HubError.message("Saved cleanup identity is invalid.") }
+        return intent
+    }
+    func saveCleanup(scope: AccountScope?) throws {
+        if FileManager.default.fileExists(atPath: cleanupURL.path) { try safe(cleanupURL) }
+        try writer(JSONEncoder().encode(ReadingCleanup(format: "touchline-native-cleanup", version: 1, scope: scope)), cleanupURL)
+    }
+    func clearCleanup() throws {
+        if FileManager.default.fileExists(atPath: cleanupURL.path) { try safe(cleanupURL); try FileManager.default.removeItem(at: cleanupURL) }
+    }
     func load(scope: AccountScope) throws -> CachedDownload? {
         let url = location(scope)
         guard FileManager.default.fileExists(atPath: url.path) else { return nil }
         try safe(url)
         let data = try Data(contentsOf: url)
         guard data.count <= 20_000_000 else { throw HubError.message("The reading cache is too large.") }
-        guard let envelope = try JSONSerialization.jsonObject(with: data) as? [String: Any], Set(envelope.keys).isSubset(of: Set(["format", "version", "scope", "records", "refreshedAt", "library"])),
+        guard let envelope = try JSONSerialization.jsonObject(with: data) as? [String: Any], Set(envelope.keys).isSubset(of: Set(["format", "version", "scope", "records", "refreshedAt", "library", "downloadedAt"])),
               let origin = envelope["scope"] as? [String: Any], Set(origin.keys) == Set(["hubID", "backendOrigin", "accountID"]),
               let snapshots = envelope["records"] as? [[String: Any]], snapshots.count <= 100 else { throw HubError.message("The reading cache has an unsupported format.") }
         for snapshot in snapshots { try reader.validate(JSONSerialization.data(withJSONObject: snapshot), schema: "published-course.v1.schema.json") }
@@ -82,6 +114,9 @@ final class FileReadingCache: ReadingCache {
         }
         let saved = try JSONDecoder().decode(CachedDownload.self, from: data)
         guard saved.format == "touchline-native-cache", saved.version == 1, saved.scope == scope else { throw HubError.message("The saved download belongs to another account or version.") }
+        if let dates = saved.downloadedAt {
+            guard Set(dates.keys).isSubset(of: Set(saved.records.map { $0.curriculum.id })), dates.values.allSatisfy({ $0.timeIntervalSince1970.isFinite }) else { throw HubError.message("The saved download dates are invalid.") }
+        }
         try validate(saved.records)
         if let library = saved.library { try reader.validate(JSONEncoder().encode(library), schema: "published-library.v1.schema.json") }
         return saved
@@ -91,11 +126,15 @@ final class FileReadingCache: ReadingCache {
         for record in records { try reader.validate(JSONEncoder().encode(record), schema: "published-course.v1.schema.json") }
     }
     func save(_ records: [PublishedCourse], scope: AccountScope, refreshedAt: Date, library: PublishedLibrary?) throws {
+        try save(records, scope: scope, refreshedAt: refreshedAt, library: library, downloadedAt: [:])
+    }
+    func save(_ records: [PublishedCourse], scope: AccountScope, refreshedAt: Date, library: PublishedLibrary?, downloadedAt: [String: Date]) throws {
+        guard Set(downloadedAt.keys).isSubset(of: Set(records.map { $0.curriculum.id })) else { throw HubError.message("Download dates do not match the selected curricula.") }
         try validate(records)
         if let library { try reader.validate(JSONEncoder().encode(library), schema: "published-library.v1.schema.json") }
         let target = location(scope)
         if FileManager.default.fileExists(atPath: target.path) { try safe(target) }
-        let bytes = try JSONEncoder().encode(CachedDownload(format: "touchline-native-cache", version: 1, scope: scope, records: records, refreshedAt: refreshedAt, library: library))
+        let bytes = try JSONEncoder().encode(CachedDownload(format: "touchline-native-cache", version: 1, scope: scope, records: records, refreshedAt: refreshedAt, library: library, downloadedAt: downloadedAt))
         guard bytes.count <= 20_000_000 else { throw HubError.message("The reading cache is too large.") }
         try writer(bytes, target)
     }

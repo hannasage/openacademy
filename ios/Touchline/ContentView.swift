@@ -62,48 +62,10 @@ struct ContentView: View {
         }
         .onReceive(store.$courses) { navigation.reconcile($0) }
         .onChange(of: store.readingIdentity) { _, _ in navigation.reconcile(store.courses) }
-        .task { await store.restoreSession() }
-    }
-}
-struct ConnectionView: View {
-    @Environment(\.hubPalette) private var palette
-    @EnvironmentObject var store: HubStore
-    @Environment(\.dismiss) var dismiss
-    @State private var url = ""
-    @State private var key = ""
-    @State private var email = ""
-    @State private var password = ""
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section("Your Supabase backend") {
-                    TextField("Project URL", text: $url).keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
-                    TextField("Publishable key", text: $key).textInputAutocapitalization(.never).autocorrectionDisabled()
-                    Button("Connect backend") { Task { await store.connect(Connection(url: url, publishableKey: key)) } }
-                    Text("You can also import touchline-connection.json from the desktop hub. Changing backends clears downloaded courses.")
-                        .font(.subheadline).foregroundStyle(palette.muted)
-                }.listRowBackground(palette.surface)
-                Section("Owner account") {
-                    TextField("Email", text: $email).keyboardType(.emailAddress).textContentType(.username).textInputAutocapitalization(.never).autocorrectionDisabled()
-                    SecureField("Password", text: $password).textContentType(.password)
-                    Button("Sign in") {
-                        Task { await store.signIn(email: email, password: password); password = "" }
-                    }.disabled(email.isEmpty || password.isEmpty)
-                    if store.signedIn || store.needsSignOutRetry {
-                        Button(store.needsSignOutRetry ? "Retry sign-out and cleanup" : "Sign out and remove downloaded copies", role: .destructive) {
-                            Task { await store.signOut() }
-                        }.accessibilityIdentifier("sign-out")
-                    }
-                    Text("Create and confirm your owner account in the desktop hub first. This app only signs in to your chosen backend.")
-                        .font(.subheadline).foregroundStyle(palette.muted)
-                }.listRowBackground(palette.surface)
-                Section { Text(store.message) }.listRowBackground(palette.surface)
-            }
-            .hubSurface()
-            .disabled(store.busy)
-            .navigationTitle("Connection")
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
-            .onAppear { url = store.connection.url; key = store.connection.publishableKey }
+        .onOpenURL { url in
+            showingConnection = true
+            Task { await store.discoverHub(url.absoluteString) }
         }
+        .task { await store.restoreSession() }
     }
 }
