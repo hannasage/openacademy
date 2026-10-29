@@ -27,10 +27,11 @@ export async function verifyPersistence({page, server}) {
   const curriculum = await (await fetch(`${server.url}/curriculum.json`)).json();
   const second = {...curriculum, id: 'browser-second-course', title: 'Second isolated course'};
   const imported = page.waitForResponse(response =>
-    response.request().method() === 'PUT' && new URL(response.url()).pathname === '/api/curricula');
+    response.request().method() === 'POST' && new URL(response.url()).pathname === '/api/import');
   await page.locator('#curriculum-file').setInputFiles({
     name: 'second-course.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(second)),
   });
+  await page.locator('#confirm-import').click();
   assert.equal((await imported).status(), 201);
   await page.waitForFunction(()=>document.querySelectorAll('#curriculum-select option').length===2);
   const secondRecordId=await page.locator('#curriculum-select option').filter({hasText:'Second isolated course'}).getAttribute('value');

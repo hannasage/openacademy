@@ -29,6 +29,10 @@ export function createLearningService(transport = globalThis.fetch.bind(globalTh
     return value;
   }
   return {
+    /** @returns {Promise<Array<{recordId:string,title:string,revision:number,damagedDigest:string}>>} */
+    recoveryOptions:()=>request('/api/recovery'),
+    /** @param {string} recordId @param {string} damagedDigest @returns {Promise<LocalRecord>} */
+    recoverRecord:(recordId,damagedDigest)=>request('/api/recovery',{recordId,damagedDigest},'POST'),
     /** @returns {Promise<Curriculum[]>} */
     listCurricula: () => request('/api/curricula'),
     /** @param {Curriculum} curriculum @returns {Promise<Curriculum>} */
@@ -41,6 +45,8 @@ export function createLearningService(transport = globalThis.fetch.bind(globalTh
     getRecord: (recordId, scope) => request('/api/records/' + encodeURIComponent(recordId) + scopeQuery(scope)),
     /** @param {LocalRecord} record @param {number} expectedRevision @param {CloudOrigin | null} [scope] @returns {Promise<LocalRecord>} */
     saveRecord: (record, expectedRevision, scope) => request('/api/records/' + encodeURIComponent(record.recordId) + scopeQuery(scope), {expectedRevision, record}),
+    /** @param {LearningBackup | LocalRecord} source @param {LocalRecordOrigin} origin @param {LibraryStatus} status @param {{targetRecordId:string,expectedRevision:number}} [replacement] @returns {Promise<LocalRecord>} */
+    previewImport: (source,origin,status,replacement) => request('/api/import/preview'+scopeQuery(origin.kind==='cloud'?origin:null),{source,origin,status,...replacement},'POST'),
     /** @param {LearningBackup | LocalRecord} source @param {LocalRecordOrigin} origin @param {LibraryStatus} status @param {{targetRecordId:string,expectedRevision:number}} [replacement] @returns {Promise<LocalRecord>} */
     importRecord: (source, origin, status, replacement) => request('/api/import' + scopeQuery(origin.kind === 'cloud' ? origin : null), {source, origin, status, ...replacement}, 'POST'),
   };

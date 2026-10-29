@@ -1,5 +1,6 @@
 """Versioned local records; cloud scope is a local filter, not authentication."""
 import copy
+import hashlib
 import json
 import math
 import os
@@ -147,7 +148,7 @@ class LocalStore:
         try:
             return self.validate_curriculum(course)
         except (ValueError, TypeError, KeyError) as error:
-            raise StoreError(str(error), field='curriculum') from error
+            raise StoreError(str(error), field=getattr(error, 'field', 'curriculum')) from error
 
     def _state(self, state, course):
         finite_json(state)
@@ -162,9 +163,11 @@ class LocalStore:
 
     def _validate(self, record):
         finite_json(record)
-        strict_keys(record, ['format', 'version', 'recordId', 'origin', 'curriculum', 'state', 'status', 'view', 'draft'], 'record')
-        if record['format'] != 'touchline-record' or type(record['version']) is not int or record['version'] != 2:
+        # Inspect the format before applying this version's shape. Newer formats
+        # can add fields and must never become damaged-record recovery candidates.
+        if not isinstance(record, dict) or record.get('format') != 'touchline-record' or type(record.get('version')) is not int or record['version'] != 2:
             raise StoreError('Unsupported record format or version.', 'unsupported_version', field='version')
+        strict_keys(record, ['format', 'version', 'recordId', 'origin', 'curriculum', 'state', 'status', 'view', 'draft'], 'record')
         uuid_text(record['recordId'], 'recordId')
         validate_origin(record['origin'])
         self._course(record['curriculum'])
@@ -226,6 +229,8 @@ class LocalStore:
                     raise StoreError('Record ID does not match its folder.')
                 result.append(record)
             except StoreError as error:
+                if error.code == 'unsupported_version':
+                    raise StoreError('A saved record uses an unsupported version. Update Touchline before opening or restoring it. The file was preserved.', 'unsupported_version', 409) from error
                 if error.status == 400:
                     raise StoreError('A saved record is invalid. The file was preserved.', 'corrupt_file', 500) from error
                 raise
@@ -238,7 +243,7 @@ class LocalStore:
     def _identity(record):
         return (json.dumps(record['origin'], sort_keys=True), record['curriculum']['id'])
 
-    def _migrate(self):
+    def _migration_plan(self):
         records = self._records()
         existing = {r['curriculum']['id']: r for r in records if r['origin']['kind'] == 'local'}
         courses = [self.built_in]
@@ -265,6 +270,10 @@ class LocalStore:
             if error.status == 400:
                 raise StoreError('A legacy file is invalid. Originals were preserved.', 'corrupt_legacy', 500) from error
             raise
+        return records, pending
+
+    def _migrate(self):
+        records, pending = self._migration_plan()
         # Validate all originals before creating any migration output.
         for record in pending:
             self._write(self._path(record['recordId']), record)
@@ -373,7 +382,75 @@ class LocalStore:
         current['state'] = copy.deepcopy(state)
         return self.save_record(current['recordId'], state['revision'], current)['state']
 
-    def import_record(self, source, origin, status, target_record_id=None, expected_revision=None, scope=None):
+    def _recovery_candidate(self, record_id):
+        path = self._path(record_id)
+        damaged = path.read_bytes() if path.exists() else b''
+        try:
+            current = self._validate(self._read(path))
+        except StoreError as error:
+            if error.code == 'unsupported_version':
+                raise
+            current = None
+        except FileNotFoundError:
+            current = None
+        if current is not None:
+            raise StoreError('This record is readable. Use Restore backup to replace its progress.', 'not_damaged', 409)
+        backup = self._validate(self._read(self._safe(path.with_name('record.backup.json'))))
+        if backup['recordId'] != record_id or backup['origin'] != {'kind': 'local'}:
+            raise StoreError('No verified local backup is available for this record.', 'not_found', 404)
+        return backup, damaged
+
+    def recovery_options(self):
+        folder = self._safe(self.root / 'records')
+        if not folder.exists():
+            return []
+        options = []
+        for directory in sorted(folder.iterdir()):
+            self._safe(directory)
+            if not directory.is_dir():
+                continue
+            try:
+                backup, damaged = self._recovery_candidate(directory.name)
+            except (StoreError, FileNotFoundError):
+                continue
+            reserved = self._recovery_revision(directory.name)
+            options.append({'recordId': backup['recordId'], 'title': backup['curriculum']['title'],
+                            'revision': backup['state']['revision'], 'damagedDigest': self._recovery_digest(backup, damaged, reserved)})
+        return options
+
+    def _recovery_revision(self, record_id):
+        path = self._safe(self._path(record_id).with_name('recovery-state.json'))
+        if not path.exists():
+            return 0
+        value = self._read(path)
+        strict_keys(value, ['version', 'revision'], 'recovery')
+        if type(value['version']) is not int or value['version'] != 1 or type(value['revision']) is not int or not 0 <= value['revision'] <= MAX_REVISION:
+            raise StoreError('Recovery history is invalid. Keep all files and repair it before restoring.', 'invalid_recovery', 409)
+        return value['revision']
+
+    @staticmethod
+    def _recovery_digest(backup, damaged, reserved):
+        review = {'backup': backup, 'reservedRevision': reserved}
+        return hashlib.sha256(damaged + b'\0' + json.dumps(review, sort_keys=True).encode()).hexdigest()
+
+    def recover_record(self, record_id, expected_digest):
+        backup, damaged = self._recovery_candidate(record_id)
+        reserved = self._recovery_revision(record_id)
+        digest = self._recovery_digest(backup, damaged, reserved)
+        if expected_digest != digest:
+            raise StoreError('The damaged record changed. Reload recovery before trying again.', 'revision_conflict', 409)
+        path = self._path(record_id)
+        self._atomic(path.with_name('record.damaged-' + digest + '.json'), damaged)
+        # Reserve a new revision before replacing the record. A failed record
+        # write consumes this revision so retries and repeated recoveries cannot
+        # accept a writer holding any earlier recovered copy. Keep the backup intact.
+        revision = self._next_revision(max(self._next_revision(backup['state']['revision']), reserved))
+        self._write(path.with_name('recovery-state.json'), {'version': 1, 'revision': revision})
+        backup['state']['revision'] = revision
+        self._write(path, backup)
+        return backup
+
+    def preview_import(self, source, origin, status, target_record_id=None, expected_revision=None, scope=None):
         validate_origin(origin)
         if status not in STATUSES:
             raise StoreError('Invalid record status.', field='status')
@@ -395,17 +472,30 @@ class LocalStore:
             candidate = self._new(source['curriculum'], source['state'], origin, status)
         candidate['state']['revision'] = 0
         self._validate(candidate)
+        existing, pending = self._migration_plan()
+        readable = existing + pending
         if target_record_id is not None:
-            current = self.get_record(target_record_id, scope)
+            uuid_text(target_record_id, 'targetRecordId')
+            self._scope(scope)
+            current = next((record for record in readable if record['recordId'] == target_record_id and self._visible(record, scope)), None)
+            if current is None:
+                raise StoreError('Record not found in this connection.', 'not_found', 404)
             self._revision(expected_revision, current['state']['revision'])
             if self._identity(candidate) != self._identity(current):
                 raise StoreError('Replacement must retain the target origin and curriculum ID.', 'identity_immutable', 409)
             candidate['recordId'] = target_record_id
             candidate['state']['revision'] = current['state']['revision']
-            return self.save_record(target_record_id, expected_revision, candidate, scope)
+            return candidate
         if expected_revision is not None:
             raise StoreError('expectedRevision requires targetRecordId.', field='expectedRevision')
-        if any(self._identity(record) == self._identity(candidate) for record in self._migrate()):
+        if any(self._identity(record) == self._identity(candidate) for record in readable):
             raise StoreError('This curriculum already exists in this connection. Choose its record to replace it.', 'identity_collision', 409)
+        return candidate
+
+    def import_record(self, source, origin, status, target_record_id=None, expected_revision=None, scope=None):
+        candidate = self.preview_import(source, origin, status, target_record_id, expected_revision, scope)
+        self._migrate()
+        if target_record_id is not None:
+            return self.save_record(target_record_id, expected_revision, candidate, scope)
         self._write(self._path(candidate['recordId']), candidate)
         return candidate

@@ -125,16 +125,16 @@ export async function verifyRecordScopes({page,server}) {
     await page.waitForFunction(()=>document.querySelector('#notice').textContent.startsWith('Unsupported'));
     assert.deepEqual(await (await fetch(`${server.url}/api/records/${localId}`)).json(),beforeUnsupported);
   }
-  page.once('dialog',dialog=>dialog.accept());
   await page.locator('#import').setInputFiles({name:'portable-v2.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(portable))});
+  await page.locator('#confirm-import').click();
   await page.waitForFunction(()=>document.querySelector('#notice').textContent==='Backup restored.');
   const restored=await (await fetch(`${server.url}/api/records/${localId}`)).json();
   assert.deepEqual(restored.origin,{kind:'local'});assert.equal(restored.recordId,localId);
   assert.equal(restored.draft.experiment.title,'Portable draft');
   const legacy={format:'touchline-backup',curriculum:local.curriculum,state:structuredClone(local.state)};
   legacy.state.modules.m02.notes='Restored legacy progress.';
-  page.once('dialog',dialog=>dialog.accept());
   await page.locator('#import').setInputFiles({name:'legacy-v1.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(legacy))});
+  await page.locator('#confirm-import').click();
   await page.waitForFunction(()=>document.querySelector('#notes').value==='Restored legacy progress.');
   const legacyRestored=await (await fetch(`${server.url}/api/records/${localId}`)).json();
   assert.equal(legacyRestored.draft.experiment,null);assert.deepEqual(legacyRestored.origin,{kind:'local'});
