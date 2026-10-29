@@ -200,7 +200,7 @@ class Handler(BaseHTTPRequestHandler):
             match = re.fullmatch(r"/api/records/([^/]+)(/export)?", path)
             if match:
                 return self.respond(200, self.store().get_record(match[1], self.scope()))
-            files = {"/": ("index.html", "text/html; charset=utf-8"), "/auth/return": ("index.html", "text/html; charset=utf-8"), "/app.js": ("app.js", "text/javascript"), "/style.css": ("style.css", "text/css"), "/curriculum.json": ("curriculum.json", "application/json"), "/web.bundle.js": ("web.bundle.js", "text/javascript"), "/web.bundle.css": ("web.bundle.css", "text/css")}
+            files = {"/": ("index.html", "text/html; charset=utf-8"), "/auth/return": ("index.html", "text/html; charset=utf-8"), "/app.js": ("app.js", "text/javascript"), "/style.css": ("style.css", "text/css"), "/curriculum.json": ("curriculum.json", "application/json"), "/web.bundle.js": ("web.bundle.js", "text/javascript"), "/web.bundle.css": ("web.bundle.css", "text/css"), "/assets/appearance/syne-latin-variable.woff2": ("assets/appearance/syne-latin-variable.woff2", "font/woff2"), "/assets/appearance/ibm-plex-sans-latin-variable.woff2": ("assets/appearance/ibm-plex-sans-latin-variable.woff2", "font/woff2")}
             if path not in files:
                 return self.not_found()
             name, kind = files[path]
