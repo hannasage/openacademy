@@ -47,3 +47,13 @@ Import review validates the file without writing records. A new curriculum defau
 When a damaged local record blocks startup, the recovery panel offers a validated retained backup for that record. The recovery request checks the current damaged bytes, backup contents, and recovery history. It reserves a new revision before writing the restored record. Repeated recovery and retries cannot reuse an older recovery revision. It preserves the damaged bytes in a separate file and leaves the retained backup intact. Reload other open Touchline tabs after recovery. Cloud backups are excluded from this local recovery route.
 
 To roll back these screens, retain all record and backup files. The earlier client can read the unchanged record format and the experiment evidence stored in result text.
+
+## Explicit publications
+
+`web/publications/` publishes selected records independently through the version 1 publication RPC. Each local record keeps a binding for its hub, backend origin, account, and curriculum. A pending request is saved before transmission; retries reuse its UUID and original payload even if local work changes. Missing browser storage blocks new writes. Damaged publication recovery stays untouched and disables new writes for that record.
+
+A download first validates the complete public snapshot and shows the local comparison and export action. The commit rereads the cloud snapshot, then uses the existing atomic local import endpoint with the reviewed local revision. Replacement preserves origin, draft, selected lesson, status, and unrelated records. A removed draft or selected module blocks replacement. Account changes invalidate the preview.
+
+Library focus has its own review and revision. Publishing it does not publish course contents. Course status travels only with the selected curriculum publication. Editing stays local until an explicit publication.
+
+To roll back publication, remove its entry points and retain the browser recovery keys, local files, and existing cloud snapshots. No migration or deletion is required.

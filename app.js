@@ -1,6 +1,7 @@
 'use strict';
 import {createLearningService} from './web/services/learning.js';
 import {accounts} from './web/services/accounts.js';
+import {projectPublication} from './web/publication.js';
 import {journalList,evidenceMarkup} from './web/screens/journal.js';
 import {prepareImport,reviewImport} from './web/screens/import-review.js';
 import {lessonMarkup} from './web/screens/lesson.js';
@@ -357,9 +358,43 @@ const ready=(async()=>{try{
  return true;
 }catch(error){screens.update({loading:false,error:message(error)+' Reload the page to retry.'});notice(message(error)+' Reload the page to retry.',true);await offerRecovery();return false;}})();
 
+/** @type {{token:string,epoch:number,origin:CloudOrigin,source:LocalRecord|LearningBackup,status:LibraryStatus,target:LocalRecord|null}|null} */
+let cloudReview=null;
 accounts.bind({
+ publicationRecords: async()=>{
+  const epoch=viewEpoch;if(!(await ready)&&!record)throw Error('The local library is not ready.');requireEpoch(epoch);
+  if(statusWrite)await statusWrite.promise;requireEpoch(epoch);
+  if(!(await save()))throw Error('Save or export local changes before publishing.');requireEpoch(epoch);
+  const value=await learning.listLibrary(accountScope);requireEpoch(epoch);
+  const records=await Promise.all(value.records.map(item=>learning.getRecord(item.recordId,accountScope)));requireEpoch(epoch);
+  return {records,focusRecordId:value.focusRecordId};
+ },
+ prepareCloudImport: async(backup,origin,status,targetRecordId)=>{
+  const epoch=viewEpoch;cloudReview=null;
+  if(accountInvalidated||JSON.stringify(accountScope)!==JSON.stringify(origin))throw Error('Sign in to the matching hub before downloading.');
+  const valid=projectPublication(backup);
+  const value=await learning.listLibrary(accountScope);requireEpoch(epoch);
+  const summary=targetRecordId?value.records.find(item=>item.recordId===targetRecordId):value.records.find(item=>item.origin.kind==='cloud'&&item.curriculumId===valid.curriculum.id);
+  if(targetRecordId&&!summary)throw Error('The selected local record is no longer available.');
+  const target=summary?(record?.recordId===summary.recordId?structuredClone(record):await learning.getRecord(summary.recordId,accountScope)):null;requireEpoch(epoch);
+  if(target&&target.curriculum.id!==valid.curriculum.id)throw Error('The cloud curriculum does not match the local record.');
+  if(target&&( !valid.curriculum.modules.some(module=>module.id===target.view.selectedModuleId)||target.draft.experiment&&!valid.curriculum.modules.some(module=>module.id===target.draft.experiment?.module)))throw Error('This cloud curriculum removed the selected lesson or draft module. Export your local backup and finish or move the draft before downloading.');
+  const source=target?{...structuredClone(target),curriculum:valid.curriculum,state:valid.state}:valid;
+  const token=crypto.randomUUID();cloudReview={token,epoch,origin,source,status:target?.status??status,target};
+  return {token,local:target};
+ },
+ commitCloudImport: async token=>{
+  const review=cloudReview;if(!review||review.token!==token)throw Error('Review the cloud snapshot again.');
+  const guard=()=>{requireEpoch(review.epoch);if(accountInvalidated||JSON.stringify(accountScope)!==JSON.stringify(review.origin))throw Error('The account changed. Review again.');};guard();
+  if(review.target?.recordId===record?.recordId&&(dirty||saving||state.revision!==review.target.state.revision))throw Error('Local work changed after review. Save it and review again.');
+  const imported=await learning.importRecord(review.source,review.target?.origin??review.origin,review.status,review.target?{targetRecordId:review.target.recordId,expectedRevision:review.target.state.revision}:undefined);guard();
+  cloudReview=null;await refreshLibrary();guard();populateCourses();
+  if(review.target?.recordId===record?.recordId){await loadCourse(imported.recordId);guard();}
+  return {recordId:imported.recordId,revision:imported.state.revision};
+ },
  snapshot: async () => { const epoch=viewEpoch;if(!(await ready)&&!record)throw Error('The local library is not ready.');requireEpoch(epoch); if(!(await save())) throw Error('Save local changes before publishing.');requireEpoch(epoch); return JSON.parse(JSON.stringify({curriculum:course,state})); },
  invalidateAccountScope: async () => {
+  cloudReview=null;
   // Session loss must hide private data even when startup failed or is pending.
   if(dirty||saving)journal();
   const oldSave=saving;

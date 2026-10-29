@@ -1,0 +1,10 @@
+import type {SupabaseClient} from '@supabase/supabase-js';
+export type Snapshot={format:'touchline-snapshot';version:1;curriculum:Curriculum;progress:LearningState;status:LibraryStatus;revision:number;publishedAt:string};
+export type Context={transfer:SupabaseClient;origin:CloudOrigin;check:()=>void};
+export type Result={recordId:string;title:string;curriculumId:string;status:'publishing'|'published'|'failed'|'conflict';message:string};
+export type Review={snapshot:Snapshot;local:LocalRecord|null;token:string;recordId?:string};
+export type State={busy:boolean;labels:Record<string,string>;records:LocalRecord[];focusRecordId:string|null;results:Result[];review:Review|null;message:string;error:boolean;complete:boolean;libraryReview:{localFocus:string|null;cloudFocus:string|null;revision:number}|null};
+export type Binding={recordId:string;hubId:string;backendOrigin:string;accountId:string;curriculumId:string;cloudRevision:number;publishedLocalRevision:number};
+export type Request={course_id:string;course_content:Curriculum;course_progress:LearningState;course_status:LibraryStatus;expected_revision:number;request_id:string};
+export type Stored={version:1;binding:Binding|null;pending:{request:Request;localRevision:number}|null};
+export type Dependencies={storage:Pick<Storage,'getItem'|'setItem'>;accounts:Pick<Window['touchline'],'publicationRecords'|'prepareCloudImport'|'commitCloudImport'|'download'>;authorize:()=>Promise<Context>;completed?:()=>Promise<void>;denied?:(error:unknown)=>Promise<void>};

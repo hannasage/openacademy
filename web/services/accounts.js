@@ -12,6 +12,9 @@ export function createAccountBridge() {
   /** @type {AccountOperations} */
   const service = {
     snapshot: async () => current().snapshot(),
+    publicationRecords: async () => current().publicationRecords(),
+    prepareCloudImport: async (...args) => current().prepareCloudImport(...args),
+    commitCloudImport: async token => current().commitCloudImport(token),
     importCloud: async (backup, origin) => current().importCloud(backup, origin),
     setAccountScope: async origin => current().setAccountScope(origin),
     invalidateAccountScope: async () => current().invalidateAccountScope(),
