@@ -5,6 +5,11 @@ export const expectedScopes=Object.freeze({discovery:['projects:read','database:
 const authFields=['site_url','uri_allow_list','disable_signup','external_email_enabled','mailer_autoconfirm','mailer_allow_unverified_email_sign_ins','external_anonymous_users_enabled','mailer_templates_confirmation_content','mailer_templates_magic_link_content','external_google_enabled','external_apple_enabled'];
 export const learningRedirects=hubOrigin=>[hubOrigin+'/auth/return\\?touchline-return=*','http://127.0.0.1:8765/auth/return\\?touchline-return=*','http://localhost:8765/auth/return\\?touchline-return=*','love.hannasage.touchline://auth/return\\?attempt=*'];
 const tokenTemplate='<p>Your Touchline sign-in code is {{ .Token }}</p>';
+// The captured PostgreSQL 17 baseline has four GRANT ALL entries for MAINTAIN,
+// introduced in 17: https://www.postgresql.org/docs/release/17.0/
+// Adapt only expected evidence for 15/16. Never remove observed grants or alter hashes.
+const maintainKeys=new Set(['learning_courses','learning_libraries','learning_library_snapshots','learning_snapshots'].map(name=>`public.${name}:service_role:MAINTAIN`));
+const expectedCatalog=(catalog,major)=>major===15||major===16?catalog.filter(item=>!(item.kind==='table-grant'&&maintainKeys.has(item.key)&&item.value===false)):catalog;
 export class SupabaseProvider {
  #apps;#migrations;#request;#now;#catalog;#evidence;
  constructor({apps,migrations,request=fetch,now=Date.now,catalog,evidence}){this.#apps=structuredClone(apps);this.#migrations=structuredClone(migrations);this.#request=request;this.#now=now;this.#catalog=catalog.trim().replace(/;$/,'');this.#evidence=structuredClone(evidence);}
@@ -38,7 +43,8 @@ export class SupabaseProvider {
  async projects(token){const values=await this.#json('/v1/projects',{token});if(!Array.isArray(values)||values.length>1000)fail('provider_error','Supabase returned an invalid project list.');return values.map(value=>({ref:value.ref||value.id,organizationId:value.organization_slug||value.organization_id,name:value.name}));}
  async #query(token,ref,query,parameters=[],readOnly=true){const result=await this.#json(`/v1/projects/${this.#ref(ref)}/database/query${readOnly?'/read-only':''}`,{token,method:'POST',body:{query,parameters}});if(!Array.isArray(result))fail('provider_error','Supabase returned an unsupported SQL result.');return result;}
  async #auth(token,ref){const raw=await this.#json(`/v1/projects/${this.#ref(ref)}/config/auth`,{token});if(!raw||typeof raw!=='object'||Array.isArray(raw))fail('provider_error','Supabase returned invalid account configuration.');return Object.fromEntries(authFields.map(key=>[key,raw[key]??null]));}
- async #snapshot(token,ref){const rows=await this.#query(token,ref,`select catalog,md5(catalog::text) as schema_hash from (${this.#catalog}) snapshot`);const row=rows[0];if(rows.length!==1||!Array.isArray(row?.catalog)||!/^[a-f0-9]{32}$/.test(row?.schema_hash||''))fail('inspection_failed','The database catalog could not be read safely.');return row;}
+ async #snapshot(token,ref){const rows=await this.#query(token,ref,`select catalog,md5(catalog::text) as schema_hash,current_setting('server_version_num')::integer/10000 as postgres_major from (${this.#catalog}) snapshot`);const row=rows[0];if(rows.length!==1||!Array.isArray(row?.catalog)||!/^[a-f0-9]{32}$/.test(row?.schema_hash||'')||!Number.isInteger(row.postgres_major)||row.postgres_major<15)fail('inspection_failed','The database catalog could not be read safely.');return row;}
+ #matches(snapshot,catalog){return canonical(snapshot.catalog)===canonical(expectedCatalog(catalog,snapshot.postgres_major));}
  async #dedicated(token,ref){
   const resources=['storage.buckets','storage.objects','vault.secrets','supabase_functions.hooks'];
   const existing=await this.#query(token,ref,'select name from unnest($1::text[]) name where pg_catalog.to_regclass(name) is not null',[resources]);
@@ -52,8 +58,8 @@ export class SupabaseProvider {
  }
  async inspect(token,ref,{ownerEmail}={}){
   const [snapshot,auth,metadata]=await Promise.all([this.#snapshot(token,ref),this.#auth(token,ref),this.#query(token,ref,"select current_setting('server_version_num')::integer/10000 as major, count(*)::integer as users from auth.users")]);
-  if(metadata.length!==1||!Number.isInteger(metadata[0].major)||!Number.isInteger(metadata[0].users))fail('inspection_failed','The database version and account boundary could not be confirmed.');
-  const stage=this.#evidence.find(value=>canonical(value.catalog)===canonical(snapshot.catalog));
+  if(metadata.length!==1||metadata[0].major!==snapshot.postgres_major||!Number.isInteger(metadata[0].users))fail('inspection_failed','The database version and account boundary could not be confirmed.');
+  const stage=this.#evidence.find(value=>this.#matches(snapshot,value.catalog));
   const owner=stage?.migrations.length?await this.#ownerBoundary(token,ref,ownerEmail):null;
   const dedicated=await this.#dedicated(token,ref);
   const compatibility=!dedicated?'unknown':stage?.migrations.length===0&&metadata[0].users===0?'empty':stage?.migrations.length?'touchline':'unknown';
@@ -62,10 +68,10 @@ export class SupabaseProvider {
  #guard(schemaHash){if(!/^[a-f0-9]{32}$/.test(schemaHash||''))fail('stale_review','The database fingerprint is missing. Inspect the project again.');return `do $touchline_guard$ begin if (select md5(catalog::text) from (${this.#catalog}) snapshot) <> '${schemaHash}' then raise exception 'Touchline project changed after review'; end if; end $touchline_guard$;`;}
  async applyMigration(token,ref,migration,{schemaHash}={}){
   const index=this.#migrations.findIndex(value=>value.id===migration.id&&value.sha256===migration.sha256&&value.sql===migration.sql);if(index<0)fail('invalid_migration','Only the shipped migration SQL can run.');
-  const before=await this.#snapshot(token,ref);if(before.schema_hash!==schemaHash||canonical(before.catalog)!==canonical(this.#evidence[index].catalog))fail('stale_review','The database changed before this migration. Inspect it again.');
+  const before=await this.#snapshot(token,ref);if(before.schema_hash!==schemaHash||!this.#matches(before,this.#evidence[index].catalog))fail('stale_review','The database changed before this migration. Inspect it again.');
   const body=migration.sql.replace(/\bbegin\s*;/i,'').replace(/commit;\s*$/i,'');
   await this.#json(`/v1/projects/${this.#ref(ref)}/database/migrations`,{token,method:'POST',body:{name:'touchline_'+migration.id.replace(/\.sql$/,''),query:`begin; select pg_advisory_xact_lock(hashtext('touchline-setup')); ${this.#guard(schemaHash)}\n${body}\ncommit;`}});
-  const after=await this.#snapshot(token,ref);if(canonical(after.catalog)!==canonical(this.#evidence[index+1].catalog))fail('inspection_failed','The installed catalog differs from this release. Stop and inspect the project manually.');return {schemaHash:after.schema_hash};
+  const after=await this.#snapshot(token,ref);if(!this.#matches(after,this.#evidence[index+1].catalog))fail('inspection_failed','The installed catalog differs from this release. Stop and inspect the project manually.');return {schemaHash:after.schema_hash};
  }
  async configureOwner(token,ref,{ownerEmail},{schemaHash}={}){text(ownerEmail,254);if(await this.#ownerBoundary(token,ref,ownerEmail))return;if(!/^[a-f0-9]{32}$/.test(schemaHash||''))fail('stale_review','Inspect the project again before configuring its owner.');const rows=await this.#query(token,ref,`select touchline_private.configure_owner($1::text) as owner_id where (select md5(catalog::text) from (${this.#catalog}) snapshot)=$2`,[ownerEmail,schemaHash],false);if(rows.length!==1)fail('stale_review','The database changed before owner configuration.');}
  async configureAuth(token,ref,{hubOrigin},{authHash}={}){
@@ -75,7 +81,7 @@ export class SupabaseProvider {
  }
  async verify(token,ref,config){
   const [snapshot,auth,owners,keys]=await Promise.all([this.#snapshot(token,ref),this.#auth(token,ref),this.#ownerBoundary(token,ref,config.ownerEmail),this.#json(`/v1/projects/${this.#ref(ref)}/api-keys?reveal=false`,{token})]);
-  if(!learningRedirects(config.hubOrigin).every(value=>(auth.uri_allow_list||'').split(',').includes(value))||canonical(snapshot.catalog)!==canonical(this.#evidence.at(-1).catalog)||!owners||owners.email!==config.ownerEmail||auth.site_url!==config.hubOrigin||auth.disable_signup!==false||auth.external_email_enabled!==true||auth.mailer_autoconfirm!==false||auth.mailer_allow_unverified_email_sign_ins!==false||auth.external_anonymous_users_enabled!==false||auth.mailer_templates_confirmation_content!==tokenTemplate||auth.mailer_templates_magic_link_content!==tokenTemplate)fail('verification_failed','The private backend configuration does not match the approved setup.');
+  if(!learningRedirects(config.hubOrigin).every(value=>(auth.uri_allow_list||'').split(',').includes(value))||!this.#matches(snapshot,this.#evidence.at(-1).catalog)||!owners||owners.email!==config.ownerEmail||auth.site_url!==config.hubOrigin||auth.disable_signup!==false||auth.external_email_enabled!==true||auth.mailer_autoconfirm!==false||auth.mailer_allow_unverified_email_sign_ins!==false||auth.external_anonymous_users_enabled!==false||auth.mailer_templates_confirmation_content!==tokenTemplate||auth.mailer_templates_magic_link_content!==tokenTemplate)fail('verification_failed','The private backend configuration does not match the approved setup.');
   if(!Array.isArray(keys))fail('verification_failed','A publishable key could not be confirmed.');const key=keys.find(value=>value.type==='publishable'&&/^sb_publishable_[A-Za-z0-9_-]+$/.test(value.api_key||''));if(!key)fail('verification_failed','This project needs a publishable API key before its hub can be published.');
   return {ready:true,backend:{type:'supabase',url:`https://${ref}.supabase.co`,publishableKey:key.api_key},providers:['google','apple'].filter(name=>auth['external_'+name+'_enabled']===true)};
  }

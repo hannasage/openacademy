@@ -1,4 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import pg from 'pg';import {readFile} from 'node:fs/promises';
+import {canonical} from '../security.mjs';
 import {PostgresStore} from '../postgres.mjs';import {SetupAdmin} from '../admin.mjs';import {randomBytes} from 'node:crypto';
 const socket=process.env.TOUCHLINE_TEST_PG_SOCKET;
 if(!socket?.includes('touchline-db-')||!socket.endsWith('/socket'))throw Error('This test requires the disposable cluster launcher.');
@@ -15,6 +16,21 @@ test('real provider adapter prepares only shipped SQL in a disposable database',
  const {SupabaseProvider}=await import('../provider.mjs'),{SetupService}=await import('../core.mjs'),{loadMigrations}=await import('../migrations.mjs');
  await projectPool.query(await readFile(new URL('../../tests/fixtures/auth.sql',import.meta.url),'utf8'));await projectPool.query('delete from auth.sessions; delete from auth.users;');
  await projectPool.query(await readFile(new URL('./platform-baseline.sql',import.meta.url),'utf8'));
+ const evidence=JSON.parse(await readFile(new URL('../catalog-evidence.json',import.meta.url),'utf8'));
+ const catalogQuery=(await readFile(new URL('../catalog.sql',import.meta.url),'utf8')).trim().replace(/;$/,'');
+ const assertCatalog=async stage=>{
+  const {rows:[snapshot]}=await projectPool.query(`select catalog,current_setting('server_version_num')::integer/10000 as major from (${catalogQuery}) snapshot`);
+  const maintainKeys=new Set(['learning_courses','learning_libraries','learning_library_snapshots','learning_snapshots'].map(name=>`public.${name}:service_role:MAINTAIN`));
+  const expected=evidence[stage].catalog.filter(item=>!([15,16].includes(snapshot.major)&&item.kind==='table-grant'&&maintainKeys.has(item.key)&&item.value===false));
+  if(canonical(snapshot.catalog)===canonical(expected))return;
+  // This database contains only test fixtures. Report one bounded difference,
+  // never provider request bodies, connection settings, or real deployment data.
+  const actualByKey=new Map(snapshot.catalog.map(item=>[`${item.kind}:${item.key}`,item]));
+  const expectedByKey=new Map(expected.map(item=>[`${item.kind}:${item.key}`,item]));
+  const key=[...new Set([...actualByKey.keys(),...expectedByKey.keys()])].sort().find(key=>canonical(actualByKey.get(key)??null)!==canonical(expectedByKey.get(key)??null));
+  const message=`PostgreSQL ${snapshot.major}, migration ${stage}, first catalog difference: ${canonical({key:key??"array order or duplicate key",expected:expectedByKey.get(key)??null,actual:actualByKey.get(key)??null}).slice(0,1800)}`;
+  console.error(message);assert.fail(message);
+ };
  const migrations=await loadMigrations(),calls=[];let auth={site_url:'',uri_allow_list:'',disable_signup:false,external_email_enabled:true,mailer_autoconfirm:false,external_anonymous_users_enabled:false,external_google_enabled:false,external_apple_enabled:false};
  const apps={discovery:{clientId:'discovery-app',clientSecret:'discovery-private',redirectUri:'https://connector.example.com/setup/callback/discovery'},install:{clientId:'install-app',clientSecret:'install-private',redirectUri:'https://connector.example.com/setup/callback/install'}};
  const json=value=>new Response(JSON.stringify(value),{headers:{'Content-Type':'application/json'}});
@@ -25,7 +41,7 @@ test('real provider adapter prepares only shipped SQL in a disposable database',
   if(url.pathname.endsWith('/config/auth')){if(options.method==='PATCH')auth={...auth,...JSON.parse(options.body)};return json(auth);}
   if(url.pathname.endsWith('/api-keys'))return json([{type:'publishable',api_key:'sb_publishable_example'},{type:'secret',api_key:'sb_secret_never_expose'}]);
   const body=JSON.parse(options.body);
-  if(url.pathname.endsWith('/database/migrations')){await projectPool.query(body.query);return json({});}
+  if(url.pathname.endsWith('/database/migrations')){await projectPool.query(body.query);await assertCatalog(calls.filter(([path])=>path.endsWith('/database/migrations')).length);return json({});}
   if(url.pathname.includes('/database/query')){const result=await projectPool.query(body.query,body.parameters);return json(result.rows);}
   throw Error('Unexpected provider endpoint');
  };

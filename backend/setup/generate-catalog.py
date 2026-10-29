@@ -13,6 +13,8 @@ spec.loader.exec_module(module)
 def generate():
     database = module.Database()
     try:
+        if int(database.sql("select current_setting('server_version_num')::integer/10000").stdout) != 17:
+            raise RuntimeError('Generate the reference catalog with PostgreSQL 17; provider.mjs adapts its expected MAINTAIN grants for 15/16.')
         database.sql((ROOT/'backend/tests/fixtures/auth.sql').read_text())
         database.sql('delete from auth.sessions; delete from auth.users; set search_path=public,pg_catalog;')
         database.sql((ROOT/'backend/setup/tests/platform-baseline.sql').read_text())

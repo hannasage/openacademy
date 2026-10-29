@@ -15,6 +15,8 @@ class SetupStoreTests(unittest.TestCase):
     def test_disposable_postgres_store(self):
         database = module.Database()
         try:
+            version = database.sql('show server_version').stdout.strip()
+            print(f'Disposable setup PostgreSQL version: {version}', flush=True)
             env = {key: value for key, value in os.environ.items() if not key.startswith('PG') and key != 'DATABASE_URL'}
             env['TOUCHLINE_TEST_PG_SOCKET'] = str(database.socket)
             result = subprocess.run(['node', '--test', 'backend/setup/tests/postgres.integration.mjs'], cwd=ROOT, env=env,
