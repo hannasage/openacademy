@@ -8,7 +8,6 @@ struct ContentView: View {
     @EnvironmentObject private var store: HubStore
     @StateObject private var navigation = ReadingNavigation()
     @State private var showingConnection = false
-    @State private var showingAppearance = false
     @State private var importing = false
     private var current: LearningBackup? { store.courses.first { $0.id == navigation.selected } }
 
@@ -19,7 +18,7 @@ struct ContentView: View {
                     .navigationTitle("Library")
                     .toolbar {
                         ToolbarItemGroup(placement: .topBarTrailing) {
-                            Button { showingAppearance = true } label: { Label("Appearance", systemImage: "paintpalette") }
+                            AppearanceButton()
                             Button { importing = true } label: { Label("Import file", systemImage: "square.and.arrow.down") }
                             Button { showingConnection = true } label: { Label("Backend and account", systemImage: "person.crop.circle") }
                         }
@@ -28,8 +27,10 @@ struct ContentView: View {
                 if let copy = current {
                     NavigationStack(path: Binding(get: { navigation.path(for: copy.id) }, set: { navigation.setPath($0, for: copy.id) })) {
                         ReadingCourseView(copy: copy, resume: { navigation.resume(copy) })
+                            .toolbar { ToolbarItem(placement: .topBarTrailing) { AppearanceButton() } }
                             .navigationDestination(for: ReadingRoute.self) { route in
                                 ReadingDestination(copy: copy, route: route)
+                                    .toolbar { ToolbarItem(placement: .topBarTrailing) { AppearanceButton() } }
                             }
                     }
                 } else {
@@ -46,6 +47,7 @@ struct ContentView: View {
                 ReadingDownloadsView(copies: store.courses, message: store.message, lastRefresh: store.lastRefresh,
                     busy: store.busy, signedIn: store.signedIn,
                     refresh: { Task { await store.refresh() } }, connect: { showingConnection = true })
+                .toolbar { ToolbarItem(placement: .topBarTrailing) { AppearanceButton() } }
             }
             .tabItem { Label("Devices", systemImage: "ipad.and.iphone") }
         }
@@ -53,7 +55,6 @@ struct ContentView: View {
         .environment(\.openURL, OpenURLAction { url in
             ProcessInfo.processInfo.arguments.contains("--touchline-ui-test") ? .discarded : .systemAction(url)
         })
-        .sheet(isPresented: $showingAppearance) { AppearanceView() }
         .sheet(isPresented: $showingConnection) { ConnectionView().environmentObject(store) }
         .fileImporter(isPresented: $importing, allowedContentTypes: [.json]) { result in
             if case .success(let url) = result { Task { await store.importFile(url) } }

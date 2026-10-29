@@ -81,6 +81,17 @@ The hub must expose the version 1 published-library view for a connected refresh
 An absent or invalid view fails the refresh without replacing the previous reading copy.
 Older native cache files without library metadata remain readable with no inferred focus.
 
+## Appearance
+
+Open Theme from the library, the current lesson, or Devices.
+Choose Noir Bloom with Confetti Studio, or Dusk Protocol with Coastal Day.
+Dark and Light override the device appearance. System follows changes to the device appearance while the app stays open.
+The choices stay on this device and survive relaunch. Changing them keeps the current curriculum and lesson in place.
+
+On iPhone, the choices open in a sheet with Done and swipe dismissal.
+On iPad, they open beside the Theme control and close when you tap Done or outside the panel.
+Large text can scroll through all choices. The mode controls stack when accessibility text sizes need more room.
+
 ## Data and recovery
 
 Each account has a separate cache file keyed by hub, canonical backend origin, and account ID.
@@ -112,7 +123,7 @@ The shared Touchline scheme includes `TouchlineTests` and `TouchlineUITests`.
 Tests use temporary storage, isolated preferences, and an injected service that makes no network requests.
 The application test host also starts with isolated storage and network disabled.
 Unit tests cover shared fixtures, account changes, duplicate curriculum IDs, corrupt data, failed writes, sign-out cleanup, and offline relaunch.
-The interface test opens the bundled library and relaunches it without a backend.
+The interface tests cover offline reading, both theme pairs, every appearance mode, live device changes, preference relaunch, and the largest text size.
 
 List available destinations on the current machine:
 
