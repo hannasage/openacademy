@@ -1,4 +1,4 @@
-"""Apply the private hub schema using credentials from .env.local."""
+"""Apply reviewed numbered migrations to an explicitly configured deployment."""
 import argparse
 import json
 import os
@@ -21,20 +21,35 @@ def environment():
 def psql(sql, **variables):
     env=environment()
     url=urlsplit(env['POSTGRES_URL'])
-    process_env=dict(os.environ, PGHOST=url.hostname, PGPORT=str(url.port or 5432), PGUSER=unquote(url.username), PGPASSWORD=unquote(url.password), PGDATABASE=url.path.lstrip('/'), PGSSLMODE='require', PGCONNECT_TIMEOUT='15')
+    process_env=dict({key:value for key,value in os.environ.items() if not key.startswith('PG')}, PGPASSFILE=os.devnull, PGSERVICEFILE=os.devnull, PGHOST=url.hostname, PGPORT=str(url.port or 5432), PGUSER=unquote(url.username), PGPASSWORD=unquote(url.password), PGDATABASE=url.path.lstrip('/'), PGSSLMODE='require', PGCONNECT_TIMEOUT='15')
     args=['psql','-X','-v','ON_ERROR_STOP=1','-q']
     for key,value in variables.items():args+=['-v',f'{key}={value}']
     return subprocess.run(args,input=sql,text=True,env=process_env,check=True,capture_output=True).stdout
 
-if __name__=='__main__':
+def main(argv=None):
     parser=argparse.ArgumentParser()
     parser.add_argument('--owner-email',required=True)
-    args=parser.parse_args()
+    parser.add_argument('--owner-id', help='Explicit confirmed owner UUID for administrative recovery.')
+    args=parser.parse_args(argv)
     if '@' not in args.owner_email:raise SystemExit('Enter a valid owner email.')
     try:
-        psql((ROOT/'backend/schema.sql').read_text())
-        psql("insert into touchline_private.owner_settings(singleton,email) values(true,lower(:'email')) on conflict(singleton) do update set email=excluded.email;",email=args.owner_email)
-        print('Private schema applied. Only the configured verified owner can access records.')
+        def configure_owner():
+            psql("select touchline_private.configure_owner(lower(:'email'),nullif(:'owner_id','')::uuid);",
+                 email=args.owner_email, owner_id=args.owner_id or '')
+
+        for migration in sorted((ROOT/'backend/migrations').glob('*.sql')):
+            psql(migration.read_text())
+            if args.owner_id and migration.name == '001_private_writes.sql':
+                # The schema must exist, but automatic legacy binding must not
+                # run before an explicit, database-validated recovery choice.
+                configure_owner()
+        if not args.owner_id:
+            configure_owner()
+        print('Migrations and owner configuration applied. Access requires the pinned, confirmed owner account.')
     except subprocess.CalledProcessError as error:
         print(error.stderr)
         raise SystemExit(1)
+
+
+if __name__=='__main__':
+    main()

@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "test:browser": "node tests/run-browser.mjs",
     "test:appearance": "node tests/run-appearance.mjs",
-    "verify": "python3 scripts/check_permissions.py && npm run typecheck && npm run lint && npm test && npm run build"
+    "verify": "python3 scripts/check_permissions.py && npm run typecheck && npm run lint && npm test && npm run build",
+    "test:backend": "python3 -m unittest discover -s backend/tests -p \"test_*.py\" -v"
   },
   "dependencies": {
     "@hannasage/projection-ui": "file:vendor/hannasage-projection-ui-0.2.0-next.2.tgz",

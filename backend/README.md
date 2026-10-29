@@ -1,85 +1,144 @@
-# Your private backend
+# Private publications
 
-Touchline uses Supabase Auth and Postgres. Each deployment belongs to one owner.
-The application code uses the MIT license. External datasets and readings retain their own licenses.
-Other people deploy their own Supabase project and enter its connection details in their apps.
-They do not connect to your backend.
+Touchline keeps editable learning records on the local computer.
+An owner publishes copies to their own Supabase project.
+Each deployment admits one owner account and stores that account's published curricula.
 
-## Set up a deployment
+## Install or upgrade
 
-Create a dedicated Supabase project through your account or run your own Supabase installation.
-Do not apply this schema to a shared application database.
-The signup trigger restricts account creation across its entire Supabase project.
+Use a dedicated Supabase project with PostgreSQL 15 or later.
+The admission trigger applies to the project's entire Auth user table.
+Keep email confirmation enabled and configure production email delivery in Supabase.
+The [Supabase self-hosting guide](https://supabase.com/docs/guides/self-hosting/docker) covers a self-hosted deployment.
 
-Use the official self-hosting guide for a self-hosted installation:
-https://supabase.com/docs/guides/self-hosting/docker
+Review the numbered migrations before applying them to a live deployment.
+Apply them in filename order through the Supabase SQL Editor.
+Alternatively, `schema.sql` is a `psql` entry point that includes those files.
+Each migration runs in a transaction and can run again without replacing existing records.
 
-Keep email confirmation enabled in Supabase Auth.
-Use a supported SMTP configuration for production email delivery.
+The migrations perform these steps:
 
-Apply `schema.sql` through the Supabase SQL Editor.
-Set the only allowed owner email with this statement:
+1. Restrict writes, add owner identity, and install publication and library functions.
+2. Pin an existing owner when exactly one confirmed account matches the configured admission email.
+3. Mark compatible legacy publications as version 1 snapshots.
+
+Configure the admission email through a privileged database connection:
 
 ```sql
-insert into touchline_private.owner_settings(singleton, email)
-values (true, lower('you@example.com'))
-on conflict(singleton) do update set email = excluded.email;
+select touchline_private.configure_owner('you@example.com');
 ```
 
-Alternatively, place the project connection string in `POSTGRES_URL` inside `.env.local`.
-Run the setup script from the project root:
+If no matching account exists, the first account with that email receives the owner UUID.
+A UUID is an account's stable identifier.
+That account receives no learning access until its email is confirmed.
+Once the UUID is pinned, new account creation is denied, including another account with the same email.
+
+The setup script applies the migrations and then configures the owner.
+It reads `POSTGRES_URL` from the project's private `.env.local` file without printing credentials.
+Run it only after the deployment migration review:
 
 ```sh
 python3 backend/apply.py --owner-email you@example.com
 ```
 
-The setup script needs `psql` on your PATH.
-It reads database credentials from `.env.local` without printing them.
+If owner configuration fails, the completed schema stays installed and existing records remain intact.
+Correct the owner input, then run the command again.
+An empty or unresolved owner setting denies learning access.
+A duplicate matching account requires an explicit owner UUID and never selects an account arbitrarily.
 
-## Connect the desktop hub
+## Owner identity and provider accounts
 
-Open the Devices tab in the running local application.
-Enter the Supabase project URL and publishable key.
-Select Connect backend.
-Create the owner account with the configured email and a password.
-Open the confirmation email.
-Return to the Devices tab and sign in.
-Select Publish current course.
+Learning access requires the pinned UUID, a confirmed email, and an active, nonanonymous Auth account.
+Email addresses and user-editable profile fields do not grant access after the UUID is pinned.
+Changing an email or linking Google or Apple to the same account does not change its owner UUID.
+A separate provider account, including an Apple relay-address account, receives no access.
 
-Export the connection file for the native app.
-The connection file contains the project URL and publishable key, not an administrative secret.
-Never enter a secret key or service-role key into either application.
+A privileged operator can select an existing confirmed account explicitly:
 
-## Connect the native app
-
-Import the connection file into Touchline on your iPhone or iPad.
-Sign in with the same owner account.
-Refresh published courses.
-The application stores downloaded lessons and progress for offline reading.
-The native companion is read-only in this version.
-
-## Access controls
-
-The database rejects signup attempts for every email except the configured owner email.
-Database access also requires a confirmed email and the current owner account.
-Row-level security limits each record to its authenticated owner.
-The application does not trust user-editable profile metadata for authorization.
-Anonymous clients receive no table access.
-Conflicting uploads fail instead of silently replacing a newer revision.
-
-The private project still exposes public authentication endpoints.
-Access rules prevent unauthorized records, but they do not eliminate all traffic or abuse costs.
-Use Supabase rate limits and usage monitoring for your deployment.
-Do not publish administrative keys or `.env.local`.
-
-## Test the access rules
-
-The SQL test runs inside a transaction and rolls back its temporary accounts and records.
-Run it only against the dedicated Touchline project.
-From the project root, run:
-
-```sh
-python3 -c 'from pathlib import Path; from backend.apply import psql; psql(Path("backend/test_access.sql").read_text()); print("Access tests passed.")'
+```sql
+select touchline_private.configure_owner('you@example.com', 'CONFIRMED-OWNER-UUID');
 ```
 
-The test covers owner access, anonymous denial, non-owner denial, restricted signup, and stale-write rejection.
+The setup script exposes the same recovery operation through `--owner-id`.
+It validates and pins that account after migration 001, before migration 002
+tries to bind an existing owner by email. This lets the same command recover
+from an ambiguous legacy email without weakening account validation.
+The database rejects an unconfirmed, banned, deleted, or anonymous recovery target.
+Changing the pin does not transfer or delete old publications.
+Review the old account's data before changing ownership.
+Re-running configuration without `--owner-id` keeps an existing pin unchanged.
+
+## Publication writes
+
+Authenticated clients can read their own rows through row-level security.
+They cannot insert, update, or delete either public table directly.
+The write functions run with database privileges after checking the caller's pinned account.
+They reject unknown fields, unsupported versions, invalid references, and publications of 2 MB or more.
+Private draft fields and local extension fields cannot enter new publications.
+
+`save_learning_course(course_id, course_content, course_progress, expected_revision)` remains available to the current clients.
+It publishes an active curriculum and returns the saved row.
+Use `-1` to create a course and its current remote revision to replace it.
+A stale revision returns SQLSTATE `40001` without replacing the row.
+Invalid input returns `22023`; private-access rejection returns `42501`.
+The local progress revision stays separate from the remote publication revision.
+
+New clients use these interfaces:
+
+| Interface | Result |
+| --- | --- |
+| `publish_learning_course(course_id, course_content, course_progress, course_status, expected_revision, request_id)` | Saved course row with `status` and `format_version` |
+| `save_learning_library(library, expected_revision, request_id)` | P02 published-library version 1 |
+| `learning_snapshots` | `user_id`, `id`, and P02 published-course version 1 in `snapshot` |
+| `learning_library_snapshots` | `user_id` and P02 published-library version 1 in `snapshot` |
+
+`request_id` is optional.
+If a connection fails after a write, repeat the identical request with the same UUID.
+The function returns its original receipt without another write.
+Reusing that UUID for different content or another operation fails.
+Without a request UUID, a repeated write with an old revision returns a conflict.
+Receipts stay private in the database and contain no session credentials.
+
+A library write supplies `version`, `revision`, and `focusCurriculumId`.
+Its revision equals the expected revision, or zero for a new library.
+Focus can reference only an active published curriculum.
+Pausing, completing, or saving that curriculum for later clears its focus in the same transaction.
+Other active curricula stay active.
+
+## Legacy records and recovery
+
+Migration keeps each old curriculum, progress document, revision, and timestamp unchanged.
+Compatible rows appear in the versioned snapshot view.
+An incompatible row retains `format_version = 0` and stays out of that view.
+The owner can still read it through `learning_courses` for export and repair.
+Republish repaired content through the validated write function to create a version 1 snapshot.
+No migration deletes a malformed publication or guesses missing content.
+
+Rollback uses a reviewed forward repair.
+Do not restore direct table grants to recover from a client error.
+The legacy publishing function remains available throughout this upgrade.
+If a migration fails, inspect its error and retry after repair.
+A failed owner-binding migration leaves the write restrictions installed and denies access until an owner is resolved.
+
+## Disposable database tests
+
+Install PostgreSQL with `initdb`, `pg_ctl`, and `psql`.
+From the project directory, run:
+
+```sh
+npm run test:backend
+```
+
+The runner finds common macOS and Linux installations.
+Set `PG_BIN` to the directory containing all three binaries if discovery fails.
+It creates a temporary cluster with a private Unix socket and no TCP listener.
+It ignores inherited PostgreSQL connection variables and uses an empty password file.
+It reads no deployment environment file and accepts no database URL.
+The runner stops its server and removes only its own temporary directory when tests finish.
+
+The tests cover direct-write denial, private reads, owner recovery, provider-account identity, conflicting writes, retry receipts, invalid content, library focus, and upgrades.
+They also verify concurrent requests against the real PostgreSQL engine.
+The fixture supplies the Supabase `auth.users` boundary and `auth.uid()` function.
+It does not run Supabase Auth, provider consent, email delivery, or token revocation.
+Those service flows require the later account integration tests.
+`test_access.sql` refuses execution and points to this disposable runner.
