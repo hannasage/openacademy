@@ -21,6 +21,7 @@ The migrations perform these steps:
 1. Restrict writes, add owner identity, and install publication and library functions.
 2. Pin an existing owner when exactly one confirmed account matches the configured admission email.
 3. Mark compatible legacy publications as version 1 snapshots.
+4. Require a live, permitted account session for every learning request.
 
 Configure the admission email through a privileged database connection:
 
@@ -142,3 +143,34 @@ The fixture supplies the Supabase `auth.users` boundary and `auth.uid()` functio
 It does not run Supabase Auth, provider consent, email delivery, or token revocation.
 Those service flows require the later account integration tests.
 `test_access.sql` refuses execution and points to this disposable runner.
+
+## Device sessions
+
+Migration 004 checks the token's session ID against `auth.sessions` and a private revocation record.
+The [Supabase session guide](https://supabase.com/docs/guides/auth/sessions) describes this check for tokens that remain valid after sign-out.
+A missing, foreign, or revoked session cannot read or write learning records.
+Session revocation does not delete publications.
+It also blocks later tokens issued for the same session ID.
+An offline device can still hold an earlier downloaded copy until it reconnects and learns that access ended.
+
+The authenticated owner can call these functions:
+
+| Function | Result |
+| --- | --- |
+| `register_touchline_session(device_label)` | Current `sessionId` and `accountId` after permission checks |
+| `list_touchline_sessions()` | Session IDs, labels, creation times, last observed times, and the current-session flag |
+| `revoke_touchline_session(target_session_id)` | `true` after revocation of an owned session |
+
+Registration labels only the current session and records that request's time.
+Unregistered sessions appear as “Unknown device” with no last observed time.
+The list does not claim that a device is online.
+Registration cannot restore a revoked session.
+The functions expose no tokens and require no administrative key in the client.
+
+Review this migration before applying it to a live project.
+Older clients with valid Supabase sessions retain access through their existing account checks.
+Tokens without a live session ID lose access.
+Rollback uses a forward repair that preserves the private revocation records.
+Once session checks exist, migration 001 keeps them mandatory on every replay.
+An interrupted replay cannot restore access to a revoked session.
+Keep the private session helper and registry in every forward repair.

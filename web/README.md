@@ -22,7 +22,8 @@ The controller keeps the revision, account-change, and recovery checks around ea
 `web/services/accounts.js` provides the learning operations that the connection view can call.
 Its methods cover snapshots, scoped imports, scope changes, invalidation, and downloads.
 The current `window.touchline` value is a compatibility facade for those methods.
-Authentication and remote transfers remain in `sync.js` until the approved connection step replaces that view.
+The connection controller in `web/connection/` handles account discovery, sign-in, session checks, and remote transfers.
+`sync.js` starts that controller after the learning bridge is ready.
 
 Run `npm run test:browser` to exercise failed navigation and the retained learning workflows.
 Run `npm run test:appearance` to check theme changes without remounting working forms.
@@ -33,4 +34,6 @@ They read explicit library focus and complete record metrics through the local s
 Opening a curriculum keeps the focus unchanged.
 Status changes and focus changes use revision-checked writes, and failures leave the current learning record intact.
 The lesson controller owns the lesson region and uses `web/screens/lesson.js` for its markup.
-Journal, import, connection, and appearance flows retain their existing owners.
+The connection screen is a React portal in the same shell.
+Account invalidation clears private records from the home, library, and lesson views before loading local learning.
+Journal, import, and appearance flows retain their existing owners.

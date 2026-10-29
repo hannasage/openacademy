@@ -15,5 +15,7 @@ The following upstream migrations define the additional authorization fields:
 Upgrade tests apply it only inside their own disposable database.
 The fixture preserves the old table grants so tests can prove that migration removes them.
 
-These tests do not simulate email delivery, provider consent, automatic identity linking, or session revocation.
+The session fixture matches the [Auth session migration](https://github.com/supabase/auth/blob/master/migrations/20220811173540_add_sessions_table.up.sql).
+It supplies session claims so tests can prove that missing and revoked sessions cannot read or write learning records.
+These tests do not run email delivery, provider consent, automatic identity linking, or the live Auth service.
 Provider cases assert which account UUID receives database access after a link or account change.

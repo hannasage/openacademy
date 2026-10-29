@@ -34,7 +34,8 @@ class DatabaseTests(unittest.TestCase):
         cls.backup = json.loads((ROOT / 'tests/fixtures/contracts/valid/legacy-backup.json').read_text())
 
     def as_user(self, sql, user=OWNER, role='authenticated', prefix=''):
-        return self.db.sql(f"begin; {prefix} set local role {role}; select set_config('request.jwt.claim.sub','{user}',true); {sql}; rollback;", check=False)
+        session = '1' + user[1:] if user else ''
+        return self.db.sql(f"begin; {prefix} set local role {role}; select set_config('request.jwt.claim.sub','{user}',true); select set_config('request.jwt.claim.session_id','{session}',true); {sql}; rollback;", check=False)
 
     def save(self, backup=None, revision=-1):
         backup = backup or self.backup
@@ -193,8 +194,8 @@ class DatabaseTests(unittest.TestCase):
         import copy
         from concurrent.futures import ThreadPoolExecutor
         backup=copy.deepcopy(self.backup); backup['curriculum']['id']='race'; backup['state']['curriculumId']='race'
-        self.db.sql(f"begin; set local role authenticated; select set_config('request.jwt.claim.sub','{OWNER}',true); {self.save(backup)}; commit;")
-        sql=f"begin; set local role authenticated; select set_config('request.jwt.claim.sub','{OWNER}',true); {self.save(backup,0)}; commit;"
+        self.db.sql(f"begin; set local role authenticated; select set_config('request.jwt.claim.sub','{OWNER}',true); select set_config('request.jwt.claim.session_id','1{OWNER[1:]}',true); {self.save(backup)}; commit;")
+        sql=f"begin; set local role authenticated; select set_config('request.jwt.claim.sub','{OWNER}',true); select set_config('request.jwt.claim.session_id','1{OWNER[1:]}',true); {self.save(backup,0)}; commit;"
         with ThreadPoolExecutor(max_workers=4) as pool:
             outcomes=list(pool.map(lambda _:self.db.sql(sql,check=False),range(4)))
         self.assertEqual(sum(result.returncode==0 for result in outcomes),1)

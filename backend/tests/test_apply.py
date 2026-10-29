@@ -14,7 +14,7 @@ class ApplyTests(unittest.TestCase):
             apply.main(['--owner-email', 'owner@example.invalid', '--owner-id',
                         '00000000-0000-4000-8000-000000000001'])
         calls = psql.call_args_list
-        self.assertEqual(len(calls), 4)
+        self.assertEqual(len(calls), 5)
         self.assertIn('create schema', calls[0].args[0])
         self.assertIn('configure_owner', calls[1].args[0])
         self.assertEqual(calls[1].kwargs['owner_id'], '00000000-0000-4000-8000-000000000001')
@@ -25,7 +25,7 @@ class ApplyTests(unittest.TestCase):
         with patch.object(apply, 'psql') as psql, patch('builtins.print'):
             apply.main(['--owner-email', 'owner@example.invalid'])
         calls = psql.call_args_list
-        self.assertEqual(len(calls), 4)
+        self.assertEqual(len(calls), 5)
         self.assertIn('Bind a prior verified owner', calls[1].args[0])
         self.assertIn('configure_owner', calls[-1].args[0])
         self.assertEqual(calls[-1].kwargs['owner_id'], '')

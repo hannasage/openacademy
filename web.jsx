@@ -5,10 +5,11 @@ import {ThemeProvider, Button, Badge, Progress} from '@hannasage/projection-ui/c
 import {ThemeSwitcher, useAppearance} from './appearance.jsx';
 import {HomeScreen,LibraryScreen} from './web/screens/LearningScreens.jsx';
 import {shell} from './web/shell/bridge.js';
+import {ConnectionScreen} from './web/connection/screen.jsx';
 import '@hannasage/projection-ui/styles';
 
 /** @typedef {import('./web/shell/bridge.js').WorkspaceView} WorkspaceView */
-/** @typedef {{actions:HTMLElement,navigation:HTMLElement,resume:HTMLElement,progress:HTMLElement,home:HTMLElement,library:HTMLElement}} ShellSlots */
+/** @typedef {{actions:HTMLElement,navigation:HTMLElement,resume:HTMLElement,progress:HTMLElement,connection:HTMLElement,home:HTMLElement,library:HTMLElement}} ShellSlots */
 /** @param {ParentNode} root @param {string} selector @returns {HTMLElement} */
 function element(root, selector) {
   const result = root.querySelector(selector);
@@ -55,13 +56,14 @@ function WorkspaceShell({onMounted,appearance}) {
     if (!node || !(template instanceof HTMLTemplateElement)) throw Error('The local workspace template is unavailable.');
     const content=template.content.cloneNode(true);
     if (!(content instanceof DocumentFragment)) throw Error('The local workspace template could not load.');
-    const mounts={actions:element(content,'#header-actions-slot'),navigation:element(content,'#navigation-slot'),resume:element(content,'#resume-slot'),progress:element(content,'#progress-slot'),home:element(content,'#home-view'),library:element(content,'#library-view')};
+    const mounts={actions:element(content,'#header-actions-slot'),navigation:element(content,'#navigation-slot'),resume:element(content,'#resume-slot'),progress:element(content,'#progress-slot'),connection:element(content,'#connection-slot'),home:element(content,'#home-view'),library:element(content,'#library-view')};
     node.append(content);
     setSlots(mounts);
     return ()=>node.replaceChildren();
   },[]);
   useLayoutEffect(()=>{if(slots)onMounted();},[slots,onMounted]);
   return <><div id="hub-host" data-renderer="legacy" ref={host}/>{slots && <>
+    {createPortal(<ConnectionScreen/>,slots.connection)}
     {createPortal(<HomeScreen/>,slots.home)}
     {createPortal(<LibraryScreen/>,slots.library)}
     {createPortal(<HeaderActions ready={state.ready} appearance={appearance}/>,slots.actions)}

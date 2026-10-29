@@ -3,6 +3,22 @@ import {access, readFile} from 'node:fs/promises';
 import test from 'node:test';
 import {createIsolatedServer} from './server.mjs';
 
+test('the account return serves only the local shell without reflecting or caching its code', async () => {
+  const server = await createIsolatedServer();
+  try {
+    const response = await fetch(`${server.url}/auth/return?code=private-return-code&touchline-return=nonce`);
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('cache-control'), 'no-store');
+    assert.equal(response.headers.get('referrer-policy'), 'no-referrer');
+    const html = await response.text();
+    assert.match(html, /id="app-root"/);
+    assert.doesNotMatch(html, /private-return-code/);
+    assert.equal((await fetch(`${server.url}/auth/return/other`)).status, 404);
+    const foreign = await fetch(`${server.url}/auth/return`, {headers:{Origin:'https://foreign.invalid'}});
+    assert.equal(foreign.status, 403);
+  } finally { await server.close(); }
+});
+
 test('an isolated server persists state across restart without using the application data directory', async () => {
   const server = await createIsolatedServer();
   const directory = server.directory;
