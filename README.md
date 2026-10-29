@@ -43,7 +43,9 @@ An old browser tab cannot overwrite a newer save.
 On first use, the application copies older curriculum and progress files into this record format.
 It keeps the original files unchanged and does not repeat a completed migration.
 It rejects damaged files and unknown versions instead of replacing them with empty progress.
-If a saved file is damaged, stop the server before restoring a known backup.
+If a local record is damaged, the recovery screen can restore its validated retained backup.
+It preserves the damaged file and reserves a new revision. Reload other open tabs after recovery.
+Read [Release and recovery](docs/RELEASE.md) before restoring files by hand.
 
 Unfinished experiment forms save without requiring a title.
 If a save fails, the browser keeps a recovery copy on that device when browser storage is available.
@@ -53,9 +55,11 @@ If browser storage is unavailable, keep the page open until saving succeeds or e
 
 Use Export progress to download a version 2 record, including its unfinished experiment and selected lesson.
 Restore backup also accepts the original version 1 progress exports.
-To transfer a course, import that file with Import curriculum on the new installation.
-Select that curriculum, then use Restore backup with the same file.
-The built-in soccer curriculum already exists on every installation, so it requires only Restore backup.
+To transfer a course and its progress, use Import curriculum once with the full backup on the new installation.
+Review the file, then choose Save for later or Start now as another active curriculum.
+If that curriculum already exists, select it and use Restore backup instead.
+The built-in soccer curriculum already exists on every installation, so use Restore backup for that course.
+Export the current record before confirming a replacement.
 
 ## New curricula
 
@@ -64,6 +68,8 @@ Give the template to your agent with your topic, background, time budget, and pr
 Ask the agent to preserve the structure and assign a unique curriculum ID.
 Import the completed JSON file with Import curriculum.
 Select the new course from Your curricula.
+Keep one curriculum as your focus, or work with several active curricula.
+Opening another curriculum does not change your focus.
 
 Each course has separate progress, experiments, and unfinished work.
 Local imports reject duplicate curriculum IDs to protect existing progress.
@@ -94,26 +100,32 @@ The application reads the built-in lesson content from `curriculum.json`.
 The curriculum includes foundational mathematics, several model families, research practice, and an engineering portfolio.
 It does not replace every computer science subject or guarantee hiring readiness.
 
-## Tests
-
-Run the persistence and curriculum tests from this project folder:
-
-```sh
-python3 -m unittest -v test_server.py
-```
-
 ## Shared progress and native companion
 
-Open Devices to connect your private Supabase backend.
-Publish a course to make its lessons and progress available to your native app.
-Publishing is explicit in this version. Local edits do not sync automatically.
-Read `backend/README.md` for private deployment and account setup.
+Open Devices, enter your hub address, and review its identity before signing in.
+Email codes are the default. Google and Apple appear only when configured by the owner.
+Supabase setup permission is separate from your learning account.
+
+Each owner runs a connector on their own Vercel project with their own PostgreSQL database.
+Published learning snapshots stay in their own Supabase project. There is no shared Sage setup service.
+Read [Owner-hosted connector](hosted/README.md) for guided setup and [Private publications](backend/README.md) for backend requirements.
+The repository remains private during review, and its public deployment template is disabled.
+
+Publish selected curricula to make their lessons and progress available on other devices.
+Each publication has its own result. Publishing library focus does not publish curriculum content.
+Local edits do not sync automatically.
+
 Open `ios/Touchline.xcodeproj` in Xcode for the native iPhone and iPad companion.
-Read `ios/README.md` for its build and installation steps.
+Enter the same hub address or scan its QR code, review the destination, then sign in.
+Select the curricula to download for offline reading. Native learning records remain read-only.
+Read [Native companion](ios/README.md) for build, installation, and recovery steps.
 
 ## Rebuild the web interface
 
-The web interface uses Projection UI 0.2.0-next.2 with its default Projection theme.
+The web interface uses Projection UI 0.2.0-next.2.
+Appearance offers Noir Bloom / Confetti Studio and Dusk Protocol / Coastal Day.
+Each pair supports Dark, Light, and System modes.
+Preferences stay in the current browser or native device, separate from learning records.
 The local package archive makes this alpha dependency available to other developers.
 Use Node.js 24 to rebuild the web assets.
 From the project folder, run:
@@ -129,6 +141,8 @@ The server never serves `.env.local` or backend source files.
 ## Development gates
 
 Use Node.js 24 and Python 3.10 or later.
+Install PostgreSQL tools (`initdb`, `pg_ctl`, and `psql`) for the disposable database tests.
+If they are not found, set `PG_BIN` to their directory. Tests create their own local cluster.
 Install the pinned development packages and test browser:
 
 ```sh
@@ -143,6 +157,8 @@ Run the required checks before each commit:
 npm run verify
 npm run test:browser
 npm run test:appearance
+npm run test:backend
+node tests/run-setup-browser.mjs
 ```
 
 The first command checks types, lint, shared data formats, persistence, account transfer behavior, and the web build.
@@ -150,3 +166,5 @@ Read `contracts/README.md` for record formats, version rules, and shared test ex
 Browser tests start their own server with temporary learning records and block external requests.
 They do not use the running hub or its saved progress.
 Read `tests/README.md` for individual checks and browser configuration.
+
+Read [Release and recovery](docs/RELEASE.md) for clean-install checks, backups, native test commands, and pending owner checks.
