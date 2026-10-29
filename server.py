@@ -10,45 +10,64 @@ from local_store import LocalStore, StoreError, finite_json, strict_keys, valida
 ROOT = Path(__file__).resolve().parent
 import re
 
+class CurriculumError(ValueError):
+    def __init__(self, message, field):
+        super().__init__(message)
+        self.field = field
+
+
 def validate_curriculum(c):
     if not isinstance(c, dict) or not isinstance(c.get("id"), str) or not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,59}", c.get("id", "")):
-        raise ValueError("Use a curriculum ID with lowercase letters, numbers, and hyphens.")
+        raise CurriculumError("Use a curriculum ID with lowercase letters, numbers, and hyphens.", "curriculum.id")
     for k in ("title", "subtitle", "description"):
         if not isinstance(c.get(k), str) or not c[k].strip():
-            raise ValueError(f"Curriculum needs {k}.")
-    if not isinstance(c.get("resources"), dict) or not isinstance(c.get("modules"), list) or not 1 <= len(c["modules"]) <= 100:
-        raise ValueError("Curriculum needs resources and 1–100 modules.")
+            raise CurriculumError(f"Curriculum needs {k}.", f"curriculum.{k}")
+    if not isinstance(c.get("resources"), dict):
+        raise CurriculumError("Curriculum needs resources.", "curriculum.resources")
+    if not isinstance(c.get("modules"), list) or not 1 <= len(c["modules"]) <= 100:
+        raise CurriculumError("Curriculum needs 1–100 modules.", "curriculum.modules")
     if type(c.get("weeks")) is not int or not 1 <= c["weeks"] <= 520:
-        raise ValueError("Invalid curriculum duration.")
+        raise CurriculumError("Invalid curriculum duration.", "curriculum.weeks")
     if type(c.get("weeklyHours")) not in (int, float) or not 1 <= c["weeklyHours"] <= 40:
-        raise ValueError("Invalid weekly study hours.")
+        raise CurriculumError("Invalid weekly study hours.", "curriculum.weeklyHours")
     if "nextPhase" in c and (not isinstance(c["nextPhase"], list) or any(not isinstance(x, str) for x in c["nextPhase"])):
-        raise ValueError("Next phase must be a list of text items.")
+        raise CurriculumError("Next phase must be a list of text items.", "curriculum.nextPhase")
     if "researchDate" in c and not isinstance(c["researchDate"], str):
-        raise ValueError("Research date must be text.")
+        raise CurriculumError("Research date must be text.", "curriculum.researchDate")
     ids = set()
-    for r in c["resources"].values():
-        if not isinstance(r, dict) or any(not isinstance(r.get(k), str) for k in ("title", "url", "use")) or urlsplit(r["url"]).scheme not in ("http", "https"):
-            raise ValueError("Each resource needs a title, an HTTP(S) URL, and use guidance.")
-    for m in c["modules"]:
+    for key, r in c["resources"].items():
+        for field in ("title", "url", "use"):
+            if not isinstance(r, dict) or not isinstance(r.get(field), str):
+                raise CurriculumError(f"Resource {key} needs {field}.", f"curriculum.resources.{key}.{field}")
+        try:
+            url = urlsplit(r["url"])
+            valid = url.scheme in ("http", "https") and bool(url.hostname) and not url.username and not url.password
+        except ValueError:
+            valid = False
+        if not valid:
+            raise CurriculumError(f"Resource {key} needs an HTTP(S) URL without sign-in details.", f"curriculum.resources.{key}.url")
+    for index, m in enumerate(c["modules"]):
         if not isinstance(m, dict) or not isinstance(m.get("id"), str) or not re.fullmatch(r"[a-zA-Z0-9_-]{1,60}", m.get("id", "")) or m["id"] in ids:
-            raise ValueError("Module IDs must be unique letters, numbers, underscores, or hyphens.")
+            raise CurriculumError(f"Module {index + 1} needs a unique ID using letters, numbers, underscores, or hyphens.", f"curriculum.modules[{index}].id")
         ids.add(m["id"])
         for k in ("title", "phase", "question", "outcome", "math", "evidence", "challenge", "reading", "dataset"):
             if not isinstance(m.get(k), str):
-                raise ValueError(f"Module needs {k}.")
+                raise CurriculumError(f"Module {index + 1} needs {k}.", f"curriculum.modules[{index}].{k}")
         for k in ("tasks", "weeks", "resources", "prerequisites"):
             if not isinstance(m.get(k), list) or any(not isinstance(x, str) for x in m[k]):
-                raise ValueError(f"Invalid module {k}.")
-        if not 1 <= len(m["tasks"]) <= 30 or any(x not in c["resources"] for x in m["resources"]):
-            raise ValueError("Invalid module tasks or resource references.")
+                raise CurriculumError(f"Module {index + 1} has invalid {k}.", f"curriculum.modules[{index}].{k}")
+        if not 1 <= len(m["tasks"]) <= 30:
+            raise CurriculumError(f"Module {index + 1} needs 1–30 tasks.", f"curriculum.modules[{index}].tasks")
+        if any(x not in c["resources"] for x in m["resources"]):
+            raise CurriculumError(f"Module {index + 1} refers to an unknown resource.", f"curriculum.modules[{index}].resources")
         for k in ("hours", "weekStart", "weekEnd"):
             if type(m.get(k)) not in (int, float) or not 0 < m[k] <= 10000:
-                raise ValueError(f"Invalid module {k}.")
+                raise CurriculumError(f"Module {index + 1} has invalid {k}.", f"curriculum.modules[{index}].{k}")
         if m["weekStart"] > m["weekEnd"] or m["weekEnd"] > c["weeks"]:
-            raise ValueError("Module weeks must fit the curriculum duration.")
-    if any(p not in ids for m in c["modules"] for p in m["prerequisites"]):
-        raise ValueError("Unknown prerequisite module.")
+            raise CurriculumError(f"Module {index + 1} weeks must fit the curriculum duration.", f"curriculum.modules[{index}].weekEnd")
+    for index, m in enumerate(c["modules"]):
+        if any(p not in ids for p in m["prerequisites"]):
+            raise CurriculumError(f"Module {index + 1} refers to an unknown prerequisite.", f"curriculum.modules[{index}].prerequisites")
     return c
 
 def initial(c):
@@ -185,6 +204,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.forbidden()
         path = urlsplit(self.path).path
         try:
+            if path == "/api/recovery":
+                return self.respond(200, self.store().recovery_options())
             if path == "/api/cloud-config":
                 config_file = ROOT / "cloud-config.local.json"
                 config = json.loads(config_file.read_text()) if config_file.exists() else {}
@@ -235,10 +256,13 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         if not self.allowed():
             return self.forbidden()
-        if urlsplit(self.path).path != "/api/import":
+        if urlsplit(self.path).path not in ("/api/import", "/api/import/preview", "/api/recovery"):
             return self.not_found()
         try:
             payload = self.body()
+            if urlsplit(self.path).path == "/api/recovery":
+                strict_keys(payload, ["recordId", "damagedDigest"], "request")
+                return self.respond(200, self.store().recover_record(payload["recordId"], payload["damagedDigest"]))
             required = {"source", "origin", "status"}
             if not isinstance(payload, dict) or not required <= set(payload) or set(payload) - required - {"targetRecordId", "expectedRevision"}:
                 raise StoreError("Invalid import request fields.", field="request")
@@ -246,8 +270,9 @@ class Handler(BaseHTTPRequestHandler):
             origin = validate_origin(payload["origin"])
             if origin["kind"] == "cloud" and origin != scope:
                 raise StoreError("Use the matching connection scope for a cloud import.", "scope_mismatch", 400, field="scope")
-            record = self.store().import_record(payload["source"], origin, payload["status"], payload.get("targetRecordId"), payload.get("expectedRevision"), scope)
-            return self.respond(200 if payload.get("targetRecordId") is not None else 201, record)
+            operation = self.store().preview_import if urlsplit(self.path).path == "/api/import/preview" else self.store().import_record
+            record = operation(payload["source"], origin, payload["status"], payload.get("targetRecordId"), payload.get("expectedRevision"), scope)
+            return self.respond(200 if urlsplit(self.path).path.endswith("/preview") or payload.get("targetRecordId") is not None else 201, record)
         except (OSError, ValueError, TypeError, RecursionError) as error:
             return self.fail(error)
 

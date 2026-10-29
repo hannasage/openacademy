@@ -1,11 +1,12 @@
 'use strict';
 import {createLearningService} from './web/services/learning.js';
 import {accounts} from './web/services/accounts.js';
+import {journalList,evidenceMarkup} from './web/screens/journal.js';
+import {prepareImport,reviewImport} from './web/screens/import-review.js';
 import {lessonMarkup} from './web/screens/lesson.js';
 import {screens} from './web/screens/model.js';
 import {shell} from './web/shell/bridge.js';
 const learning = createLearningService();
-/** @type {Curriculum[]} */ let curricula = [];
 /** @type {Curriculum} */ let course;
 /** @type {LearningState} */ let state;
 /** @type {LocalRecord} */ let record;
@@ -102,6 +103,7 @@ function captureDraft() {
  if(accountInvalidated)return;
  const fields=$('#experiment-form').elements;
  record.draft.experiment={id:editing,date:record.draft.experiment?.date||new Date().toISOString().slice(0,10),module:fields.module.value,title:fields.title.value,hypothesis:fields.hypothesis.value,result:fields.result.value};
+ $('#experiment-evidence').innerHTML=evidenceMarkup(fields.result.value);
  changed();
 }
 function restoreDraft() {
@@ -110,6 +112,8 @@ function restoreDraft() {
  for(const key of /** @type {const} */(['title','hypothesis','result']))form.elements[key].value=draft?.[key]||'';
  form.elements.module.value=draft?.module||selected;
  $('#experiment-form button').textContent=editing?'Save experiment changes':'Record experiment';
+ $('#experiment-heading').textContent=editing?'Edit experiment':'New experiment';
+ $('#experiment-evidence').innerHTML=evidenceMarkup(draft?.result||'');
 }
 /** @param {LocalRecord} candidate @param {LocalRecord} current */
 function usableRecovery(candidate,current) {
@@ -169,14 +173,21 @@ function detail() {
 }
 function experiments(){
  if(accountInvalidated)return;
+ $('#journal-curriculum').textContent=course.title;
+ $('#journal-switch').onclick=()=>void shell.navigate('library');
  $('#experiment-module').innerHTML=course.modules.map(m=>`<option value="${esc(m.id)}">${esc(m.title)}</option>`).join('');
  restoreDraft();
- $('#experiment-list').innerHTML=state.experiments.length?state.experiments.slice().reverse().map(e=>`<article class="journal-entry"><div class="detail-top"><span>${esc(e.date)} · ${esc(moduleById(e.module).title)}</span><button data-edit="${esc(e.id)}">Edit experiment</button></div><h3>${esc(e.title)}</h3><p class="eyebrow">HYPOTHESIS & SETUP</p><p class="preserve">${esc(e.hypothesis)}</p><p class="eyebrow">RESULTS & NEXT STEP</p><p class="preserve">${esc(e.result||'Planned. Add results after the experiment.')}</p></article>`).join(''):'<div class="empty"><h3>Your first question belongs here.</h3><p>Record a hypothesis above before you train a model. Failed experiments count as learning.</p></div>';
- /** @type {NodeListOf<HTMLButtonElement>} */(document.querySelectorAll('[data-edit]')).forEach(b=>b.onclick=()=>{const e=state.experiments.find(x=>x.id===b.dataset.edit);if(!e)return;record.draft.experiment={...e};restoreDraft();changed();$('#experiment-form').scrollIntoView({behavior:'instant'});});
+ $('#experiment-list').innerHTML=journalList(course,state.experiments,editing);
+ const canReplaceDraft=()=>!record.draft.experiment||(!record.draft.experiment.title&&!record.draft.experiment.hypothesis&&!record.draft.experiment.result)||confirm('Replace the unfinished experiment draft? Export progress first to keep it.');
+ /** @type {NodeListOf<HTMLButtonElement>} */(document.querySelectorAll('[data-edit]')).forEach(b=>b.onclick=()=>{
+  const entry=state.experiments.find(x=>x.id===b.dataset.edit);if(!entry||editing===entry.id||!canReplaceDraft())return;
+  record.draft.experiment={...entry};changed();experiments();$('#experiment-form').scrollIntoView({behavior:'instant'});
+ });
+ $('#new-experiment').onclick=()=>{if(!canReplaceDraft())return;record.draft.experiment=null;editing=null;changed();experiments();$('#experiment-form').elements.title.focus();};
 }
 function guide(){
  if(accountInvalidated)return;
- $('#guide-view').innerHTML=`<p class="eyebrow">A REUSABLE HOME FOR YOUR LEARNING</p><h2>Your approach</h2><p>This plan is a working path, not a degree or an employment guarantee. Use independent work as the measure of progress.</p><div class="form-grid"><label>Start date<input id="start-date" type="date" value="${esc(state.startDate)}"></label><label>Planned hours per week<input id="weekly-hours" type="number" min="1" max="40" value="${state.weeklyHours}"></label></div><p>The course contains ${course.modules.reduce((a,m)=>a+m.hours,0)} estimated study hours. At your current pace, that is about ${Math.ceil(course.modules.reduce((a,m)=>a+m.hours,0)/state.weeklyHours)} weeks. Module week labels describe the original plan.</p><h3>Build → explain → test → reflect</h3><p>Use an agent to explore an idea, inspect an error, or critique your explanation. Predict outputs first. Complete the independent challenge yourself.</p><p>For the soccer course, reserve roughly 6 hours for building, 3 hours for mathematics, and 2 hours for review each week. Use extra time for weak foundations before adding more model types.</p><h3>New topics belong here too</h3><p>Download the curriculum template. Give it to your agent with a topic, starting skills, and time budget. Import the completed JSON file with a unique curriculum ID. Each curriculum keeps its own notes, hours, experiments, and progress.</p><button id="export-course">Export this curriculum</button><h3>Keep a portable copy</h3><p>Export progress regularly. A progress backup includes this curriculum and its learning records. Import the curriculum on a new installation before restoring its progress. The server also keeps the previous saved state on this computer.</p><h3>Next six months</h3>${(course.nextPhase||['Choose your next topic after reviewing the evidence from this course.']).map(x=>`<p>${esc(x)}</p>`).join('')}<p class="muted">Sources reviewed: ${esc(course.researchDate||'Not specified')}. The hub works locally. External readings require internet access. Tutor prompts use your existing agent; this application does not make AI API calls.</p>`;
+ $('#guide-view').innerHTML=`<p class="eyebrow">A REUSABLE HOME FOR YOUR LEARNING</p><h2>Your approach</h2><p>This plan is a working path, not a degree or an employment guarantee. Use independent work as the measure of progress.</p><div class="form-grid"><label>Start date<input id="start-date" type="date" value="${esc(state.startDate)}"></label><label>Planned hours per week<input id="weekly-hours" type="number" min="1" max="40" value="${state.weeklyHours}"></label></div><p>The course contains ${course.modules.reduce((a,m)=>a+m.hours,0)} estimated study hours. At your current pace, that is about ${Math.ceil(course.modules.reduce((a,m)=>a+m.hours,0)/state.weeklyHours)} weeks. Module week labels describe the original plan.</p><h3>Build → explain → test → reflect</h3><p>Use an agent to explore an idea, inspect an error, or critique your explanation. Predict outputs first. Complete the independent challenge yourself.</p><p>For the soccer course, reserve roughly 6 hours for building, 3 hours for mathematics, and 2 hours for review each week. Use extra time for weak foundations before adding more model types.</p><h3>New topics belong here too</h3><p>Download the curriculum template. Give it to your agent with a topic, starting skills, and time budget. Import the completed JSON file with a unique curriculum ID. Each curriculum keeps its own notes, hours, experiments, and progress.</p><button id="export-course">Export this curriculum</button><h3>Keep a portable copy</h3><p>Export progress regularly. A progress backup includes this curriculum and its learning records. Import a curriculum or a full backup into a new library. To replace an existing record, select it and use Restore backup. The server also keeps the previous saved state on this computer.</p><h3>Next six months</h3>${(course.nextPhase||['Choose your next topic after reviewing the evidence from this course.']).map(x=>`<p>${esc(x)}</p>`).join('')}<p class="muted">Sources reviewed: ${esc(course.researchDate||'Not specified')}. The hub works locally. External readings require internet access. Tutor prompts use your existing agent; this application does not make AI API calls.</p>`;
  $('#start-date').onchange=()=>{state.startDate=$('#start-date').value;changed();};
  $('#weekly-hours').onchange=()=>{const field=$('#weekly-hours');const n=Number(field.value);if(n<1||n>40||!Number.isFinite(n)){field.value=String(state.weeklyHours);return;}state.weeklyHours=n;changed();stats();guide();};
  $('#export-course').onclick=()=>download(course,course.id+'-curriculum.json');
@@ -220,30 +231,37 @@ $('#retry').onclick=async()=>{
  if(!confirm('Discard the recovered working copy and load the newer saved version? Export progress first if you want to keep this copy.'))return;
  try{clearJournal();await loadCourse(record.recordId,true);}catch(error){notice(message(error)+' Your current working copy is still available for export. Retry loading the saved version.',true);}
 };
-$('#import').onchange=async()=>{
- const field=$('#import');const file=field.files?.[0];if(!file)return;
- const epoch=viewEpoch,targetId=record.recordId;
- const checkTarget=()=>{requireEpoch(epoch);if(accountInvalidated||record.recordId!==targetId)throw Error('The selected record changed. Select the intended record and restore again.');};
+let importAttempt=0;
+/** @param {HTMLInputElement} field @param {boolean} restore */
+async function previewFile(field,restore){
+ const file=field.files?.[0];if(!file)return;
+ const attempt=++importAttempt,epoch=viewEpoch,targetId=record?.recordId;
+ const guard=()=>{requireEpoch(epoch);if(attempt!==importAttempt)throw Error('A newer file was selected. Review that file instead.');if(accountInvalidated||record?.recordId!==targetId)throw Error('The selected record changed. Choose the file again.');};
  try{
-  if(file.size>2000000)throw Error('Backup must be smaller than 2 MB.');
-  const backup=JSON.parse(await file.text());checkTarget();
-  if(!backup||typeof backup!=='object'||Array.isArray(backup))throw Error('Expected a progress backup.');
-  if(backup.format==='touchline-record'){if(backup.version!==2)throw Error('Unsupported record backup version. Use a version 2 record backup.');}
-  else if(backup.format!==undefined&&backup.format!=='touchline-backup'||backup.recordId!==undefined)throw Error('Unsupported backup format.');
-  else if(backup.format==='touchline-backup'&&backup.version!==undefined&&backup.version!==1)throw Error('Unsupported legacy backup version.');
-  const incoming=backup.state||backup;
-  if(incoming.curriculumId!==course.id)throw Error('Switch to the matching curriculum before restoring this backup.');
-  if(!confirm('Replace progress for this curriculum with this backup? The previous saved progress will remain in the local backup file.'))return;
-  if(!(await save()))return;checkTarget();
-  const replacement=structuredClone(record); replacement.state=incoming;replacement.state.revision=state.revision;
-  if(backup.format==='touchline-record'&&backup.version===2){replacement.view=backup.view;replacement.draft=backup.draft;replacement.status=backup.status;}
-  else {replacement.draft={experiment:null};}
-  await learning.saveRecord(replacement,state.revision,accountScope);checkTarget();
-  await loadCourse(targetId);checkTarget();notice('Backup restored.');
- }catch(error){notice(message(error),true);}finally{field.value='';}
-};
+  if(file.size>2000000)throw Error('The file must be smaller than 2 MB.');
+  const input=JSON.parse(await file.text());guard();
+  let source=prepareImport(input,restore?record:undefined);
+  if(restore&&source.format!=='touchline-record')source={...structuredClone(record),curriculum:source.curriculum,state:source.state,draft:{experiment:null}};
+  if(restore&&source.curriculum.id!==course.id)throw Error('Switch to the matching curriculum before restoring this backup.');
+  if(!(await save()))throw Error('Save or export your current changes before reviewing this file.');guard();
+  const expected=state.revision,origin=restore?record.origin:/** @type {LocalRecordOrigin} */({kind:'local'});
+  const replacement=restore?{targetRecordId:targetId,expectedRevision:expected}:undefined;
+  const preview=await learning.previewImport(source,origin,restore?('status' in source?source.status:record.status):'saved',replacement);guard();
+  const dialog=/** @type {HTMLDialogElement} */($('#import-review'));
+  let committed=false;
+  reviewImport(dialog,{source:preview,restore,filename:file.name,onCommit:async status=>{
+   guard();if(state.revision!==expected||dirty||saving)throw Error('Your current work changed. Close this review and choose the file again.');
+   if(!committed){await learning.importRecord(source,origin,status,replacement);committed=true;}guard();
+   await refreshLibrary();guard();populateCourses();
+   if(restore){await loadCourse(targetId);guard();notice('Backup restored.');}
+   else notice('Curriculum imported. Select it from Your curricula.');
+  }});
+  if(restore)$('#export-before-restore').onclick=()=>download(record,course.id+'-progress.json');
+ }catch(error){notice(error instanceof Error&&'field' in error&&error.field?String(error.field)+': '+message(error):message(error),true);}finally{field.value='';}
+}
+$('#import').onchange=()=>previewFile($('#import'),true);
 $('#add-curriculum').onclick=()=>$('#curriculum-file').click();
-$('#curriculum-file').onchange=async()=>{const field=$('#curriculum-file');const file=field.files?.[0];if(!file)return;try{if(file.size>2000000)throw Error('Curriculum must be smaller than 2 MB.');const input=JSON.parse(await file.text());const c=await learning.importCurriculum(input.curriculum||input);curricula.push(c);await refreshLibrary();populateCourses();notice('Curriculum imported. Select it from Your curricula.');}catch(error){notice(message(error),true);}finally{field.value='';}};
+$('#curriculum-file').onchange=()=>previewFile($('#curriculum-file'),false);
 $('#template').onclick=()=>download({id:'my-new-topic',version:1,title:'My new topic',subtitle:'MY LEARNING PLAN',description:'Replace this with your learning goal.',weeks:2,weeklyHours:5,resources:{reference:{title:'Example resource: replace this',url:'https://example.com',use:'Explain which section to use.'}},modules:[{id:'intro',title:'First project',phase:'Foundations',question:'What will you investigate?',outcome:'Describe the artifact you will build.',math:'Describe the concepts you will learn. This field can cover any subject.',tasks:['Build a small example.','Explain your result independently.','Record evidence and reflect.'],weeks:['Week 1: Explore and build.','Week 2: Test and explain.'],evidence:'Describe the evidence required for completion.',challenge:'Describe an independent task.',resources:['reference'],reading:'Name the relevant sections.',dataset:'Describe data or materials. Use Not applicable if none are needed.',hours:10,weekStart:1,weekEnd:2,prerequisites:[]}],nextPhase:['Choose a follow-on topic.']},'curriculum-template.json');
 async function refreshLibrary() {
  const epoch=viewEpoch;
@@ -315,14 +333,29 @@ shell.bind({
  reportError:error=>notice(message(error),true),
 });
 window.addEventListener('beforeunload',e=>{if(dirty||saving||volatileRecovery.size){e.preventDefault();e.returnValue='';}});
+async function offerRecovery(){
+ const panel=$('#record-recovery');
+ try{
+  const options=await learning.recoveryOptions();if(!options.length)return;
+  panel.hidden=false;
+  panel.innerHTML=`<h2>Recover a local learning record</h2><p>A saved record is damaged. Choose a retained local backup to restore. The damaged file stays on this computer.</p><label>Available local backup<select id="recovery-record">${options.map(option=>`<option value="${esc(option.recordId)}">${esc(option.title)} · saved revision ${option.revision}</option>`).join('')}</select></label><button id="recover-record" type="button">Restore saved local copy</button><p id="recovery-error" role="status"></p>`;
+  $('#recover-record').onclick=async()=>{
+   const option=options.find(item=>item.recordId===/** @type {HTMLSelectElement} */($('#recovery-record')).value);if(!option)return;
+   if(!confirm(`Restore the retained backup for ${option.title}? Newer work in the damaged file will remain in a separate recovery file. Reload any other open Touchline tabs after recovery.`))return;
+   /** @type {HTMLButtonElement} */($('#recover-record')).disabled=true;
+   try{await learning.recoverRecord(option.recordId,option.damagedDigest);location.reload();}
+   catch(error){$('#recovery-error').textContent=message(error)+' Reload the page to inspect recovery again.';/** @type {HTMLButtonElement} */($('#recover-record')).disabled=false;}
+  };
+ }catch(error){notice('Recovery could not be inspected. '+message(error)+' Your files remain unchanged.',true);}
+}
 const ready=(async()=>{try{
- curricula=await learning.listCurricula();await refreshLibrary();populateCourses();let id;
+ await learning.listCurricula();await refreshLibrary();populateCourses();let id;
  try{id=localStorage.getItem('touchline-course');}catch{ /* Local selection is optional. */ }
  if(!library.length){screens.update({loading:false});return false;}
  await loadCourse(id&&library.some(item=>item.recordId===id||item.origin.kind==='local'&&item.curriculumId===id)?id:library[0].recordId);
  for(const id of ['import','curriculum-select','add-curriculum','template'])/** @type {HTMLInputElement | HTMLSelectElement | HTMLButtonElement} */($('#'+id)).disabled=false;
  return true;
-}catch(error){screens.update({loading:false,error:message(error)+' Reload the page to retry.'});notice(message(error)+' Reload the page to retry.',true);return false;}})();
+}catch(error){screens.update({loading:false,error:message(error)+' Reload the page to retry.'});notice(message(error)+' Reload the page to retry.',true);await offerRecovery();return false;}})();
 
 accounts.bind({
  snapshot: async () => { const epoch=viewEpoch;if(!(await ready)&&!record)throw Error('The local library is not ready.');requireEpoch(epoch); if(!(await save())) throw Error('Save local changes before publishing.');requireEpoch(epoch); return JSON.parse(JSON.stringify({curriculum:course,state})); },
@@ -334,7 +367,8 @@ accounts.bind({
   shell.update({ready:false,progress:null});
   library=[];screenRecords.clear();libraryPreference={version:1,revision:0,focusRecordId:null};updateScreens();screens.update({loading:true,error:''});populateCourses();
   for(const selector of ['#modules','#module-detail','#experiment-list','#experiment-module','#guide-view'])$(selector).replaceChildren();
-  $('#experiment-form').reset();$('#experiment-form').hidden=true;editing=null;
+  $('#experiment-form').reset();$('#experiment-form').hidden=true;editing=null;$('#experiment-evidence').replaceChildren();$('#journal-curriculum').textContent='';
+  /** @type {HTMLDialogElement} */($('#import-review')).close();$('#import-review').replaceChildren();
   $('#plan-title').textContent='Your local learning library';$('#plan-subtitle').textContent='';$('#plan-description').textContent='';$('#module-count').textContent='';
   for(const selector of ['#completed','#hours','#experiments-count','#duration','#pace'])$(selector).textContent='';
   $('#retry').hidden=true;
