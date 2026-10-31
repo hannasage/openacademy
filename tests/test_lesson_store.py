@@ -105,14 +105,12 @@ class ImportTests(StoreCase):
     def test_listing_offers_the_newer_version_without_switching(self):
         self.store.import_files(self.files(('a.json', fixture('lesson-module-minimal.json'))))
         entry = self.store.list_modules()['modules'][0]
-        self.assertIsNone(entry['newerVersion'])
-        self.assertFalse(entry['newerVersionAvailable'])
+        self.assertIsNone(entry['newerVersionAvailable'])
         self.store.import_files(self.files(('b.json', variant('lesson-module-minimal.json', version='1.10.0'))))
         self.store.import_files(self.files(('c.json', variant('lesson-module-minimal.json', version='1.2.0'))))
         entry = self.store.list_modules()['modules'][0]
         self.assertEqual(entry['pinnedVersion'], '1.0.0')
-        self.assertEqual(entry['newerVersion'], '1.10.0')
-        self.assertTrue(entry['newerVersionAvailable'])
+        self.assertEqual(entry['newerVersionAvailable'], '1.10.0')
         self.assertEqual(entry['versions'], ['1.0.0', '1.2.0', '1.10.0'])
 
     def test_same_id_and_version_with_other_bytes_is_rejected_and_changes_nothing(self):
@@ -150,6 +148,14 @@ class ImportTests(StoreCase):
                         ('good.json', fixture('lesson-module-minimal.json')),
                         ('bad.json', fixture(bad, INVALID))))
                 self.assertFalse((self.data / '_lessons').exists())
+
+    def test_text_that_is_not_utf8_is_refused(self):
+        data = fixture('lesson-module-minimal.json').replace(b'Read this', b'Read \xff')
+        self.assertIn(b'\xff', data)
+        with self.assertRaises(LessonStoreError) as caught:
+            self.store.import_files(self.files(('bad.json', data)))
+        self.assertEqual(caught.exception.status, 422)
+        self.assertFalse((self.data / '_lessons').exists())
 
     def test_unsupported_version_has_its_own_code(self):
         with self.assertRaises(LessonStoreError) as caught:
@@ -297,7 +303,7 @@ class PinTests(StoreCase):
         self.assertEqual(tree(self.data), before)
         result = self.store.set_pin('hello-module', '1.1.0', True, revision)
         self.assertEqual(self.store.pins()['pins']['hello-module'], '1.1.0')
-        self.assertFalse(result['modules'][0]['newerVersionAvailable'])
+        self.assertIsNone(result['modules'][0]['newerVersionAvailable'])
         self.assertEqual(self.store.pins()['revision'], revision + 1)
 
     def test_a_stale_revision_is_refused(self):

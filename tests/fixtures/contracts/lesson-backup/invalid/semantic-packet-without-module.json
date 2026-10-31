@@ -1,0 +1,23 @@
+{
+  "format": "schola-lesson-backup",
+  "schemaVersion": "1.0",
+  "createdAt": "2026-02-04T05:06:07Z",
+  "modules": [],
+  "packets": [
+    {
+      "id": "single-lesson",
+      "version": "1.0.0",
+      "sha256": "4db17274462dbc74f6b54025d878fa7c8d66f9618037e98be12dad5f06426f1d",
+      "text": "{\n  \"schemaVersion\": \"1.0\",\n  \"id\": \"single-lesson\",\n  \"version\": \"1.0.0\",\n  \"title\": \"A packet with one module\",\n  \"modules\": [\n    {\n      \"id\": \"hello-module\",\n      \"version\": \"1.0.0\"\n    }\n  ]\n}\n",
+      "source": {
+        "fileName": "packet.json",
+        "importedAt": "2026-02-03T04:05:06Z"
+      }
+    }
+  ],
+  "pins": {
+    "revision": 0,
+    "pins": {}
+  },
+  "help": []
+}

@@ -1,0 +1,37 @@
+{
+  "format": "schola-lesson-backup",
+  "schemaVersion": "1.0",
+  "createdAt": "2026-02-04T05:06:07Z",
+  "modules": [
+    {
+      "id": "hello-module",
+      "version": "1.0.0",
+      "sha256": "f272bd01f854c0506c4640a0fa5961963e2768e3cd9fa90e410ac9f06793a5a0",
+      "text": "{\n  \"schemaVersion\": \"1.0\",\n  \"id\": \"hello-module\",\n  \"version\": \"1.0.0\",\n  \"title\": \"A minimal lesson module\",\n  \"outcome\": \"The student can state one fact about the lesson.\",\n  \"blocks\": [\n    {\n      \"type\": \"text\",\n      \"id\": \"intro\",\n      \"body\": \"Read this short text.\"\n    }\n  ],\n  \"tasks\": [\n    {\n      \"id\": \"task-1\",\n      \"prompt\": \"State the fact in one sentence.\",\n      \"hints\": [\n        {\n          \"level\": \"nudge\",\n          \"text\": \"Look again at the first sentence of task 1.\"\n        },\n        {\n          \"level\": \"question\",\n          \"text\": \"What result do you expect from task 1 before you run anything?\"\n        },\n        {\n          \"level\": \"partial-example\",\n          \"text\": \"Here is the first step of task 1. Finish the rest yourself.\"\n        },\n        {\n          \"level\": \"full-answer\",\n          \"text\": \"Here is a complete answer to task 1.\"\n        }\n      ]\n    }\n  ],\n  \"checks\": [\n    {\n      \"id\": \"check-1\",\n      \"kind\": \"self-reported\",\n      \"description\": \"The student confirms that the sentence is written.\"\n    }\n  ],\n  \"prerequisites\": [],\n  \"license\": {\n    \"id\": \"CC-BY-4.0\"\n  }\n}\n",
+      "source": {
+        "fileName": "minimal.json",
+        "importedAt": "2026-02-03T04:05:06Z",
+        "packetIds": []
+      }
+    },
+    {
+      "id": "hello-module",
+      "version": "1.1.0",
+      "sha256": "a739271a639208db8d77c581cf05d56bd2b62998902fdbacd8099d31b9a9aba6",
+      "text": "{\n  \"schemaVersion\": \"1.0\",\n  \"id\": \"hello-module\",\n  \"version\": \"1.1.0\",\n  \"title\": \"A minimal lesson module\",\n  \"outcome\": \"The student can state one fact about the lesson.\",\n  \"blocks\": [\n    {\n      \"type\": \"text\",\n      \"id\": \"intro\",\n      \"body\": \"Read this short text.\"\n    }\n  ],\n  \"tasks\": [\n    {\n      \"id\": \"task-1\",\n      \"prompt\": \"State the fact in one sentence.\",\n      \"hints\": [\n        {\n          \"level\": \"nudge\",\n          \"text\": \"Look again at the first sentence of task 1.\"\n        },\n        {\n          \"level\": \"question\",\n          \"text\": \"What result do you expect from task 1 before you run anything?\"\n        },\n        {\n          \"level\": \"partial-example\",\n          \"text\": \"Here is the first step of task 1. Finish the rest yourself.\"\n        },\n        {\n          \"level\": \"full-answer\",\n          \"text\": \"Here is a complete answer to task 1.\"\n        }\n      ]\n    }\n  ],\n  \"checks\": [\n    {\n      \"id\": \"check-1\",\n      \"kind\": \"self-reported\",\n      \"description\": \"The student confirms that the sentence is written.\"\n    }\n  ],\n  \"prerequisites\": [],\n  \"license\": {\n    \"id\": \"CC-BY-4.0\"\n  }\n}\n",
+      "source": {
+        "fileName": "minimal-1.1.json",
+        "importedAt": "2026-03-03T04:05:06Z",
+        "packetIds": []
+      }
+    }
+  ],
+  "packets": [],
+  "pins": {
+    "revision": 1,
+    "pins": {
+      "hello-module": "1.0.0"
+    }
+  },
+  "help": []
+}

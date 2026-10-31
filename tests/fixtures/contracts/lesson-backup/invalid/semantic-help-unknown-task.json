@@ -1,0 +1,40 @@
+{
+  "format": "schola-lesson-backup",
+  "schemaVersion": "1.0",
+  "createdAt": "2026-02-04T05:06:07Z",
+  "modules": [
+    {
+      "id": "full-module",
+      "version": "2.1.0",
+      "sha256": "0cd549c07d8a93550a229b8887e3e8eccee4eba5acd0935fa3204cb1a6aaf2b4",
+      "text": "{\n  \"schemaVersion\": \"1.0\",\n  \"id\": \"full-module\",\n  \"version\": \"2.1.0\",\n  \"title\": \"A full lesson module\",\n  \"outcome\": \"The student can write and test a function that adds two numbers.\",\n  \"blocks\": [\n    {\n      \"type\": \"text\",\n      \"id\": \"intro\",\n      \"body\": \"A function takes inputs and returns a result.\\n\\nYou can write \\\"add\\\" in one line.\"\n    },\n    {\n      \"type\": \"source-link\",\n      \"id\": \"reference\",\n      \"title\": \"Language reference\",\n      \"url\": \"https://example.com/reference\",\n      \"note\": \"Read the section on functions.\"\n    },\n    {\n      \"type\": \"interactive-code\",\n      \"id\": \"editor\",\n      \"language\": \"python\",\n      \"starter\": \"def add(a, b):\\n    pass\\n\",\n      \"readOnly\": false\n    },\n    {\n      \"type\": \"check-reference\",\n      \"id\": \"run-it\",\n      \"checkId\": \"add-works\"\n    }\n  ],\n  \"tasks\": [\n    {\n      \"id\": \"write-add\",\n      \"prompt\": \"Write add(a, b) so that it returns the sum.\",\n      \"hints\": [\n        {\n          \"level\": \"nudge\",\n          \"text\": \"Look again at the first sentence of task 1.\"\n        },\n        {\n          \"level\": \"question\",\n          \"text\": \"What result do you expect from task 1 before you run anything?\"\n        },\n        {\n          \"level\": \"partial-example\",\n          \"text\": \"Here is the first step of task 1. Finish the rest yourself.\"\n        },\n        {\n          \"level\": \"full-answer\",\n          \"text\": \"Here is a complete answer to task 1.\"\n        }\n      ]\n    },\n    {\n      \"id\": \"explain\",\n      \"prompt\": \"Explain in your own words why the function works.\",\n      \"hints\": [\n        {\n          \"level\": \"nudge\",\n          \"text\": \"Look again at the first sentence of task 2.\"\n        },\n        {\n          \"level\": \"question\",\n          \"text\": \"What result do you expect from task 2 before you run anything?\"\n        },\n        {\n          \"level\": \"partial-example\",\n          \"text\": \"Here is the first step of task 2. Finish the rest yourself.\"\n        },\n        {\n          \"level\": \"full-answer\",\n          \"text\": \"Here is a complete answer to task 2.\"\n        }\n      ]\n    }\n  ],\n  \"checks\": [\n    {\n      \"id\": \"add-works\",\n      \"kind\": \"automated\",\n      \"description\": \"Runs add(2, 3) and expects 5.\",\n      \"runner\": {\n        \"type\": \"script\",\n        \"language\": \"python\",\n        \"entry\": \"check_add\",\n        \"timeoutSeconds\": 5\n      }\n    },\n    {\n      \"id\": \"explained\",\n      \"kind\": \"self-reported\",\n      \"description\": \"The student confirms the explanation is written.\"\n    }\n  ],\n  \"harness\": {\n    \"id\": \"full-module-tutor\",\n    \"requiredPermissions\": [\n      \"get_lesson\",\n      \"get_attempt\",\n      \"run_check\",\n      \"request_hint\",\n      \"log_reflection\"\n    ]\n  },\n  \"prerequisites\": [\n    \"hello-module\"\n  ],\n  \"estimatedMinutes\": 45,\n  \"license\": {\n    \"id\": \"CC-BY-4.0\",\n    \"url\": \"https://creativecommons.org/licenses/by/4.0/\"\n  },\n  \"price\": {\n    \"amount\": 1999,\n    \"currency\": \"USD\"\n  }\n}\n",
+      "source": {
+        "fileName": "full.json",
+        "importedAt": "2026-02-03T04:05:06Z",
+        "packetIds": []
+      }
+    }
+  ],
+  "packets": [],
+  "pins": {
+    "revision": 0,
+    "pins": {}
+  },
+  "help": [
+    {
+      "moduleId": "full-module",
+      "revision": 1,
+      "records": [
+        {
+          "schemaVersion": "1.0",
+          "moduleId": "full-module",
+          "taskId": "no-such-task",
+          "level": "nudge",
+          "attemptId": null,
+          "timestamp": "2026-11-01T09:30:00Z",
+          "source": "student"
+        }
+      ]
+    }
+  ]
+}

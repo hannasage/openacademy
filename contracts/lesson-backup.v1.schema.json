@@ -1,0 +1,201 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:schola:contract:lesson-backup:v1",
+  "type": "object",
+  "properties": {
+    "format": {
+      "const": "schola-lesson-backup"
+    },
+    "schemaVersion": {
+      "$ref": "urn:schola:contract:lesson-common:v1#/$defs/schemaVersion"
+    },
+    "createdAt": {
+      "$ref": "urn:schola:contract:lesson-common:v1#/$defs/timestamp"
+    },
+    "modules": {
+      "type": "array",
+      "maxItems": 5000,
+      "items": {
+        "$ref": "#/$defs/moduleEntry"
+      }
+    },
+    "packets": {
+      "type": "array",
+      "maxItems": 5000,
+      "items": {
+        "$ref": "#/$defs/packetEntry"
+      }
+    },
+    "pins": {
+      "type": "object",
+      "properties": {
+        "revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "pins": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "urn:schola:contract:lesson-common:v1#/$defs/lessonId"
+          },
+          "additionalProperties": {
+            "$ref": "urn:schola:contract:lesson-common:v1#/$defs/contentVersion"
+          },
+          "maxProperties": 5000
+        }
+      },
+      "required": [
+        "revision",
+        "pins"
+      ],
+      "additionalProperties": false
+    },
+    "help": {
+      "type": "array",
+      "maxItems": 5000,
+      "items": {
+        "$ref": "#/$defs/helpGroup"
+      }
+    }
+  },
+  "required": [
+    "format",
+    "schemaVersion",
+    "createdAt",
+    "modules",
+    "packets",
+    "pins",
+    "help"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "fileName": {
+      "type": "string",
+      "maxLength": 120
+    },
+    "moduleEntry": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "urn:schola:contract:lesson-common:v1#/$defs/lessonId"
+        },
+        "version": {
+          "$ref": "urn:schola:contract:lesson-common:v1#/$defs/contentVersion"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "text": {
+          "type": "string",
+          "maxLength": 5242880
+        },
+        "source": {
+          "type": "object",
+          "properties": {
+            "fileName": {
+              "$ref": "#/$defs/fileName"
+            },
+            "importedAt": {
+              "$ref": "urn:schola:contract:lesson-common:v1#/$defs/timestamp"
+            },
+            "packetIds": {
+              "type": "array",
+              "maxItems": 5000,
+              "uniqueItems": true,
+              "items": {
+                "$ref": "urn:schola:contract:lesson-common:v1#/$defs/lessonId"
+              }
+            }
+          },
+          "required": [
+            "fileName",
+            "importedAt",
+            "packetIds"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "sha256",
+        "text",
+        "source"
+      ],
+      "additionalProperties": false
+    },
+    "packetEntry": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "urn:schola:contract:lesson-common:v1#/$defs/lessonId"
+        },
+        "version": {
+          "$ref": "urn:schola:contract:lesson-common:v1#/$defs/contentVersion"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "text": {
+          "type": "string",
+          "maxLength": 5242880
+        },
+        "source": {
+          "type": "object",
+          "properties": {
+            "fileName": {
+              "$ref": "#/$defs/fileName"
+            },
+            "importedAt": {
+              "$ref": "urn:schola:contract:lesson-common:v1#/$defs/timestamp"
+            }
+          },
+          "required": [
+            "fileName",
+            "importedAt"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "sha256",
+        "text",
+        "source"
+      ],
+      "additionalProperties": false
+    },
+    "helpGroup": {
+      "type": "object",
+      "properties": {
+        "moduleId": {
+          "$ref": "urn:schola:contract:lesson-common:v1#/$defs/lessonId"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "records": {
+          "type": "array",
+          "maxItems": 100000,
+          "items": {
+            "$ref": "urn:schola:contract:help-record:v1"
+          }
+        }
+      },
+      "required": [
+        "moduleId",
+        "revision",
+        "records"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

@@ -53,7 +53,7 @@ _SHA256 = re.compile(r'[0-9a-f]{64}', re.ASCII)
 _CONTROL = re.compile(r'[\x00-\x1f\x7f‪-‮⁦-⁩]')
 
 _SHOWN = ('index', 'name', 'kind', 'id', 'version', 'title', 'sha256', 'size', 'status')
-_REASON_STATUS = {'invalid': 400, 'unsupported_version': 409, 'too_large': 413, 'unreadable': 400}
+_REASON_STATUS = {'invalid': 422, 'unsupported_version': 409, 'too_large': 413, 'unreadable': 400}
 
 
 class LessonStoreError(StoreError):
@@ -277,8 +277,8 @@ class LessonStore:
     def list_modules(self):
         """Every stored module with its pin. Read only; writes nothing.
 
-        `newerVersion` is the newest stored version when it is newer than the
-        pin, else None. It is an offer. Nothing here moves a pin.
+        `newerVersionAvailable` is the newest stored version when it is newer
+        than the pin, else None. It is an offer. Nothing here moves a pin.
         """
         pins = self.pins()
         modules = []
@@ -296,8 +296,7 @@ class LessonStore:
                 'title': document['title'],
                 'pinnedVersion': pinned,
                 'versions': stored,
-                'newerVersion': newer,
-                'newerVersionAvailable': newer is not None,
+                'newerVersionAvailable': newer,
             })
         return {'revision': pins['revision'], 'modules': modules}
 
@@ -358,6 +357,11 @@ class LessonStore:
         return {'items': items, 'problems': problems}
 
     def _classify(self, data):
+        try:
+            data.decode('utf-8')
+        except UnicodeError:
+            return 'module', None, {'ok': False, 'reason': 'invalid',
+                                    'errors': [{'pointer': '', 'message': 'The file is not valid UTF-8 text.'}]}
         try:
             document = json.loads(data.decode('utf-8'), parse_constant=_reject_constant, object_pairs_hook=_no_repeats) \
                 if len(data) <= lesson_contract.MAX_BYTES else None
@@ -437,45 +441,74 @@ class LessonStore:
             if item['kind'] == 'packet':
                 for ref in item['document']['modules']:
                     packet_ids.setdefault((ref['id'], ref['version']), []).append(item['id'])
+        stamp = self.clock()
+        for item in fresh:
+            ids = sorted(set(packet_ids.get((item['id'], item['version']), []))) if item['kind'] == 'module' else None
+            item['source'] = source_record(item['kind'], item['id'], item['version'], item['sha256'], item['size'], item['name'], stamp, ids)
         if fresh or pin_change:
-            self._write_import(fresh, packet_ids, new_pins if pin_change else None, pins['revision'])
+            document = {'version': PINS_VERSION, 'revision': pins['revision'] + 1, 'pins': new_pins} if pin_change else None
+            self.write_new(fresh, pins=document)
         return {'imported': [{k: item[k] for k in _SHOWN} for item in plan['items']], 'modules': self.list_modules()}
 
-    def _write_import(self, fresh, packet_ids, new_pins, revision):
-        created_dirs, placed = [], []
+    def write_new(self, fresh, extra_files=(), pins=None):
+        """Place new version folders, then extra files, then the pin file, all or nothing.
+
+        `fresh` holds items with `kind`, `id`, `version`, `data`, and `source`.
+        `extra_files` is a list of (path under the lessons folder, bytes).
+        `pins` is the complete new pin document, or None to leave the pins alone.
+        A failure removes what this call created and restores what it replaced.
+        """
+        created_dirs, placed, replaced = [], [], []
         stage = None
         existed = self.root.exists()
+
+        def ensure(directory):
+            directory = self._safe(directory)
+            if not directory.exists():
+                ensure(directory.parent)
+                directory.mkdir()
+                created_dirs.append(directory)
+
         try:
-            self._safe(self.root).mkdir(parents=True, exist_ok=True)
-            if not existed:
-                created_dirs.append(self.root)
+            ensure(self.root)
             stage = self._safe(self.root / f'.staging-{uuid.uuid4().hex}')
             stage.mkdir()
-            stamp = self.clock()
             for number, item in enumerate(fresh):
                 folder = stage / str(number)
-                body = 'module.json' if item['kind'] == 'module' else 'packet.json'
-                source = {'version': 1, 'kind': item['kind'], 'id': item['id'], 'moduleVersion' if item['kind'] == 'module' else 'packetVersion': item['version'],
-                          'sha256': item['sha256'], 'size': item['size'], 'fileName': item['name'], 'importedAt': stamp}
-                if item['kind'] == 'module':
-                    source['packetIds'] = sorted(set(packet_ids.get((item['id'], item['version']), [])))
-                self._atomic(folder / body, item['data'])
-                self._atomic(folder / 'source.json', _dump(source))
+                self._atomic(folder / ('module.json' if item['kind'] == 'module' else 'packet.json'), item['data'])
+                self._atomic(folder / 'source.json', _dump(item['source']))
             for number, item in enumerate(fresh):
-                group = 'modules' if item['kind'] == 'module' else 'packets'
-                parent = self._safe(self.root / group / item['id'])
-                for ancestor in (self.root / group, parent):
-                    if not ancestor.exists():
-                        ancestor.mkdir()
-                        created_dirs.append(ancestor)
+                parent = self.root / ('modules' if item['kind'] == 'module' else 'packets') / item['id']
+                ensure(parent)
                 target = self._safe(parent / item['version'])
                 (stage / str(number)).rename(target)
                 placed.append(target)
-            if new_pins is not None:
-                self._atomic(self.root / 'pins.json', _dump({'version': PINS_VERSION, 'revision': revision + 1, 'pins': new_pins}))
+            for relative, data in extra_files:
+                path = self._safe(self.root / relative)
+                ensure(path.parent)
+                if path.exists():
+                    replaced.append((path, path.read_bytes()))
+                else:
+                    placed.append(path)
+                self._atomic(path, data)
+            if pins is not None:
+                path = self._safe(self.root / 'pins.json')
+                if path.exists():
+                    replaced.append((path, path.read_bytes()))
+                else:
+                    placed.append(path)
+                self._atomic(path, _dump(pins))
         except BaseException:
+            for path, old in reversed(replaced):
+                try:
+                    self._atomic(path, old)
+                except OSError:
+                    pass
             for target in reversed(placed):
-                shutil.rmtree(target, ignore_errors=True)
+                if target.is_dir():
+                    shutil.rmtree(target, ignore_errors=True)
+                else:
+                    target.unlink(missing_ok=True)
             if stage is not None:
                 shutil.rmtree(stage, ignore_errors=True)
             for directory in reversed(created_dirs):
@@ -485,6 +518,16 @@ class LessonStore:
                     pass
             raise
         shutil.rmtree(stage, ignore_errors=True)
+
+
+def source_record(kind, identifier, version, sha256, size, file_name, imported_at, packet_ids=None):
+    """The `source.json` content for one stored file."""
+    record = {'version': 1, 'kind': kind, 'id': identifier, 'sha256': sha256, 'size': size,
+              'fileName': file_name, 'importedAt': imported_at}
+    record['moduleVersion' if kind == 'module' else 'packetVersion'] = version
+    if kind == 'module':
+        record['packetIds'] = list(packet_ids or [])
+    return record
 
 
 def _problem_code(reason):
