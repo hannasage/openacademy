@@ -61,6 +61,12 @@ class Limits:
     git_timeout: float = 10.0
     git_output_bytes: int = 1_000_000
     git_max_scan: int = 500
+    script_output_bytes: int = 65536
+    script_copy_bytes: int = 20_000_000
+    script_copy_files: int = 2000
+    script_fsize_bytes: int = 16 * 1024 * 1024
+    script_nofile: int = 256
+    script_nproc_headroom: int = 100
 
     def replace(self, **changes):
         return dataclasses.replace(self, **changes)
@@ -424,12 +430,18 @@ def default_registry():
         registry.register(BuiltinAdapter())
         import check_git  # imported here because check_git imports this module
         registry.register(check_git.GitAdapter())
+        import check_script
+        registry.register(check_script.ScriptAdapter())
         _DEFAULT = registry
     return _DEFAULT
 
 
-def run(check, workspace, limits=None, registry=None):
-    """Run one check. Always returns a result. Never raises, and never changes the workspace."""
+def run(check, workspace, limits=None, registry=None, consent=None):
+    """Run one check. Always returns a result. Never raises, and never changes the workspace.
+
+    `consent` is the student's agreement to a script check, as a dict with the `checkHash` that was agreed to.
+    Only an adapter that sets `needs_consent` receives it, and it checks the hash itself.
+    """
     limits = limits or Limits()
     registry = registry or default_registry()
     if not isinstance(check, dict):
@@ -448,6 +460,7 @@ def run(check, workspace, limits=None, registry=None):
     except WorkspaceError as error:
         return workspace_result(error)
     try:
-        return normalize(adapter.run(check, root, limits), limits)
+        raw = adapter.run(check, root, limits, consent=consent) if getattr(adapter, 'needs_consent', False) else adapter.run(check, root, limits)
+        return normalize(raw, limits)
     except Exception as error:  # noqa: BLE001 - an adapter fault must become an error result, with no detail
         return result('error', {'reason': 'adapter_failed'}, [f'The check stopped with an unexpected problem ({type(error).__name__}).'])

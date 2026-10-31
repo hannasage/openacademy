@@ -274,15 +274,16 @@ def _run(session, lessons, payload):
     check = _find_check(lessons, module_id, version, check_id)
     workspace = _usable_workspace(lessons, session)
     digest = check_consent.check_hash(check)
-    tier = 1
+    tier, consent = 1, None
     if check_consent.needs_consent(check):
         tier = 2
-        if session.consents.find(module_id, version, check_id, digest, workspace, consent_id) is None:
+        consent = session.consents.find(module_id, version, check_id, digest, workspace, consent_id)
+        if consent is None:
             raise CheckError('Review this script and agree before it runs.', 'consent_required', 403)
     if not session.run_lock.acquire(blocking=False):
         raise CheckError('Another check is running. Wait for it to finish.', 'busy', 429, retryable=True)
     try:
-        outcome = check_runner.run(check, workspace, session.limits, session.adapters())
+        outcome = check_runner.run(check, workspace, session.limits, session.adapters(), consent=consent)
     finally:
         session.run_lock.release()
     return {'moduleId': module_id, 'version': version, 'checkId': check_id, 'checkHash': digest, 'tier': tier, 'result': outcome}

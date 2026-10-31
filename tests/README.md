@@ -125,6 +125,15 @@ python3 -m unittest -v tests.test_check_git
 
 Each hostile repository names a marker script in its config, in its hooks, and in an included file. A control step first runs a git command that is known to run the script, so an empty marker folder means something. The tests skip when git is not installed.
 
+Script checks (tier 2), the schema version 1.1 fixtures, and the limits:
+
+```sh
+python3 -m unittest -v tests.test_check_script
+node --test tests/lesson-contracts.test.mjs tests/lesson-python-parity.test.mjs
+```
+
+The script tests run real `python3` and `node` scripts. They cover a missing or wrong consent (no process starts, shown with a patched `subprocess`), a changed script, the scratch copy and its caps, a link that leaves the workspace, a clean environment that holds no secret, a timeout that kills a child, an output flood, a child left behind, the file, open-file, and process limits, a limit that cannot be set, and a second run that gets `busy`. Two tests record what a consented script can still do, so the documentation stays true. One test sends a lesson with a script check through the import route, the consent route, the run route, and the lesson backup. The process limit test forks at most 400 short-lived children. The Node tests check that the Python and Node validators agree on the script fixtures.
+
 The check routes, the token, the workspace setting, and consent:
 
 ```sh

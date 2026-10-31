@@ -277,6 +277,29 @@ What the tests did not prove:
 - Objects that a repository reads through `GIT_ALTERNATE_OBJECT_DIRECTORIES` or a replace ref. Schola clears the variable and passes `--no-replace-objects`, but did not build a test for every route.
 - Whether git's own ownership check and Schola's agree on every system. Schola's check compares the owner of the workspace and of the git folder with the current user.
 
+### Script checks
+
+A script check (tier 2) runs `python3` or `node` on a script from the lesson. It needs schema version 1.1. The student must see the script and agree first. Without a valid consent for the exact hash, no process starts. Consent is not isolation. The script can still read the student's files and use the network. It runs with the student's own permissions.
+
+What Schola does to limit a script:
+
+- It copies the workspace into a fresh scratch folder under the temp folder. The copy holds at most 20 MB and 2,000 files. It leaves out `.git` and `node_modules`, linked folders, pipes, sockets, and files with unusual names. A link that points outside the workspace stops the whole run. The script runs in the copy, so a relative path cannot change the real workspace. The scratch folder is deleted afterward, and only if it is the folder Schola made.
+- It writes the script into the copy as `schola_check_script.py` or `schola_check_script.js` and runs the runtime on it, with the arguments, from the copy. There is no shell and no standard input.
+- It gives the script a clean environment: `PATH` (a fixed list of standard folders), `LANG`, and `HOME` (the scratch folder). No other variable of the server's reaches the script.
+- It starts the script in its own process group. After the time limit, or when the combined output passes 64 KB, it kills the whole group. It kills the group again when the script ends, so a child left behind dies too. A child that starts a new session is outside the group and escapes.
+- It sets resource limits through a small launcher that replaces itself with the runtime: CPU time (the time limit plus one second), the largest file (16 MB), open files (256), core dumps (none), and the number of processes. The process limit counts all processes of the user, so Schola sets it to the user's current count plus 100. If a limit cannot be set, the result names it. It is never skipped quietly.
+- It sets no memory limit, because no portable one exists.
+- One script runs at a time. A second request gets `busy`.
+
+The result holds the exit code, the first 500 characters of the output, the output size, the time taken, whether the script timed out, and the limits that were and were not applied.
+
+What was checked, on macOS 15 (Darwin 24) with Python 3.14:
+
+- The limits on open files, file size, and processes were enforced. A script stopped at the file limit, a write past the size limit failed, and a loop that tried to start 400 child processes was stopped before it reached 400. The CPU limit ended a busy loop.
+- The memory limits `RLIMIT_AS` and `RLIMIT_DATA` could not be set. `setrlimit` raised an error. So no memory limit applies on macOS.
+
+What was not checked: Linux (no Linux machine was available, so the limits are untested there), and Windows (the `resource` module does not exist there, so scripts would run with the timeout and the output cap only, and Windows is untested).
+
 ### What the token and the consent protect
 
 They protect the student from hostile lesson content, and from a page on another site. They do not protect the student from a hostile program on the same computer. That program can read the token from the session route and call the consent route with any headers it likes. It already has the student's permissions. Nothing in this design can tell a click from a program.
@@ -289,7 +312,10 @@ These are deliberate choices for this release, not oversights.
 
 - The server supports macOS and Linux. Windows is untested. Schola does not reject Windows reserved names such as `con` or `nul` as lesson IDs.
 - The lesson routes check the Host header, and the Origin header when a browser sends one. A request with no Origin header is accepted. The check routes add a per-launch token.
-- Consent is not isolation. A script that a student agrees to run can still read the student's files and use the network. The token and the consent protect against lesson content, not against another program on the same computer.
+- Consent is not isolation. A script that a student agrees to run can still read the student's files and use the network. It can write to any path the student can write to, if it knows the path. The token and the consent protect against lesson content, not against another program on the same computer.
+- Hidden tests cannot stay hidden. A script check stores its script as text in the lesson file on the student's disk, and the student sees it before they agree. A lesson that needs a secret answer key must check the work elsewhere.
+- Script limits on macOS and Linux only. Windows is untested. On macOS no memory limit applies, because the system refuses one. On Linux the limits are untested.
+- A script that starts a new session escapes the process group kill. The process limit helps, but it counts all processes of the user, so Schola sets it to the user's count plus 100.
 - The server handles one request at a time. While a check runs, other requests wait. The busy answer protects a future server that handles requests at the same time.
 - The pin file is read, changed, and written without a lock file. Do not run two writers at once. Stop the server before you run the command line.
 - The module list reads each stored module on every request. It does not cache.
