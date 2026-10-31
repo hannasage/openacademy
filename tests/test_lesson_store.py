@@ -1,6 +1,9 @@
 """The lesson version store: write-once versions, pins, atomic import, silent preview."""
 import hashlib
 import json
+import os
+import stat
+import time
 from pathlib import Path
 import shutil
 import sys
@@ -285,6 +288,212 @@ class AtomicTests(StoreCase):
         with mock.patch.object(LessonStore, '_atomic', record):
             self.store.import_files(self.files(('c.json', fixture('lesson-module-full.json'))))
         self.assertEqual(order[-1], 'pins.json')
+
+
+class DurabilityTests(StoreCase):
+    def test_atomic_flushes_the_file_and_then_its_folder(self):
+        kinds = []
+        real = os.fsync
+
+        def watch(descriptor):
+            kinds.append('folder' if stat.S_ISDIR(os.fstat(descriptor).st_mode) else 'file')
+            return real(descriptor)
+
+        with mock.patch('os.fsync', watch):
+            self.store._atomic(self.data / '_lessons' / 'x.json', b'{}')
+        self.assertEqual(kinds, ['file', 'folder'])
+
+    def test_a_crash_at_the_rename_keeps_the_old_file_and_leaves_no_temporary_file(self):
+        path = self.data / '_lessons' / 'pins.json'
+        self.store._atomic(path, b'old')
+        with mock.patch('os.replace', side_effect=OSError('power cut')), self.assertRaises(OSError):
+            self.store._atomic(path, b'new bytes')
+        self.assertEqual(path.read_bytes(), b'old')
+        self.assertEqual([p.name for p in path.parent.iterdir()], ['pins.json'])
+
+    def test_every_folder_is_flushed_before_the_pin_file_and_the_lessons_folder_after_it(self):
+        events = []
+        real_sync, real_replace = lesson_store._fsync_dir, os.replace
+
+        def sync(path):
+            events.append(('sync', Path(path)))
+            return real_sync(path)
+
+        def replace(source, target):
+            events.append(('replace', Path(target)))
+            return real_replace(source, target)
+
+        with mock.patch.object(lesson_store, '_fsync_dir', sync), mock.patch('os.replace', replace):
+            self.store.import_files(self.files(('a.json', fixture('lesson-module-minimal.json'))))
+        root = self.data / '_lessons'
+        pin_at = events.index(('replace', root / 'pins.json'))
+        before = {path for kind, path in events[:pin_at] if kind == 'sync'}
+        for needed in (root, root / 'modules', root / 'modules' / 'hello-module', root / 'modules' / 'hello-module' / '1.0.0', self.data):
+            self.assertIn(needed, before, str(needed.relative_to(self.data)))
+        self.assertTrue(any(path.name.startswith('.staging-') for path in before), 'the stage folder')
+        self.assertIn(('sync', root), events[pin_at + 1:])
+
+
+class StaleLeftoverTests(StoreCase):
+    def setUp(self):
+        super().setUp()
+        self.store.import_files(self.files(('a.json', fixture('lesson-module-minimal.json'))))
+        self.root = self.data / '_lessons'
+
+    def age(self, path, seconds):
+        stamp = time.time() - seconds
+        os.utime(path, (stamp, stamp))
+
+    def leftovers(self):
+        old_stage = self.root / '.staging-old'
+        (old_stage / '0').mkdir(parents=True)
+        (old_stage / '0' / 'module.json').write_bytes(b'{}')
+        new_stage = self.root / '.staging-new'
+        new_stage.mkdir()
+        old_tmp = self.root / 'modules' / '.touchline-old.tmp'
+        old_tmp.write_bytes(b'x')
+        new_tmp = self.root / 'modules' / '.touchline-new.tmp'
+        new_tmp.write_bytes(b'x')
+        self.age(old_stage, 7200)
+        self.age(old_tmp, 7200)
+        return old_stage, new_stage, old_tmp, new_tmp
+
+    def test_a_write_removes_only_stale_leftovers(self):
+        old_stage, new_stage, old_tmp, new_tmp = self.leftovers()
+        self.store.import_files(self.files(('c.json', fixture('lesson-module-full.json'))))
+        self.assertFalse(old_stage.exists())
+        self.assertFalse(old_tmp.exists())
+        self.assertTrue(new_stage.exists(), 'a recent staging folder may belong to a writer that is working now')
+        self.assertTrue(new_tmp.exists())
+        self.assertTrue((self.root / 'modules' / 'hello-module' / '1.0.0' / 'module.json').is_file(), 'real files stay')
+
+    def test_a_write_that_changes_nothing_sweeps_nothing_and_a_preview_never_sweeps(self):
+        old_stage, _, old_tmp, _ = self.leftovers()
+        self.store.preview_import(self.files(('c.json', fixture('lesson-module-full.json'))))
+        self.assertTrue(old_stage.exists() and old_tmp.exists())
+
+    def test_the_sweep_never_follows_a_link(self):
+        outside = self.data / 'outside'
+        outside.mkdir()
+        (outside / 'keep.txt').write_bytes(b'x')
+        link = self.root / '.staging-link'
+        link.symlink_to(outside, target_is_directory=True)
+        self.age(link, 7200)
+        self.store.sweep_stale()
+        self.assertTrue((outside / 'keep.txt').exists())
+        self.assertTrue(link.is_symlink())
+
+    def test_a_crash_between_folder_renames_is_harmless_and_a_reimport_finishes_the_job(self):
+        # State after a power cut: the module folder is placed, the pin file is not, a staging folder is left.
+        full = self.files(('c.json', fixture('lesson-module-full.json')))
+        item = self.store.plan_import(full)['items'][0]
+        item['source'] = lesson_store.source_record('module', item['id'], item['version'], item['sha256'], item['size'], 'c.json', FIXED_CLOCK(), [])
+        self.store.write_new([item], pins=None)
+        dead = self.root / '.staging-dead'
+        (dead / '1').mkdir(parents=True)
+        self.age(dead, 7200)
+        listing = self.store.list_modules()
+        self.assertEqual({m['id']: m['pinnedVersion'] for m in listing['modules']}, {'hello-module': '1.0.0', 'full-module': None})
+        result = self.store.import_files(full)
+        self.assertEqual([i['status'] for i in result['imported']], ['already-stored'])
+        self.assertEqual(self.store.pins()['pins']['full-module'], '2.1.0')
+        self.assertFalse(dead.exists())
+        self.assertEqual(self.store.get_module('full-module')['id'], 'full-module')
+
+
+class RollbackReportTests(StoreCase):
+    def setUp(self):
+        super().setUp()
+        self.store.import_files(self.files(('a.json', fixture('lesson-module-minimal.json'))))
+
+    def fresh_item(self):
+        plan = self.store.plan_import(self.files(('c.json', fixture('lesson-module-full.json'))))
+        item = plan['items'][0]
+        item['source'] = lesson_store.source_record('module', item['id'], item['version'], item['sha256'], item['size'], 'c.json', FIXED_CLOCK(), [])
+        return item
+
+    def test_a_failure_after_a_file_was_replaced_puts_the_old_bytes_back(self):
+        pins = self.store.pins()
+        before = tree(self.data)
+        original = LessonStore._atomic
+        extra = [('extra.json', b'old extra')]
+        self.store.write_new([], extra_files=extra)  # the file exists, so the next write replaces it
+        before = tree(self.data)
+
+        failed = []
+
+        def fail_on_pins(store, path, data):
+            if Path(path).name == 'pins.json' and not failed:
+                failed.append(path)
+                raise OSError('disk full')
+            return original(store, path, data)
+
+        with mock.patch.object(LessonStore, '_atomic', fail_on_pins), self.assertRaises(OSError):
+            self.store.write_new([self.fresh_item()], extra_files=[('extra.json', b'new extra')],
+                                 pins={'version': 1, 'revision': pins['revision'] + 1, 'pins': dict(pins['pins'], **{'full-module': '2.1.0'})})
+        self.assertEqual(tree(self.data), before)
+        self.assertEqual((self.data / '_lessons' / 'extra.json').read_bytes(), b'old extra')
+
+    def test_a_rollback_that_cannot_restore_a_file_says_so_and_names_it(self):
+        self.store.write_new([], extra_files=[('extra.json', b'old extra')])
+        original = LessonStore._atomic
+        state = {'failed': False}
+
+        def fail(store, path, data):
+            if Path(path).name == 'pins.json':
+                state['failed'] = True
+                raise OSError('disk full')
+            if state['failed']:
+                raise OSError('still full')
+            return original(store, path, data)
+
+        with mock.patch.object(LessonStore, '_atomic', fail), self.assertRaises(LessonStoreError) as caught:
+            self.store.write_new([], extra_files=[('extra.json', b'new extra')], pins={'version': 1, 'revision': 9, 'pins': {}})
+        self.assertEqual(caught.exception.code, 'rollback_incomplete')
+        self.assertEqual(caught.exception.status, 500)
+        self.assertIn('_lessons/extra.json', str(caught.exception))
+        self.assertIn({'path': '_lessons/extra.json'}, caught.exception.details)
+        self.assertNotIn(str(self.data), str(caught.exception))
+
+    def test_a_rollback_that_cannot_remove_a_placed_folder_says_so(self):
+        original = shutil.rmtree
+
+        def stubborn(path, *args, **kwargs):
+            if Path(path).name == '2.1.0':
+                raise PermissionError('locked')
+            return original(path, *args, **kwargs)
+
+        def fail_pins(store, path, data):
+            if Path(path).name == 'pins.json' and not failed:
+                failed.append(path)
+                raise OSError('disk full')
+            return real(store, path, data)
+
+        failed = []
+
+        real = LessonStore._atomic
+        with mock.patch.object(LessonStore, '_atomic', fail_pins), mock.patch.object(shutil, 'rmtree', stubborn), self.assertRaises(LessonStoreError) as caught:
+            self.store.write_new([self.fresh_item()], pins={'version': 1, 'revision': 5, 'pins': {}})
+        self.assertEqual(caught.exception.code, 'rollback_incomplete')
+        self.assertIn('_lessons/modules/full-module/2.1.0', str(caught.exception))
+
+
+class MissingDataFolderTests(unittest.TestCase):
+    def test_import_creates_a_data_folder_that_does_not_exist_yet(self):
+        with tempfile.TemporaryDirectory() as temp:
+            data = Path(temp) / 'fresh-data'
+            store = LessonStore(data, clock=FIXED_CLOCK)
+            store.import_files([('a.json', fixture('lesson-module-minimal.json'))])
+            self.assertEqual(store.pins()['pins'], {'hello-module': '1.0.0'})
+            self.assertTrue((data / '_lessons' / 'modules' / 'hello-module' / '1.0.0' / 'module.json').is_file())
+
+    def test_a_failed_import_into_a_missing_data_folder_removes_what_it_made(self):
+        with tempfile.TemporaryDirectory() as temp:
+            data = Path(temp) / 'fresh-data'
+            store = LessonStore(data, clock=FIXED_CLOCK)
+            with mock.patch.object(LessonStore, '_atomic', side_effect=OSError('nope')), self.assertRaises(OSError):
+                store.import_files([('a.json', fixture('lesson-module-minimal.json'))])
+            self.assertFalse(data.exists())
 
 
 class PinTests(StoreCase):

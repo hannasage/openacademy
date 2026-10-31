@@ -23,11 +23,20 @@ back every derived file this run replaced.
 
 Existing curricula get ids only. No lesson module document is built for them.
 
-`restore_originals` is the way back. It checks every snapshot first, and then,
-only when the caller passes `confirm=True`, writes saved bytes over a live file
-that is missing or different. It never deletes a file. Before it replaces a
-live file with different bytes it keeps those bytes under
-`snapshots/s03-replaced/`, so work done after the migration is not lost.
+`restore_originals` is the way back, and the only code in the lesson files
+allowed to overwrite an original record. It checks every snapshot first, and
+then, only when the caller passes `confirm=True`, writes saved bytes over a
+live file that is missing or different. It refuses a live record that is newer
+than its snapshot unless `force=True`. It never deletes a file, and it is all
+or nothing. Before it replaces a live file with different bytes it keeps those
+bytes under `snapshots/s03-replaced/`, so work done after the migration is not
+lost.
+
+Derived progress is refreshed only when `refresh_progress` runs (the command
+line `refresh`) or the migrate route runs. Saving a record does not refresh it,
+so a progress file can lag behind its record until the next refresh. The record
+file is always the source of truth. Run the command line only while the server
+is stopped: the pin file is read, changed, and written without a lock.
 """
 import copy
 import hashlib
@@ -37,7 +46,7 @@ import re
 import sys
 
 import lesson_map
-from lesson_store import LessonStore, LessonStoreError, _dump
+from lesson_store import LessonStore, LessonStoreError, _dump, _fsync_dir, rollback_incomplete
 from local_store import StoreError, uuid_text
 
 MARKER = 'migrated.json'
@@ -81,6 +90,7 @@ class _Writes:
         for directory in reversed(missing):
             self.lessons._safe(directory).mkdir()
             self.created.append(directory)
+            _fsync_dir(directory.parent)
 
     def put(self, path, data):
         path = self.lessons._safe(path)
@@ -92,19 +102,25 @@ class _Writes:
         self.lessons._atomic(path, data)
 
     def undo(self):
+        """Put back every replaced file and remove every created one. A step that fails is reported, not hidden."""
+        problems = []
         for path, old in reversed(self.replaced):
             try:
                 self.lessons._atomic(path, old)
             except OSError:
-                pass
+                problems.append(path)
         for path in reversed(self.created):
             try:
                 if path.is_dir() and not path.is_symlink():
                     path.rmdir()
                 elif path.exists():
                     path.unlink()
-            except OSError:
+            except FileNotFoundError:
                 pass
+            except OSError:
+                problems.append(path)
+        if problems:
+            raise rollback_incomplete(self.lessons.data, problems)
 
 
 # ---------------------------------------------------------------------------
@@ -166,7 +182,7 @@ def _read_maps(lessons):
 
 
 def _build_maps(maps, records):
-    """Return (all maps, results by record id). Existing maps are frozen and kept as they are."""
+    """Return (all maps, results by record id). An id already in a map never changes. A module added later is added to the map."""
     maps = dict(maps)
     mapped = {}
     for record, _ in records:
@@ -217,7 +233,7 @@ def _plan_derived(lessons, records, maps):
     all_maps, mapped = _build_maps(maps, records)
     writes = []
     for course_id in sorted(all_maps):
-        if course_id not in maps:
+        if all_maps[course_id] != maps.get(course_id):
             writes.append((lessons.root / 'map' / f'{course_id}.json', _dump(all_maps[course_id])))
     for record, _ in records:
         uuid_text(record['recordId'], 'recordId')
@@ -299,6 +315,7 @@ def migrate(lessons, local):
         _read_marker(lessons)
         return {'status': 'already-migrated'}
     records = _all_records(local)  # checks every original; writes nothing
+    lessons.sweep_stale()
     curricula = _curricula_files(local)
     maps = _read_maps(lessons)
     stamp = lessons.clock()
@@ -360,11 +377,39 @@ def read_progress(lessons, record_id, lesson_id):
     return lessons._read_json(path) if lessons._safe(path).is_file() else None
 
 
-def restore_originals(lessons, local, confirm=False):
+def _revision_of(name, text):
+    """The revision stored in an original file's bytes, or None when the bytes are not a record or a state."""
+    try:
+        value = json.loads(text.decode('utf-8'))
+    except (ValueError, UnicodeError, RecursionError):
+        return None
+    if name == 'record.json':
+        value = value.get('state') if isinstance(value, dict) else None
+    elif name != 'state.json':
+        return None
+    revision = value.get('revision') if isinstance(value, dict) else None
+    return revision if type(revision) is int else None
+
+
+def restore_originals(lessons, local, confirm=False, force=False):
     """Put the snapshot bytes back over live originals that are missing or different.
 
-    Checks every snapshot before writing. Writes nothing unless `confirm` is True.
-    Never deletes. Live bytes that differ are kept under `snapshots/s03-replaced/` first.
+    This is the one code path in the lesson code that may overwrite an original
+    record file. It exists for one purpose: to undo the migration. It needs
+    `confirm=True`.
+
+    It checks every snapshot first. A snapshot that is unfinished, has a stray
+    entry, or does not match its digest stops the restore before any write.
+    Entries whose names start with a dot, such as `.DS_Store`, are ignored.
+
+    A live record or state file whose revision is newer than the snapshot holds
+    work saved after the migration. The restore refuses to replace it
+    (`newer_than_snapshot`) unless `force=True`. The restore writes nothing then.
+
+    It never deletes a file. Live bytes that differ are kept under
+    `snapshots/s03-replaced/` first. The restore is all or nothing. When a write
+    fails, it puts back every original it had replaced. If that also fails, it
+    raises `partial_restore` with the files that stay replaced.
     """
     if confirm is not True:
         raise LessonStoreError('Confirm the restore before any original is replaced.', 'confirmation_required', 400, field='confirm')
@@ -372,6 +417,8 @@ def restore_originals(lessons, local, confirm=False):
     manifests = []
     if group.is_dir():
         for folder in sorted(group.iterdir()):
+            if folder.name.startswith('.'):
+                continue
             try:
                 uuid_text(folder.name, 'recordId')
             except StoreError:
@@ -382,27 +429,49 @@ def restore_originals(lessons, local, confirm=False):
             _verify_snapshot(lessons, manifest)
             manifests.append(manifest)
     stamp = lessons.clock()
+    steps, unchanged, newer = [], 0, []
+    for manifest in manifests:
+        folder = _snapshot_folder(lessons, manifest['recordId'])
+        for item in manifest['files']:
+            live = local._safe(local.root / item['path'])
+            saved = lessons._read_bytes(folder / item['name'])
+            current = live.read_bytes() if live.is_file() else None
+            if current == saved:
+                unchanged += 1
+                continue
+            if current is not None and not force:
+                live_revision, saved_revision = _revision_of(item['name'], current), _revision_of(item['name'], saved)
+                if live_revision is not None and saved_revision is not None and live_revision > saved_revision:
+                    newer.append(item['path'])
+            steps.append((manifest['recordId'], item, live, saved, current))
+    if newer:
+        raise LessonStoreError('These files hold work saved after the migration. Nothing was restored. Export your progress first, then use the force option only if you want to replace them: ' + ', '.join(newer),
+                               'newer_than_snapshot', 409, details=[{'path': path} for path in newer])
     writes = _Writes(lessons)
-    restored, unchanged = [], 0
+    done = []
     try:
-        for manifest in manifests:
-            folder = _snapshot_folder(lessons, manifest['recordId'])
-            for item in manifest['files']:
-                live = local._safe(local.root / item['path'])
-                saved = lessons._read_bytes(folder / item['name'])
-                if live.is_file() and live.read_bytes() == saved:
-                    unchanged += 1
-                    continue
-                if live.is_file():
-                    kept = lessons.root / REPLACED_GROUP / manifest['recordId'] / f"{item['name']}.{_sha(live.read_bytes())[:12]}"
-                    if not lessons._safe(kept).exists():
-                        writes.put(kept, live.read_bytes())
-                lessons._atomic(live, saved)
-                restored.append(item['path'])
+        for record_id, item, live, saved, current in steps:
+            if current is not None:
+                kept = lessons.root / REPLACED_GROUP / record_id / f"{item['name']}.{_sha(current)[:12]}"
+                if not lessons._safe(kept).exists():
+                    writes.put(kept, current)
+            lessons._atomic(live, saved)
+            done.append((live, current, item['path']))
     except BaseException:
-        # Live originals already replaced stay replaced. Their old bytes are kept under the replaced folder.
+        still = []
+        for live, current, path in reversed(done):
+            try:
+                if current is None:
+                    live.unlink(missing_ok=True)
+                else:
+                    lessons._atomic(live, current)
+            except OSError:
+                still.append(path)
+        if still:
+            raise LessonStoreError('The restore failed part way and could not undo itself. These files were already restored: ' + ', '.join(still),
+                                   'partial_restore', 500, details=[{'path': path} for path in still]) from None
         raise
-    return {'status': 'restored' if restored else 'unchanged', 'restored': restored, 'unchanged': unchanged, 'at': stamp}
+    return {'status': 'restored' if done else 'unchanged', 'restored': [path for _, _, path in done], 'unchanged': unchanged, 'at': stamp}
 
 
 def main(argv=None):
@@ -413,6 +482,7 @@ def main(argv=None):
     parser.add_argument('command', choices=('migrate', 'refresh', 'restore'))
     parser.add_argument('--data-dir', type=Path, required=True)
     parser.add_argument('--confirm', action='store_true', help='Needed for restore.')
+    parser.add_argument('--force', action='store_true', help='Restore over records saved after the migration. Their old bytes are kept.')
     args = parser.parse_args(argv)
     local = LocalStore(args.data_dir, json.loads((ROOT / 'curriculum.json').read_text()), validate_curriculum, validate, initial)
     lessons = LessonStore(args.data_dir)
@@ -422,7 +492,7 @@ def main(argv=None):
         elif args.command == 'refresh':
             result = refresh_progress(lessons, local)
         else:
-            result = restore_originals(lessons, local, args.confirm)
+            result = restore_originals(lessons, local, args.confirm, args.force)
     except StoreError as error:
         print(json.dumps(error.payload()), file=sys.stderr)
         return 1

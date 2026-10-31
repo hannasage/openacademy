@@ -37,6 +37,7 @@ from pathlib import Path
 import re
 import shutil
 import tempfile
+import time
 import uuid
 
 import lesson_contract
@@ -46,6 +47,7 @@ LESSONS_DIRECTORY = '_lessons'
 PINS_VERSION = 1
 MAX_FILES = 2000
 MAX_FILE_NAME = 120
+STALE_SECONDS = 3600
 
 _ID = re.compile(r'[a-z0-9][a-z0-9-]{0,59}', re.ASCII)
 _VERSION = re.compile(r'(?:0|[1-9][0-9]{0,8})\.(?:0|[1-9][0-9]{0,8})\.(?:0|[1-9][0-9]{0,8})', re.ASCII)
@@ -98,6 +100,20 @@ def clean_file_name(name):
     return _CONTROL.sub('', base).strip()[:MAX_FILE_NAME]
 
 
+def _fsync_dir(path):
+    """Flush the entries of one folder to disk, so a rename or a new file survives a crash.
+
+    macOS and Linux are supported. Windows cannot open a folder this way and is untested.
+    """
+    if os.name == 'nt':
+        return
+    descriptor = os.open(path, os.O_RDONLY | getattr(os, 'O_DIRECTORY', 0))
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
 def _utc_now():
     return datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
 
@@ -141,7 +157,10 @@ class LessonStore:
             raise LessonStoreError('A saved lesson file is damaged. The file was preserved.', 'corrupt_file', 500) from error
 
     def _atomic(self, path, data):
-        """Write a file with a temporary file, a flush, fsync, and a rename."""
+        """Write a file with a temporary file, a flush, fsync, a rename, and a fsync of its folder.
+
+        A crash leaves either the old file or the new one, never a mix.
+        """
         path = self._safe(path)
         self._safe(path.parent).mkdir(parents=True, exist_ok=True)
         temp = None
@@ -152,10 +171,36 @@ class LessonStore:
                 file.flush()
                 os.fsync(file.fileno())
             self._safe(path)
-            temp.replace(path)
+            os.replace(temp, path)
+            _fsync_dir(path.parent)
         finally:
             if temp is not None and temp.exists():
                 temp.unlink()
+
+    def sweep_stale(self, now=None):
+        """Remove leftovers of a crashed write: `.staging-*` folders and `.touchline-*.tmp` files.
+
+        Only entries older than an hour go, so a writer that is working now is safe.
+        Returns the removed paths. Symbolic links are never followed or removed.
+        """
+        if not self.exists():
+            return []
+        now = time.time() if now is None else now
+        removed = []
+        for current, folders, files in os.walk(self.root):
+            current = Path(current)
+            for name in list(folders):
+                path = current / name
+                if current == self.root and name.startswith('.staging-') and not path.is_symlink() and now - path.stat().st_mtime > STALE_SECONDS:
+                    shutil.rmtree(path)
+                    removed.append(path)
+                    folders.remove(name)
+            for name in files:
+                path = current / name
+                if name.startswith('.touchline-') and name.endswith('.tmp') and not path.is_symlink() and now - path.stat().st_mtime > STALE_SECONDS:
+                    path.unlink()
+                    removed.append(path)
+        return removed
 
     def _module_dir(self, module_id, version):
         return self._safe(self.root / 'modules' / module_id / version)
@@ -485,14 +530,24 @@ class LessonStore:
         """
         created_dirs, placed, replaced = [], [], []
         stage = None
-        existed = self.root.exists()
+        self.sweep_stale()
 
         def ensure(directory):
             directory = self._safe(directory)
-            if not directory.exists():
+            if directory.exists():
+                return
+            if directory != self.data:
                 ensure(directory.parent)
-                directory.mkdir()
-                created_dirs.append(directory)
+            directory.mkdir(parents=directory == self.data)
+            created_dirs.append(directory)
+
+        def flush_folders(extra):
+            done = set()
+            for folder in [*extra, *created_dirs, *(p for p in placed if p.is_dir())]:
+                for each in (folder, folder.parent):
+                    if each not in done and each.is_dir() and self.data in (each, *each.parents):
+                        done.add(each)
+                        _fsync_dir(each)
 
         try:
             ensure(self.root)
@@ -516,33 +571,56 @@ class LessonStore:
                 else:
                     placed.append(path)
                 self._atomic(path, data)
+            # Everything the pin file points at must be on disk before the pin file is written.
+            flush_folders([stage, self.root])
             if pins is not None:
                 path = self._safe(self.root / 'pins.json')
                 if path.exists():
                     replaced.append((path, path.read_bytes()))
                 else:
                     placed.append(path)
-                self._atomic(path, _dump(pins))
-        except BaseException:
-            for path, old in reversed(replaced):
+                self._atomic(path, _dump(pins))  # _atomic flushes `_lessons/` after the rename
+        except BaseException as failure:
+            problems = []
+
+            def attempt(action, path):
                 try:
-                    self._atomic(path, old)
-                except OSError:
+                    action()
+                except FileNotFoundError:
                     pass
+                except OSError:
+                    problems.append(path)
+
+            for path, old in reversed(replaced):
+                attempt(lambda path=path, old=old: self._atomic(path, old), path)
             for target in reversed(placed):
                 if target.is_dir():
-                    shutil.rmtree(target, ignore_errors=True)
+                    attempt(lambda target=target: shutil.rmtree(target), target)
                 else:
-                    target.unlink(missing_ok=True)
+                    attempt(lambda target=target: target.unlink(missing_ok=True), target)
             if stage is not None:
-                shutil.rmtree(stage, ignore_errors=True)
+                attempt(lambda: shutil.rmtree(stage), stage)
             for directory in reversed(created_dirs):
-                try:
-                    directory.rmdir()
-                except OSError:
-                    pass
+                attempt(directory.rmdir, directory)
+            if problems:
+                raise rollback_incomplete(self.data, problems) from failure
             raise
-        shutil.rmtree(stage, ignore_errors=True)
+        try:
+            shutil.rmtree(stage)
+        except OSError:
+            pass  # The import is complete. An empty staging folder is harmless and the next write sweeps it.
+
+
+def rollback_incomplete(data, paths):
+    """The error for a failed write that could not be fully undone. It names the paths, relative to the data folder."""
+    names = []
+    for path in paths:
+        try:
+            names.append(str(Path(path).relative_to(data)))
+        except ValueError:
+            names.append(str(path))
+    return LessonStoreError('A write failed and Schola could not fully undo it. Check these paths before you try again: ' + ', '.join(names),
+                            'rollback_incomplete', 500, details=[{'path': name} for name in names])
 
 
 def source_record(kind, identifier, version, sha256, size, file_name, imported_at, packet_ids=None):

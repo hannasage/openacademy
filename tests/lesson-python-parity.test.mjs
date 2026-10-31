@@ -105,6 +105,27 @@ test('the two validators agree on unreadable and oversized files', async () => {
   }
 });
 
+test('the two validators both refuse a file that is not valid UTF-8', async () => {
+  const folder = await mkdtemp(path.join(tmpdir(), 'schola-lesson-utf8-'));
+  try {
+    const good = await readFile(path.join(fixtureRoot, 'valid', 'lesson-module-minimal.json'));
+    const broken = Buffer.from(good.toString('latin1').replace('A minimal lesson module', 'A minimal \xff lesson module'), 'latin1');
+    const withBom = Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), good]);
+    const cases = [['good', good], ['bad byte in a valid document', broken], ['byte order mark', withBom]];
+    const files = [];
+    for (const [label, bytes] of cases) {
+      const file = path.join(folder, `${label.replaceAll(' ', '-')}.json`);
+      await writeFile(file, bytes);
+      files.push([label, file]);
+    }
+    const results = runJobs(files.map(([, file]) => ({ kind: 'lesson-module', file })));
+    for (const [index, [label, file]] of files.entries()) assertSame(results[index], await validateLessonFile('lesson-module', file), label);
+    assert.deepEqual(results.map((result) => result.ok), [true, false, false]);
+  } finally {
+    await rm(folder, { recursive: true, force: true });
+  }
+});
+
 const fixtureDocument = async (file) => JSON.parse(await readFile(path.join(fixtureRoot, file), 'utf8'));
 
 test('the two validators agree on hand-made edge cases', async () => {

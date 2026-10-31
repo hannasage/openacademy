@@ -36,7 +36,7 @@ import re
 
 import lesson_contract
 from lesson_store import (
-    LessonStoreError, PINS_VERSION, module_facts, _VERSION, _dump, _no_repeats, _reject_constant, source_record, version_key,
+    LessonStoreError, PINS_VERSION, clean_file_name, module_facts, _VERSION, _dump, _no_repeats, _reject_constant, source_record, version_key,
 )
 from local_store import MAX_REVISION
 
@@ -127,6 +127,22 @@ def help_file_bytes(module_id, revision, records):
 # Export
 # ---------------------------------------------------------------------------
 
+def _stored_source(source, module=False):
+    """The facts of a stored source.json that a backup carries. A file with a missing or odd key is damage, not a crash."""
+    try:
+        if (not isinstance(source, dict) or not isinstance(source['fileName'], str) or not isinstance(source['importedAt'], str)):
+            raise ValueError()
+        found = {'fileName': source['fileName'], 'importedAt': source['importedAt']}
+        if module:
+            packets = source.get('packetIds', [])
+            if not isinstance(packets, list):
+                raise ValueError()
+            found['packetIds'] = list(packets)
+    except (KeyError, ValueError):
+        raise LessonStoreError('A saved lesson source record is damaged. The file was preserved.', 'corrupt_file', 500) from None
+    return found
+
+
 def export_backup(lessons, clock=_now):
     """Read everything stored and return the backup as a plain dict. Writes nothing."""
     modules, packets = [], []
@@ -135,14 +151,13 @@ def export_backup(lessons, clock=_now):
             data = lessons.module_bytes(module_id, version)
             source = lessons.source('module', module_id, version)
             modules.append({'id': module_id, 'version': version, 'sha256': _sha(data), 'text': data.decode('utf-8'),
-                            'source': {'fileName': source['fileName'], 'importedAt': source['importedAt'],
-                                       'packetIds': list(source.get('packetIds', []))}})
+                            'source': _stored_source(source, module=True)})
     for packet_id in lessons.packet_ids():
         for version in sorted(lessons._children(lessons.root / 'packets' / packet_id, _VERSION), key=version_key):
             data = lessons._stored_bytes(lessons._packet_dir(packet_id, version), 'packet.json')
             source = lessons.source('packet', packet_id, version)
             packets.append({'id': packet_id, 'version': version, 'sha256': _sha(data), 'text': data.decode('utf-8'),
-                            'source': {'fileName': source['fileName'], 'importedAt': source['importedAt']}})
+                            'source': _stored_source(source)})
     pins = lessons.pins()
     help_groups = []
     for module_id in help_module_ids(lessons):
@@ -236,7 +251,7 @@ def plan_restore(lessons, source):
                 source_data = entry['source']
                 fresh.append({'kind': kind, 'id': entry['id'], 'version': entry['version'], 'data': data, 'title': parsed['title'],
                               'source': source_record(kind, entry['id'], entry['version'], entry['sha256'], len(data),
-                                                      source_data['fileName'], source_data['importedAt'],
+                                                      clean_file_name(source_data['fileName']) or 'lesson.json', source_data['importedAt'],
                                                       source_data.get('packetIds') if kind == 'module' else None)})
     if problems:
         return {'problems': problems}

@@ -301,6 +301,18 @@ class FileTests(unittest.TestCase):
         path.write_bytes(b'{"title": "\xff\xfe"}')
         self.assertEqual(lc.validate_lesson_file('packet', path)['reason'], 'invalid')
 
+    def test_bytes_that_are_not_utf8_are_invalid_and_never_repaired(self):
+        good_bytes = (FIXTURES / 'valid' / 'lesson-module-minimal.json').read_bytes()
+        broken = good_bytes.replace(b'"A minimal lesson module"', b'"A minimal \xff lesson module"')
+        self.assertNotEqual(broken, good_bytes)
+        self.assertEqual(lc.validate_lesson_text('lesson-module', good_bytes), {'ok': True})
+        result = lc.validate_lesson_text('lesson-module', broken)
+        self.assertEqual(result['reason'], 'invalid')
+        self.assertIn('UTF-8', result['errors'][0]['message'])
+        path = self.folder / 'bad-title.json'
+        path.write_bytes(broken)
+        self.assertEqual(lc.validate_lesson_file('lesson-module', path)['reason'], 'invalid')
+
     def test_a_string_path_and_a_path_object_both_work(self):
         path = FIXTURES / 'valid' / 'packet-one-module.json'
         self.assertEqual(lc.validate_lesson_file('packet', str(path)), {'ok': True})
@@ -727,6 +739,38 @@ class UnsupportedFeatureTests(unittest.TestCase):
         schema_path.write_text(json.dumps(schema), encoding='utf-8')
         with self.assertRaises(lc.UnsupportedKeywordError):
             lc.load_contract_registry(folder)
+
+    def contract_folder(self):
+        folder = Path(tempfile.mkdtemp(prefix='schola-lesson-schemas-'))
+        self.addCleanup(shutil.rmtree, folder, True)
+        for source in (ROOT / 'contracts').glob('*.schema.json'):
+            shutil.copy(source, folder / source.name)
+        return folder
+
+    def test_a_schema_file_that_cannot_be_read_stops_loading(self):
+        folder = self.contract_folder()
+        (folder / 'zz-broken.schema.json').write_text('{"$id": ', encoding='utf-8')
+        with self.assertRaises(lc.SchemaError):
+            lc.load_contract_registry(folder)
+
+    def test_a_schema_file_without_an_id_stops_loading(self):
+        folder = self.contract_folder()
+        (folder / 'zz-noid.schema.json').write_text('{"type": "object"}', encoding='utf-8')
+        with self.assertRaises(lc.SchemaError):
+            lc.load_contract_registry(folder)
+        (folder / 'zz-noid.schema.json').write_text('[1]', encoding='utf-8')
+        with self.assertRaises(lc.SchemaError):
+            lc.load_contract_registry(folder)
+
+    def test_two_schema_files_with_one_id_stop_loading(self):
+        folder = self.contract_folder()
+        shutil.copy(folder / 'packet.v1.schema.json', folder / 'zz-copy.schema.json')
+        with self.assertRaises(lc.SchemaError) as caught:
+            lc.load_contract_registry(folder)
+        self.assertIn('more than one', str(caught.exception))
+
+    def test_the_real_contract_folder_still_loads(self):
+        self.assertIsNotNone(lc.load_contract_registry(self.contract_folder()))
 
 
 if __name__ == '__main__':

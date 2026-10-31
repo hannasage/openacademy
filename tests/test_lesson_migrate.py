@@ -323,6 +323,229 @@ class CurrentLayoutTests(MigrateCase):
             self.assertEqual(lesson_migrate.main(['restore', '--data-dir', str(self.data)]), 1)
 
 
+class RestoreSafetyTests(MigrateCase):
+    def setUp(self):
+        super().setUp()
+        lesson_migrate.migrate(self.lessons, self.local)
+        self.record_path = self.data / 'records' / SOCCER / 'record.json'
+        self.snapshots = self.data / '_lessons' / 'snapshots' / 's03'
+
+    def save_later_work(self):
+        record = self.local.get_record(SOCCER)
+        record['state']['modules']['m03'] = {'status': 'active', 'tasks': [True, False, False, False], 'notes': 'later work', 'evidence': '', 'hours': 1}
+        self.local.save_record(SOCCER, record['state']['revision'], record)
+
+    def test_a_record_saved_after_the_snapshot_is_not_overwritten_without_force(self):
+        self.save_later_work()
+        before = tree(self.data)
+        with self.assertRaises(LessonStoreError) as caught:
+            lesson_migrate.restore_originals(self.lessons, self.local, confirm=True)
+        self.assertEqual((caught.exception.code, caught.exception.status), ('newer_than_snapshot', 409))
+        self.assertEqual(caught.exception.details, [{'path': f'records/{SOCCER}/record.json'}])
+        self.assertEqual(tree(self.data), before)
+
+    def test_force_replaces_a_newer_record_and_keeps_its_bytes(self):
+        self.save_later_work()
+        later = self.record_path.read_bytes()
+        snapshot = (self.snapshots / SOCCER / 'record.json').read_bytes()
+        result = lesson_migrate.restore_originals(self.lessons, self.local, confirm=True, force=True)
+        self.assertEqual(result['restored'], [f'records/{SOCCER}/record.json'])
+        self.assertEqual(self.record_path.read_bytes(), snapshot)
+        kept = list((self.data / '_lessons' / 'snapshots' / 's03-replaced' / SOCCER).glob('record.json.*'))
+        self.assertEqual([k.read_bytes() for k in kept], [later])
+
+    def test_force_is_a_separate_flag_on_the_command_line(self):
+        self.save_later_work()
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            self.assertEqual(lesson_migrate.main(['restore', '--confirm', '--data-dir', str(self.data)]), 1)
+        self.assertIn('newer_than_snapshot', err.getvalue())
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(lesson_migrate.main(['restore', '--confirm', '--force', '--data-dir', str(self.data)]), 0)
+
+    def test_a_state_file_with_a_newer_revision_is_also_protected(self):
+        legacy = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, legacy, True)
+        data = legacy / 'data'
+        shutil.copytree(GOLDEN / 'legacy-layout', data)
+        lessons, local = LessonStore(data, clock=CLOCK), LocalStore(data, built_in(), validate_curriculum, validate, initial)
+        lesson_migrate.migrate(lessons, local)
+        manifest = json.loads(next((data / '_lessons' / 'snapshots' / 's03').glob('*/manifest.json')).read_text())
+        item = next(f for f in manifest['files'] if f['name'] == 'state.json')
+        live = data / item['path']
+        state = json.loads(live.read_text())
+        state['revision'] = state['revision'] + 5
+        live.write_text(json.dumps(state))
+        with self.assertRaises(LessonStoreError) as caught:
+            lesson_migrate.restore_originals(lessons, local, confirm=True)
+        self.assertEqual(caught.exception.code, 'newer_than_snapshot')
+        self.assertIn(item['path'], [d['path'] for d in caught.exception.details])
+
+    def test_dot_entries_in_the_snapshot_folder_are_ignored(self):
+        (self.snapshots / '.DS_Store').write_bytes(b'junk')
+        self.record_path.write_bytes(b'x')
+        self.assertEqual(lesson_migrate.restore_originals(self.lessons, self.local, confirm=True)['status'], 'restored')
+
+    def test_other_strays_in_the_snapshot_folder_still_stop_the_restore(self):
+        (self.snapshots / 'stray.txt').write_bytes(b'junk')
+        with self.assertRaises(LessonStoreError) as caught:
+            lesson_migrate.restore_originals(self.lessons, self.local, confirm=True)
+        self.assertEqual(caught.exception.code, 'corrupt_file')
+
+    def test_an_unfinished_snapshot_stops_the_restore_with_an_error(self):
+        self.record_path.write_bytes(b'x')
+        (self.snapshots / SOCCER / 'manifest.json').unlink()
+        before = tree(self.data)
+        with self.assertRaises(LessonStoreError) as caught:
+            lesson_migrate.restore_originals(self.lessons, self.local, confirm=True)
+        self.assertEqual(caught.exception.code, 'corrupt_file')
+        self.assertIn('unfinished', str(caught.exception))
+        self.assertEqual(tree(self.data), before)
+
+    def damaged_second_file(self):
+        """A second original is missing, so the restore has two files to put back."""
+        legacy = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, legacy, True)
+        data = legacy / 'data'
+        shutil.copytree(GOLDEN / 'legacy-layout', data)
+        lessons, local = LessonStore(data, clock=CLOCK), LocalStore(data, built_in(), validate_curriculum, validate, initial)
+        lesson_migrate.migrate(lessons, local)
+        files = []
+        for manifest in sorted((data / '_lessons' / 'snapshots' / 's03').glob('*/manifest.json')):
+            files += [data / f['path'] for f in json.loads(manifest.read_text())['files']]
+        for path in files:
+            path.write_bytes(b'{"damaged": true}')
+        return data, lessons, local, sorted(files)
+
+    def test_a_failure_part_way_puts_back_every_original_it_had_replaced(self):
+        data, lessons, local, files = self.damaged_second_file()
+        before = tree(data)
+        real = LessonStore._atomic
+        count = {'n': 0}
+
+        def fail_on_second_original(store, path, content):
+            if not str(path).startswith(str(data / '_lessons')):
+                count['n'] += 1
+                if count['n'] == 2:
+                    raise OSError('disk full')
+            return real(store, path, content)
+
+        self.assertGreaterEqual(len(files), 2)
+        with mock.patch.object(LessonStore, '_atomic', fail_on_second_original), self.assertRaises(OSError):
+            lesson_migrate.restore_originals(lessons, local, confirm=True)
+        after = tree(data)
+        originals = {k: v for k, v in after.items() if not k.startswith('_lessons')}
+        self.assertEqual(originals, {k: v for k, v in before.items() if not k.startswith('_lessons')})
+
+    def test_an_undo_that_fails_raises_partial_restore_with_the_files_already_restored(self):
+        data, lessons, local, files = self.damaged_second_file()
+        real = LessonStore._atomic
+        state = {'originals': 0, 'broken': False}
+
+        def break_after_first(store, path, content):
+            if not str(path).startswith(str(data / '_lessons')):
+                if state['broken']:
+                    raise OSError('gone')
+                state['originals'] += 1
+                if state['originals'] == 2:
+                    state['broken'] = True
+                    raise OSError('disk full')
+            return real(store, path, content)
+
+        with mock.patch.object(LessonStore, '_atomic', break_after_first), self.assertRaises(LessonStoreError) as caught:
+            lesson_migrate.restore_originals(lessons, local, confirm=True)
+        self.assertEqual((caught.exception.code, caught.exception.status), ('partial_restore', 500))
+        self.assertEqual(len(caught.exception.details), 1)
+        self.assertTrue((data / caught.exception.details[0]['path']).exists())
+
+
+class FrozenMapGrowthTests(MigrateCase):
+    def test_a_module_added_to_the_curriculum_is_added_to_the_map(self):
+        lesson_migrate.migrate(self.lessons, self.local)
+        record = self.local.get_record(SOCCER)
+        extra = copy.deepcopy(record['curriculum']['modules'][-1])
+        extra['id'] = 'm14'
+        extra['title'] = 'A module added later'
+        record['curriculum']['modules'].append(extra)
+        self.local.save_record(SOCCER, record['state']['revision'], record)
+        path = self.data / '_lessons' / 'map' / 'soccer-ml.json'
+        old = json.loads(path.read_text())
+        result = lesson_migrate.refresh_progress(self.lessons, self.local)
+        grown = json.loads(path.read_text())
+        self.assertEqual(grown['modules']['m14'], 'soccer-ml-m14')
+        self.assertEqual({k: v for k, v in grown['modules'].items() if k != 'm14'}, old['modules'], 'ids already in the map never change')
+        self.assertTrue((self.data / '_lessons' / 'progress' / SOCCER / 'soccer-ml-m14.json').is_file())
+        self.assertEqual(result['status'], 'refreshed')
+        self.assertEqual(lesson_migrate.refresh_progress(self.lessons, self.local)['status'], 'current')
+
+
+class RollbackHonestyTests(MigrateCase):
+    def test_a_failed_refresh_puts_back_the_progress_files_it_had_replaced(self):
+        lesson_migrate.migrate(self.lessons, self.local)
+        record = self.local.get_record(SOCCER)
+        for module in ('m03', 'm04'):
+            record['state']['modules'][module] = {'status': 'active', 'tasks': [True, False, False, False], 'notes': module, 'evidence': '', 'hours': 1}
+        self.local.save_record(SOCCER, record['state']['revision'], record)
+        before = tree(self.data)
+        real = LessonStore._atomic
+        count = {'n': 0}
+
+        def fail_late(store, path, data):
+            count['n'] += 1
+            if count['n'] == 3:
+                raise OSError('disk full')
+            return real(store, path, data)
+
+        with mock.patch.object(LessonStore, '_atomic', fail_late), self.assertRaises(OSError):
+            lesson_migrate.refresh_progress(self.lessons, self.local)
+        self.assertGreaterEqual(count['n'], 3)
+        self.assertEqual(tree(self.data), before)
+
+    def test_an_undo_that_cannot_finish_is_reported_with_the_paths(self):
+        lesson_migrate.migrate(self.lessons, self.local)
+        record = self.local.get_record(SOCCER)
+        record['state']['modules']['m03'] = {'status': 'active', 'tasks': [True, False, False, False], 'notes': 'x', 'evidence': '', 'hours': 1}
+        self.local.save_record(SOCCER, record['state']['revision'], record)
+        real = LessonStore._atomic
+        state = {'n': 0}
+
+        def fail_then_stay_broken(store, path, data):
+            state['n'] += 1
+            if state['n'] >= 3:
+                raise OSError('disk full')
+            return real(store, path, data)
+
+        with mock.patch.object(LessonStore, '_atomic', fail_then_stay_broken), self.assertRaises(LessonStoreError) as caught:
+            lesson_migrate.refresh_progress(self.lessons, self.local)
+        self.assertEqual(caught.exception.code, 'rollback_incomplete')
+        self.assertTrue(all(d['path'].startswith('_lessons/progress/') for d in caught.exception.details))
+
+    def test_a_snapshot_copy_that_does_not_match_its_source_stops_the_migration_and_leaves_no_trace(self):
+        before = tree(self.data)
+        real = LessonStore._atomic
+
+        def damage_snapshots(store, path, data):
+            if 'snapshots' in Path(path).parts and Path(path).name == 'record.json':
+                data = data[:-1] + b'!'
+            return real(store, path, data)
+
+        with mock.patch.object(LessonStore, '_atomic', damage_snapshots), self.assertRaises(LessonStoreError) as caught:
+            lesson_migrate.migrate(self.lessons, self.local)
+        self.assertEqual(caught.exception.code, 'corrupt_file')
+        self.assertIn('snapshot copy', str(caught.exception))
+        self.assertEqual(tree(self.data), before)
+
+    def test_migrate_removes_stale_leftovers_first(self):
+        import os
+        import time
+        stale = self.data / '_lessons' / '.staging-dead'
+        stale.mkdir(parents=True)
+        old = time.time() - 7200
+        os.utime(stale, (old, old))
+        lesson_migrate.migrate(self.lessons, self.local)
+        self.assertFalse(stale.exists())
+
+
 class LegacyLayoutTests(MigrateCase):
     layout = 'legacy-layout'
 

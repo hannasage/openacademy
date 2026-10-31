@@ -83,8 +83,23 @@ How an import works:
 3. Add these lessons is the only step that writes. The server checks every file again, writes all new folders together, and writes `pins.json` last.
 4. A damaged file, an unsupported version, a file over the size limit, a packet that names a module Schola does not have, or a conflict stops the whole import. Nothing is written.
 
+Every write goes to a temporary file first. Schola flushes the file, renames it into place, and then flushes the folder that holds it.
+For an import, Schola flushes every new folder and `_lessons/` itself before it writes `pins.json`, and flushes `_lessons/` again after.
+A power cut leaves either the old file or the new one, never a mix.
+
 A version is written once. If you import the same ID and version with the same bytes, nothing changes.
 If you import the same ID and version with different bytes, Schola refuses the file and keeps the stored one.
+
+### After a crash during an import
+
+A crash can leave two kinds of leftovers: a `.staging-*` folder in `_lessons/`, and `.touchline-*.tmp` files beside the files being written.
+The next import, restore, or migration removes only those older than one hour, so it never removes the files of a write that is running now.
+A crash between the folder renames can also leave module folders that no pin names yet.
+Those folders do no harm. The module list shows them with no version in use.
+Import the same file again. Schola reports it as already stored, writes the missing pin, and finishes the job.
+
+If a write fails and Schola cannot undo part of it, Schola does not hide that. It answers with the code `rollback_incomplete` and names the paths, relative to the data directory.
+Check those paths before you try again.
 
 ## Version pins and updates
 
@@ -107,8 +122,8 @@ The migration works in this order:
 
 1. It checks every original file. If one is invalid, it writes nothing.
 2. It copies each original into `_lessons/snapshots/s03/<record-id>/` and checks the copy against its digest. The folder also holds `manifest.json`, which lists the digests.
-3. It writes `map/<curriculum-id>.json`, which gives each lesson an ID that fits the lesson rules. The ID is the curriculum ID and the lesson ID joined by a hyphen, in lowercase, with each underscore changed to a hyphen. If that ID is not valid or is already taken, Schola uses the start of the curriculum ID and eight characters of a digest instead. The table is written once and never recomputed. Task number N becomes `task-N`.
-4. It writes `progress/` files for each lesson. They are copies, and Schola rebuilds them when the record changes.
+3. It writes `map/<curriculum-id>.json`, which gives each lesson an ID that fits the lesson rules. An ID in a map never changes. A refresh adds an ID for a module added to the curriculum later. The ID is the curriculum ID and the lesson ID joined by a hyphen, in lowercase, with each underscore changed to a hyphen. If that ID is not valid or is already taken, Schola uses the start of the curriculum ID and eight characters of a digest instead. The table is written once and never recomputed. Task number N becomes `task-N`.
+4. It writes `progress/` files for each lesson. They are copies of the record. Schola refreshes them when the migrate route runs again after a change, or when you run the command line `refresh`. Saving a record does not refresh them, so a progress file can lag behind its record until then. The record is always the source of truth.
 5. It writes `migrated.json` last. A second run finds it and changes nothing.
 
 `records/<record-id>/record.json` stays the source of truth for an existing curriculum.
@@ -125,9 +140,23 @@ To go back to a build that knows nothing about lessons:
 2. Move the whole `_lessons/` folder out of the data directory. Do not delete it. Keep it in a separate folder in case you want it later.
 3. Start the earlier build with `--data-dir` pointing at the same data directory.
 
-To put an original file back from its snapshot, first keep a copy of the live file.
-Then compare the snapshot with the digest in `manifest.json`. Copy the snapshot over the live file only when the two differ.
-Work saved after the migration lives in the live file, so a snapshot copy can lose that work.
+To put an original file back from its snapshot, use the command line with the server stopped:
+
+```sh
+python3 lesson_migrate.py restore --data-dir <data-dir> --confirm
+```
+
+This restore is the one place in the lesson code that may overwrite an original record file.
+It exists only to undo the migration, and it does nothing without `--confirm`.
+It checks every snapshot against its digest first. A snapshot that is unfinished or damaged stops it before any write.
+Work saved after the migration lives in the live file, so the restore refuses to replace a record whose revision is newer than its snapshot.
+It lists those files and writes nothing. Add `--force` only when you want to give that work up.
+Before it replaces any file, it keeps the old bytes under `_lessons/snapshots/s03-replaced/`.
+It never deletes a file, and it is all or nothing: if a write fails, it puts back what it had replaced.
+If that also fails, it stops with the code `partial_restore` and lists the files that stay replaced.
+
+Run the command line `migrate`, `refresh`, and `restore` commands only while the server is stopped.
+The pin file is read, changed, and written without a lock, so a command and a running server could overwrite each other.
 
 ## Lesson backup: export and restore
 

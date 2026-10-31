@@ -471,10 +471,13 @@ def load_contract_registry(directory=CONTRACTS_DIRECTORY):
     for file in sorted(Path(directory).glob('*.schema.json')):
         try:
             schema = json.loads(file.read_text(encoding='utf-8'))
-        except (OSError, ValueError):
-            continue
-        if isinstance(schema, dict) and isinstance(schema.get('$id'), str):
-            by_id.setdefault(schema['$id'], schema)
+        except (OSError, ValueError) as error:
+            raise SchemaError(f'The schema file {file.name} cannot be read as JSON.') from error
+        if not isinstance(schema, dict) or not isinstance(schema.get('$id'), str) or not schema['$id']:
+            raise SchemaError(f'The schema file {file.name} has no $id.')
+        if schema['$id'] in by_id:
+            raise SchemaError(f"The $id {schema['$id']!r} appears in more than one schema file.")
+        by_id[schema['$id']] = schema
     wanted = [f'urn:schola:contract:{kind}:v1' for kind in LESSON_CONTRACT_KINDS]
     chosen = {}
     while wanted:
@@ -658,7 +661,10 @@ def validate_lesson_text_with_stage(kind, text):
     if isinstance(text, (bytes, bytearray)):
         if len(text) > MAX_BYTES:
             return _too_large(), 'size'
-        text = bytes(text).decode('utf-8', errors='replace')
+        try:
+            text = bytes(text).decode('utf-8')
+        except UnicodeError:
+            return _invalid([_error('', 'The text is not valid UTF-8.')]), 'parse'
     if not isinstance(text, str):
         return _invalid([_error('', 'The text must be a string.')]), 'parse'
     if len(text.encode('utf-8', errors='surrogatepass')) > MAX_BYTES:

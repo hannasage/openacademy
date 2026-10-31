@@ -121,6 +121,16 @@ class ExportTests(BackupCase):
         self.assertEqual(backup['help'], [{'moduleId': 'full-module', 'revision': 2, 'records': [HELP, HELP_TWO]}])
         self.assertEqual(lesson_backup.backup_registry().validate(lesson_backup.BACKUP_SCHEMA_ID, backup), [])
 
+    def test_a_stored_source_record_with_a_missing_key_is_reported_as_damage_not_a_crash(self):
+        self.fill()
+        path = self.data / '_lessons' / 'modules' / 'hello-module' / '1.0.0' / 'source.json'
+        source = json.loads(path.read_text())
+        del source['fileName']
+        path.write_text(json.dumps(source))
+        with self.assertRaises(LessonStoreError) as caught:
+            lesson_backup.export_backup(self.store, clock=CLOCK)
+        self.assertEqual((caught.exception.code, caught.exception.status), ('corrupt_file', 500))
+
     def test_export_refuses_a_file_too_large_to_restore(self):
         self.fill()
         with mock.patch.object(lesson_backup, 'MAX_BYTES', 100), self.assertRaises(LessonStoreError) as caught:
@@ -149,6 +159,38 @@ class RestoreTests(BackupCase):
         text = json.dumps(lesson_backup.export_backup(self.store, clock=CLOCK))
         lesson_backup.restore_backup(self.target, text.encode())
         self.assertEqual(tree(self.other), tree(self.data))
+
+    def test_a_restored_file_name_loses_its_path_and_control_characters(self):
+        self.fill()
+        backup = lesson_backup.export_backup(self.store, clock=CLOCK)
+        backup['modules'][0]['source']['fileName'] = '../../evil\x01\x1b[0m.json'
+        backup['modules'][1]['source']['fileName'] = '/'
+        lesson_backup.restore_backup(self.target, backup)
+        stored = self.target.source('module', backup['modules'][0]['id'], backup['modules'][0]['version'])
+        self.assertEqual(stored['fileName'], 'evil[0m.json')
+        self.assertEqual(self.target.source('module', backup['modules'][1]['id'], backup['modules'][1]['version'])['fileName'], 'lesson.json')
+
+    def test_an_entry_whose_id_and_version_differ_from_its_text_is_refused(self):
+        self.fill()
+        backup = lesson_backup.export_backup(self.store, clock=CLOCK)
+        entry = backup['modules'][0]
+        entry['id'] = 'some-other-module'
+        backup['pins']['pins'] = {}
+        backup['help'] = []
+        backup['packets'] = []
+        before = tree(self.other)
+        preview = lesson_backup.preview_restore(self.target, backup)
+        self.assertFalse(preview['importable'])
+        self.assertIn('do not match the stored text', preview['problems'][0]['errors'][0]['message'])
+        with self.assertRaises(LessonStoreError):
+            lesson_backup.restore_backup(self.target, backup)
+        self.assertEqual(tree(self.other), before)
+        backup = lesson_backup.export_backup(self.store, clock=CLOCK)
+        backup['modules'][0]['version'] = '9.9.9'
+        backup['pins']['pins'] = {}
+        backup['help'] = []
+        backup['packets'] = []
+        self.assertFalse(lesson_backup.preview_restore(self.target, backup)['importable'])
 
     def test_a_second_restore_changes_nothing(self):
         self.fill()
