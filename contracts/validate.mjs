@@ -2,7 +2,7 @@
 //
 // A call never changes its input and never writes a file. Files are opened for reading only.
 import { readFileSync, readdirSync } from 'node:fs';
-import { readFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import Ajv2020 from 'ajv/dist/2020.js';
 
 /** The schema major versions this reader supports. */
@@ -11,8 +11,9 @@ export const SUPPORTED_SCHEMA_MAJORS = Object.freeze([1]);
 /** The contract kinds this file validates. */
 export const LESSON_CONTRACT_KINDS = Object.freeze(['lesson-module', 'packet', 'help-record']);
 
+/** The largest document, in bytes, that a reader parses. Hosted ingest must enforce the same cap. */
+export const MAX_BYTES = 5 * 1024 * 1024;
 const HINT_LADDER = Object.freeze(['nudge', 'question', 'partial-example', 'full-answer']);
-const LESSON_ID = /^[a-z0-9][a-z0-9-]{0,59}$/;
 const MAX_ERRORS = 100;
 
 const directory = new URL('./', import.meta.url);
@@ -26,7 +27,17 @@ const validators = Object.fromEntries(LESSON_CONTRACT_KINDS.map((kind) => {
   return [kind, validate];
 }));
 
-const invalid = (errors) => ({ ok: false, reason: 'invalid', errors: errors.slice(0, MAX_ERRORS) });
+const invalid = (errors) => {
+  if (errors.length <= MAX_ERRORS) return { ok: false, reason: 'invalid', errors };
+  const omitted = errors.length - MAX_ERRORS;
+  return { ok: false, reason: 'invalid', errors: [...errors.slice(0, MAX_ERRORS), { pointer: '', message: `${omitted} more errors omitted.` }] };
+};
+const tooLarge = () => ({ ok: false, reason: 'too_large', errors: [{ pointer: '', message: 'The document is larger than the 5 MB limit.' }] });
+const unreadable = (error) => ({
+  ok: false,
+  reason: 'unreadable',
+  errors: [{ pointer: '', message: `The file could not be read (${typeof error?.code === 'string' ? error.code : 'unknown'}).` }],
+});
 const escapePointer = (segment) => String(segment).replaceAll('~', '~0').replaceAll('/', '~1');
 const pointerOf = (...segments) => segments.map((segment) => `/${escapePointer(segment)}`).join('');
 const isObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -69,9 +80,7 @@ function moduleErrors(module) {
     }
   });
   module.prerequisites.forEach((id, index) => {
-    if (typeof id !== 'string' || !LESSON_ID.test(id)) {
-      errors.push({ pointer: pointerOf('prerequisites', index), message: 'A prerequisite must be a valid module id.' });
-    } else if (id === module.id) {
+    if (id === module.id) {
       errors.push({ pointer: pointerOf('prerequisites', index), message: 'A module cannot list itself as a prerequisite.' });
     }
   });
@@ -98,14 +107,15 @@ const semanticChecks = { 'lesson-module': moduleErrors, packet: packetErrors, 'h
  * Validate one parsed document.
  * @param {string} kind One of LESSON_CONTRACT_KINDS.
  * @param {unknown} document A parsed JSON value. It is read, never changed.
- * @returns {{ ok: true } | { ok: false, reason: 'invalid' | 'unsupported_version', errors: { pointer: string, message: string }[] }}
+ * @returns {{ ok: true } | { ok: false, reason: 'invalid' | 'unsupported_version' | 'too_large' | 'unreadable', errors: { pointer: string, message: string }[] }}
  */
 export function validateLessonContract(kind, document) {
   if (!LESSON_CONTRACT_KINDS.includes(kind)) {
     return invalid([{ pointer: '', message: `Unknown contract kind. Use one of: ${LESSON_CONTRACT_KINDS.join(', ')}.` }]);
   }
   if (!isObject(document)) return invalid([{ pointer: '', message: 'The document must be a JSON object.' }]);
-  const marker = typeof document.schemaVersion === 'string' ? /^(0|[1-9][0-9]{0,5})\.(0|[1-9][0-9]{0,5})$/.exec(document.schemaVersion) : null;
+  // Read the leading major number first. A value such as 2.0.0 is an unsupported version, not a malformed one.
+  const marker = typeof document.schemaVersion === 'string' ? /^(\d+)\./.exec(document.schemaVersion) : null;
   if (marker && !SUPPORTED_SCHEMA_MAJORS.includes(Number(marker[1]))) {
     return {
       ok: false,
@@ -120,11 +130,14 @@ export function validateLessonContract(kind, document) {
 }
 
 /**
- * Parse JSON text, then validate it. Text that is not JSON is an invalid result.
+ * Parse JSON text, then validate it. Text over MAX_BYTES is refused before parsing.
+ * Text that is not JSON is an invalid result.
  * @param {string} kind
  * @param {string} text
  */
 export function validateLessonText(kind, text) {
+  if (typeof text !== 'string') return invalid([{ pointer: '', message: 'The text must be a string.' }]);
+  if (Buffer.byteLength(text, 'utf8') > MAX_BYTES) return tooLarge();
   let document;
   try {
     document = JSON.parse(text);
@@ -136,15 +149,18 @@ export function validateLessonText(kind, text) {
 
 /**
  * Read a file and validate it. The file is opened for reading only, so it stays as it was.
+ * A file over MAX_BYTES is refused after a size check and is never read.
  * @param {string} kind
  * @param {string | URL} file
  */
 export async function validateLessonFile(kind, file) {
   let text;
   try {
+    const info = await stat(file);
+    if (info.size > MAX_BYTES) return tooLarge();
     text = await readFile(file, 'utf8');
-  } catch {
-    return invalid([{ pointer: '', message: 'The file could not be read.' }]);
+  } catch (error) {
+    return unreadable(error);
   }
   return validateLessonText(kind, text);
 }

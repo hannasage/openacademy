@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { copyFile, mkdtemp, readFile, readdir, rm, stat, utimes } from 'node:fs/promises';
+import { chmod, copyFile, mkdir, mkdtemp, open, readFile, readdir, rm, stat, utimes, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import Ajv2020 from 'ajv/dist/2020.js';
 import {
   LESSON_CONTRACT_KINDS,
+  MAX_BYTES,
   packetFromModule,
   validateLessonContract,
   validateLessonFile,
@@ -48,16 +49,20 @@ test('the manifest covers every kind and every fixture file, and nothing else', 
   assert.equal(listed.size, manifest.length, 'a file is listed twice');
   const names = new Set(manifest.map((entry) => entry.name));
   assert.equal(names.size, manifest.length, 'a name is listed twice');
+  // Every file in valid/ and invalid/ must belong to the older cases or to this manifest.
+  const older = new Set((await readJSON(fixture('cases.json'))).map((entry) => entry.file));
   const onDisk = new Set();
   for (const folder of ['valid', 'invalid']) {
-    for (const name of await readdir(fixture(`${folder}/`))) {
-      if (/^(lesson-module|packet|help-record)-/.test(name)) onDisk.add(`${folder}/${name}`);
-    }
+    for (const name of await readdir(fixture(`${folder}/`))) onDisk.add(`${folder}/${name}`);
   }
-  assert.deepEqual([...listed].sort(), [...onDisk].sort());
+  for (const file of listed) assert.equal(older.has(file), false, `${file} is also an older case`);
+  assert.deepEqual([...onDisk].filter((file) => !older.has(file)).sort(), [...listed].sort());
+  for (const file of older) assert.ok(onDisk.has(file), `${file} is listed in cases.json but missing`);
   for (const entry of manifest) {
     assert.ok(LESSON_CONTRACT_KINDS.includes(entry.kind), entry.name);
     assert.match(entry.expect, /^(valid|invalid:(invalid|unsupported_version))$/, entry.name);
+    const stageReason = { none: 'valid', parse: 'invalid:invalid', schema: 'invalid:invalid', semantic: 'invalid:invalid', version: 'invalid:unsupported_version' };
+    assert.equal(entry.expect, stageReason[entry.stage], `${entry.name}: stage and expectation disagree`);
     assert.match(entry.stage, /^(none|parse|version|schema|semantic)$/, entry.name);
     assert.equal(entry.file.startsWith(entry.expect === 'valid' ? 'valid/' : 'invalid/'), true, entry.name);
   }
@@ -87,6 +92,17 @@ for (const entry of manifest) {
     }
     if (entry.stage === 'none') {
       assert.equal(schemaFor(entry.kind)(JSON.parse(text)), true);
+    }
+    if (entry.stage === 'parse') {
+      assert.throws(() => JSON.parse(text), SyntaxError, 'a parse case must not be valid JSON');
+    } else {
+      assert.doesNotThrow(() => JSON.parse(text), `${entry.name} must be valid JSON`);
+    }
+    if (entry.stage === 'version') {
+      const marker = JSON.parse(text).schemaVersion;
+      assert.equal(typeof marker, 'string');
+      assert.notEqual(Number(/^(\d+)\./.exec(marker)?.[1]), 1, 'a version case must name an unsupported major');
+      assert.equal(result.reason, 'unsupported_version');
     }
   });
 }
@@ -142,12 +158,6 @@ test('the repository fixtures are not changed by a run over the whole manifest',
   assert.deepEqual(await stamp(), before);
 });
 
-test('a missing file is an invalid result, not a thrown error', async () => {
-  const result = await validateLessonFile('lesson-module', path.join(tmpdir(), 'schola-lesson-does-not-exist.json'));
-  assert.equal(result.ok, false);
-  assert.equal(result.reason, 'invalid');
-});
-
 test('an unknown kind and a non-object document are invalid results', async () => {
   assert.equal(validateLessonContract('module', {}).ok, false);
   assert.equal(validateLessonContract('module', {}).reason, 'invalid');
@@ -160,7 +170,7 @@ test('an unknown kind and a non-object document are invalid results', async () =
 
 test('only a major version of 1 is supported, and it is checked before any other field', async () => {
   const base = await load('valid/packet-one-module.json');
-  for (const marker of ['2.0', '0.9', '10.0', '2.5', '1000.0']) {
+  for (const marker of ['2.0', '0.9', '10.0', '2.5', '1000.0', '2.0.0', '1000000.0', '9999999.1.2', '99999999999999999999.0']) {
     const result = validateLessonContract('packet', { ...base, schemaVersion: marker });
     assert.equal(result.reason, 'unsupported_version', marker);
     assert.deepEqual(result.errors.map((error) => error.pointer), ['/schemaVersion']);
@@ -224,7 +234,7 @@ test('the hint ladder must hold the four levels in order', async () => {
     next.tasks[0].hints = order.map((level) => ({ level, text: `Text for ${level}.` }));
     const result = validateLessonContract('lesson-module', next);
     assert.equal(result.reason, 'invalid', order.join());
-    assert.ok(result.errors.some((error) => error.pointer === '/tasks/0/hints'), order.join());
+    assert.ok(result.errors.some((error) => error.pointer.startsWith('/tasks/0/hints')), order.join());
   }
   for (const length of [0, 1, 2, 3, 5]) {
     const next = structuredClone(full);
@@ -255,8 +265,89 @@ test('module objects are closed except the check runner descriptor', async () =>
   });
   const next = structuredClone(full);
   const automated = next.checks.find((check) => check.kind === 'automated');
-  automated.runner.futureOption = { any: ['shape'] };
+  automated.runner.futureOption = 'text';
+  automated.runner.retries = 3;
+  automated.runner.strict = true;
+  automated.runner.allowedHosts = ['a.example.org', 'b.example.org'];
   assert.equal(validateLessonContract('lesson-module', next).ok, true);
+});
+
+test('a runner descriptor is flat data with safe keys and bounded values', async () => {
+  const full = await load('valid/lesson-module-full.json');
+  const withRunner = (runner) => {
+    const next = structuredClone(full);
+    next.checks.find((check) => check.kind === 'automated').runner = runner;
+    return validateLessonContract('lesson-module', next).ok;
+  };
+  assert.equal(withRunner({ type: 'script' }), true);
+  assert.equal(withRunner({ type: 'script', nested: { any: ['shape'] } }), false, 'nested object');
+  assert.equal(withRunner({ type: 'script', list: [{ a: 1 }] }), false, 'array of objects');
+  assert.equal(withRunner({ type: 'script', list: [1, 2] }), false, 'array of numbers');
+  assert.equal(withRunner({ type: 'script', empty: null }), false, 'null value');
+  assert.equal(withRunner({ type: 'script', ratio: 1.5 }), false, 'fraction');
+  assert.equal(withRunner({ type: 'script', big: 2 ** 40 }), false, 'unbounded integer');
+  assert.equal(withRunner({ type: 'script', text: 'x'.repeat(501) }), false, 'long string');
+  assert.equal(withRunner({ type: 'script', text: 'x'.repeat(500) }), true);
+  assert.equal(withRunner({ type: 'script', list: Array.from({ length: 21 }, () => 'a') }), false, 'long array');
+  assert.equal(withRunner({ type: 'script', list: ['x'.repeat(201)] }), false, 'long array item');
+  const many = { type: 'script' };
+  for (let index = 0; index < 20; index += 1) many[`key${index}`] = 'v';
+  assert.equal(withRunner(many), false, '21 properties');
+  for (const key of ['constructor', 'prototype', 'Upper', '1digit', 'has-dash', 'under_score', `a${'b'.repeat(40)}`, '']) {
+    assert.equal(withRunner({ type: 'script', [key]: 'x' }), false, `key ${key}`);
+  }
+  for (const key of ['__proto__', 'constructor', 'prototype']) {
+    const parsed = JSON.parse(`{"type":"script","${key}":"x"}`);
+    assert.equal(withRunner(parsed), false, `parsed ${key}`);
+  }
+});
+
+test('text fields need a visible character, not just whitespace or zero-width marks', async () => {
+  const full = await load('valid/lesson-module-full.json');
+  const hidden = ['', ' ', '\n\t', '\u200B', '\u200C\u200D', '\u2060', '\uFEFF', ' \u200B\uFEFF\u2060 '];
+  const spots = [
+    (next, value) => { next.title = value; },
+    (next, value) => { next.outcome = value; },
+    (next, value) => { next.tasks[0].prompt = value; },
+    (next, value) => { next.blocks[0].body = value; },
+    (next, value) => { next.checks[0].description = value; },
+    (next, value) => { next.blocks[1].title = value; },
+  ];
+  spots.forEach((set, index) => {
+    for (const value of hidden) {
+      const next = structuredClone(full);
+      set(next, value);
+      assert.equal(validateLessonContract('lesson-module', next).ok, false, `spot ${index} ${JSON.stringify(value)}`);
+    }
+    const next = structuredClone(full);
+    set(next, '\u200BReal text\u200B');
+    assert.equal(validateLessonContract('lesson-module', next).ok, true, `spot ${index} with visible text`);
+  });
+  const packet = await load('valid/packet-one-module.json');
+  assert.equal(validateLessonContract('packet', { ...packet, title: '\u200B' }).ok, false);
+});
+
+test('source links reject user information, control characters, and bidi overrides', async () => {
+  const full = await load('valid/lesson-module-full.json');
+  const link = full.blocks.findIndex((block) => block.type === 'source-link');
+  const attempt = (url) => {
+    const next = structuredClone(full);
+    next.blocks[link].url = url;
+    return validateLessonContract('lesson-module', next).ok;
+  };
+  for (const url of ['https://example.org/a@b', 'https://example.org/?mail=a@b.example', 'https://example.org#@x',
+    'http://example.org:8080/path', 'https://example.org/caf%C3%A9', 'https://example.org/\u00E9']) {
+    assert.equal(attempt(url), true, url);
+  }
+  const bad = ['https://user:pass@example.org/', 'https://user@example.org', 'http://@example.org/', 'https://a.example.org\\@evil.example/',
+    'ftp://example.org/', 'javascript:alert(1)', 'https:example.org', 'https://example.org/a b', '',
+    'https://example.org/\u0000', 'https://example.org/\u0001', 'https://example.org/\u001F', 'https://example.org/\u007F',
+    'https://example.org/\n', 'https://exam\tple.org/', 'https://example.org/\u202E', 'https://example.org/\u202A', 'https://example.org/\u2066',
+    'https://example.org/\u2069', 'https://ex\u202Eample.org/'];
+  for (const url of bad) assert.equal(attempt(url), false, JSON.stringify(url));
+  const license = structuredClone(full);
+  license.license.url = 'https://user:pass@example.org/';
+  assert.equal(validateLessonContract('lesson-module', license).ok, false);
 });
 
 test('a harness lists only the permissions of the tutor call surface', async () => {
@@ -284,10 +375,11 @@ test('price uses an ISO currency code and whole minor units', async () => {
   const attempt = (price) => validateLessonContract('lesson-module', { ...structuredClone(full), price }).ok;
   assert.equal(attempt({ amount: 0, currency: 'USD' }), true);
   assert.equal(attempt({ amount: 1999, currency: 'EUR' }), true);
+  assert.equal(attempt({ amount: 99999999, currency: 'JPY' }), true);
   for (const price of [
     { amount: 19.99, currency: 'USD' }, { amount: -1, currency: 'USD' }, { amount: '1999', currency: 'USD' },
     { amount: 1999, currency: 'usd' }, { amount: 1999, currency: 'US' }, { amount: 1999, currency: 'DOLLARS' },
-    { amount: 1999 }, { currency: 'USD' }, { amount: 9007199254740992, currency: 'USD' }, null,
+    { amount: 1999 }, { currency: 'USD' }, { amount: 9007199254740992, currency: 'USD' }, { amount: 100000000, currency: 'USD' }, null,
   ]) {
     assert.equal(attempt(price), false, JSON.stringify(price));
   }
@@ -357,12 +449,12 @@ test('help records follow the unlock rule for each level', async () => {
 test('help record timestamps are RFC 3339 and name a real moment', async () => {
   const base = await load('valid/help-record-nudge-null-attempt.json');
   const good = ['2026-11-01T09:30:00Z', '2026-11-01T09:30:00.123Z', '2026-11-01T09:30:00+02:00',
-    '2026-11-01T09:30:00-05:30', '2028-02-29T23:59:59Z', '2026-12-31T23:59:60Z'];
+    '2026-11-01T09:30:00-05:30', '2028-02-29T23:59:59Z'];
   for (const timestamp of good) {
     assert.equal(validateLessonContract('help-record', { ...base, timestamp }).ok, true, timestamp);
   }
   const bad = ['2026-11-01', '2026-11-01 09:30:00Z', '2026-11-01T09:30:00', '2026-02-30T09:30:00Z',
-    '2027-02-29T09:30:00Z', '2026-13-01T09:30:00Z', '2026-11-01T24:00:00Z', '2026-11-01T09:60:00Z',
+    '2027-02-29T09:30:00Z', '2026-13-01T09:30:00Z', '2026-11-01T24:00:00Z', '2026-11-01T09:60:00Z', '2026-11-01T10:00:60Z', '2026-12-31T23:59:60Z',
     '2026-11-01T09:30:00+25:00', 'yesterday', '', 1793000000, null];
   for (const timestamp of bad) {
     assert.equal(validateLessonContract('help-record', { ...base, timestamp }).ok, false, String(timestamp));
@@ -402,6 +494,9 @@ test('a large packet validates in reasonable time', async () => {
   assert.equal(validateLessonContract('packet', big).ok, false);
 });
 
+// A source this repository cannot vouch for is replaced by a neutral example link in the fixtures.
+const replacedUrls = { 'https://arxiv.org/abs/2608.02412': 'https://example.org/sources/paper2026' };
+
 test('the soccer packet fixture follows the structure of the shipped curriculum', async () => {
   const curriculum = await readJSON(new URL('curriculum.json', root));
   const packet = await load('valid/packet-soccer-ml.json');
@@ -422,6 +517,103 @@ test('the soccer packet fixture follows the structure of the shipped curriculum'
     assert.deepEqual(module.prerequisites, source.prerequisites.map((id) => `${prefix}${id}`));
     assert.equal(module.estimatedMinutes, source.hours * 60);
     const links = module.blocks.filter((block) => block.type === 'source-link');
-    assert.deepEqual(links.map((block) => block.url), source.resources.map((key) => curriculum.resources[key].url));
+    const expectedUrl = (key) => {
+      const url = curriculum.resources[key].url;
+      return Object.hasOwn(replacedUrls, url) ? replacedUrls[url] : url;
+    };
+    assert.deepEqual(links.map((block) => block.url), source.resources.map(expectedUrl));
   }
+});
+
+test('no fixture links to a source that the maintainers have not verified', async () => {
+  const unverified = ['2608.02412', 'arxiv.org'];
+  for (const entry of manifest) {
+    const text = await readText(fixture(entry.file));
+    for (const marker of unverified) assert.equal(text.includes(marker), false, `${entry.file} mentions ${marker}`);
+  }
+});
+
+const tempFolder = async () => mkdtemp(path.join(tmpdir(), 'schola-lesson-'));
+
+test('text over the size limit is refused before it is parsed', async () => {
+  assert.equal(MAX_BYTES, 5 * 1024 * 1024);
+  const over = `"${'a'.repeat(MAX_BYTES)}"`;
+  const result = validateLessonText('packet', over);
+  assert.deepEqual(result, { ok: false, reason: 'too_large', errors: [{ pointer: '', message: 'The document is larger than the 5 MB limit.' }] });
+  // The limit counts bytes, not characters: a multi-byte character costs more than one.
+  const wide = '\u00E9'.repeat(Math.floor(MAX_BYTES / 2) + 1);
+  assert.equal(wide.length < MAX_BYTES, true);
+  assert.equal(validateLessonText('packet', wide).reason, 'too_large');
+  const edge = `"${' '.repeat(MAX_BYTES - 2)}"`;
+  assert.equal(Buffer.byteLength(edge), MAX_BYTES);
+  assert.equal(validateLessonText('packet', edge).reason, 'invalid', 'exactly at the limit is parsed');
+  assert.equal(validateLessonText('packet', 5).reason, 'invalid');
+});
+
+test('a file over the size limit is refused without being read or changed', async (t) => {
+  const folder = await tempFolder();
+  try {
+    const target = path.join(folder, 'huge.json');
+    const handle = await open(target, 'w');
+    await handle.truncate(MAX_BYTES + 1);
+    await handle.close();
+    await chmod(target, 0o000);
+    if (process.getuid?.() === 0) t.diagnostic('running as root: the unreadable-file proof is weaker');
+    const old = new Date('2020-01-02T03:04:05Z');
+    await utimes(target, old, old);
+    const before = await stat(target);
+    const result = await validateLessonFile('lesson-module', target);
+    assert.deepEqual(result, { ok: false, reason: 'too_large', errors: [{ pointer: '', message: 'The document is larger than the 5 MB limit.' }] });
+    const after = await stat(target);
+    assert.equal(after.mtimeMs, before.mtimeMs);
+    assert.equal(after.size, MAX_BYTES + 1);
+    assert.deepEqual(await readdir(folder), ['huge.json']);
+  } finally {
+    await rm(folder, { recursive: true, force: true });
+  }
+});
+
+test('an unreadable file reports the error code and never an absolute path', async () => {
+  const folder = await tempFolder();
+  try {
+    const missing = await validateLessonFile('lesson-module', path.join(folder, 'missing.json'));
+    assert.equal(missing.ok, false);
+    assert.equal(missing.reason, 'unreadable');
+    assert.match(missing.errors[0].message, /ENOENT/);
+    await mkdir(path.join(folder, 'adir'));
+    const directory = await validateLessonFile('lesson-module', path.join(folder, 'adir'));
+    assert.equal(directory.reason, 'unreadable');
+    assert.match(directory.errors[0].message, /EISDIR/);
+    for (const result of [missing, directory]) {
+      assert.equal(result.errors[0].pointer, '');
+      assert.equal(result.errors[0].message.includes(folder), false);
+      assert.equal(result.errors[0].message.includes(path.sep + 'tmp'), false);
+    }
+    const locked = path.join(folder, 'locked.json');
+    await writeFile(locked, '{}');
+    await chmod(locked, 0o000);
+    if (process.getuid?.() !== 0) {
+      const denied = await validateLessonFile('lesson-module', locked);
+      assert.equal(denied.reason, 'unreadable');
+      assert.match(denied.errors[0].message, /EACCES/);
+    }
+  } finally {
+    await rm(folder, { recursive: true, force: true });
+  }
+});
+
+test('a long list of errors is cut at 100 and says how many were left out', async () => {
+  const packet = await load('valid/packet-multi-module.json');
+  const many = structuredClone(packet);
+  many.modules = Array.from({ length: 150 }, (_, index) => ({ id: `module-${index}` }));
+  const result = validateLessonContract('packet', many);
+  assert.equal(result.ok, false);
+  assert.equal(result.errors.length, 101);
+  assert.match(result.errors[100].message, /^\d+ more errors omitted\.$/);
+  assert.equal(result.errors[100].pointer, '');
+  const omitted = Number(/^(\d+)/.exec(result.errors[100].message)[1]);
+  assert.equal(omitted, 150 - 100);
+  const few = structuredClone(packet);
+  few.modules = [{ id: 'module-0' }];
+  assert.equal(validateLessonContract('packet', few).errors.some((error) => /omitted/.test(error.message)), false);
 });

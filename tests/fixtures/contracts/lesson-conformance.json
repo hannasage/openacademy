@@ -186,7 +186,7 @@
     "kind": "lesson-module",
     "file": "invalid/lesson-module-hint-ladder-out-of-order.json",
     "expect": "invalid:invalid",
-    "stage": "semantic"
+    "stage": "schema"
   },
   {
     "name": "lesson-module-hint-ladder-three-levels",

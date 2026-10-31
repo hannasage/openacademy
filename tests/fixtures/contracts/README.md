@@ -11,7 +11,7 @@ These fields come from `curriculum.json`:
 - `title`, `outcome`, and `prerequisites` (with the new id form).
 - Each task `prompt`, from the module task list.
 - The text blocks, from the question, mathematics, dataset, reading, and challenge fields.
-- The source link blocks, from the module resources.
+- The source link blocks, from the module resources. One resource, a 2026 paper, is replaced by a placeholder title and the link `https://example.org/sources/paper2026`, because this repository does not vouch for it.
 - The check `description`, from the evidence field.
 - `estimatedMinutes`, from the module hours multiplied by 60.
 
