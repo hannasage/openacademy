@@ -1,0 +1,19 @@
+{
+  "algorithm": "sha256",
+  "builtInCurriculumSha256": "b17f5698c5a66c3167e5dea49d4552cc0d07b56890717ba4d8ba7fa7dc6b4b8d",
+  "files": {
+    "current-layout/library.json": "3f4d47d7ea4062f42284c0272812594a1c466d931527d3d13b603babf74e5041",
+    "current-layout/records/ac02873e-ad82-58bc-8266-b1e4abb684f4/record.backup.json": "fe91a70e155826149844452deb0697c936721f951f1e5629271c1beef9b53011",
+    "current-layout/records/ac02873e-ad82-58bc-8266-b1e4abb684f4/record.json": "03a86a249c036c858da0b00e639fd0bbea2cecf2f2e67640c00aa031a19f583d",
+    "legacy-layout/curricula/legacy-sample.json": "1673d57ed2e2465868e3cf571e6f7941ae001cf774163eacdd8783a8c1f1d9c2",
+    "legacy-layout/legacy-sample/state.json": "94963bc35dea4a303a41184eaf2a551881501a396ba6ac59e596b0ce594bed91",
+    "legacy-layout/soccer-ml/state.backup.json": "c0145dab1b0d93340e79eea954ae90aaaf054b6403fbe848009eccde967625af",
+    "legacy-layout/soccer-ml/state.json": "9b9c43fd23961e97e6a9b949dc953371ec7b7db8ede417d8aa52b1ffb67060e2",
+    "recovery-layout/library.json": "3f4d47d7ea4062f42284c0272812594a1c466d931527d3d13b603babf74e5041",
+    "recovery-layout/records/ac02873e-ad82-58bc-8266-b1e4abb684f4/record.backup.json": "fe91a70e155826149844452deb0697c936721f951f1e5629271c1beef9b53011",
+    "recovery-layout/records/ac02873e-ad82-58bc-8266-b1e4abb684f4/record.damaged-0b39dc70b122c5e8dde12cbb389699930d23eb2527d23a1d804d03b89549a10d.json": "db79e03d7c39b90d2629615cbb7c442906432e6c815f5d42682c77a4a548ff16",
+    "recovery-layout/records/ac02873e-ad82-58bc-8266-b1e4abb684f4/record.json": "8758c7b62be900550a133757f8dd21f57eecfdad7efe0aadf39e0024619de176",
+    "recovery-layout/records/ac02873e-ad82-58bc-8266-b1e4abb684f4/recovery-state.json": "e011b277f0166466eabf74bf52ad6fe31568977f9c32bae423cfc3fc402373da"
+  },
+  "version": 1
+}

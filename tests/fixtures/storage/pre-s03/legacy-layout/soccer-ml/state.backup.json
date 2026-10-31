@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "revision": 1,
+  "curriculumId": "soccer-ml",
+  "weeklyHours": 6,
+  "startDate": "",
+  "modules": {
+    "m01": {
+      "status": "active",
+      "tasks": [
+        true,
+        false,
+        false,
+        false
+      ],
+      "notes": "Synthetic note: legacy progress.",
+      "evidence": "",
+      "hours": 1
+    }
+  },
+  "experiments": []
+}

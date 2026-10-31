@@ -1,0 +1,529 @@
+{
+  "format": "touchline-record",
+  "version": 2,
+  "recordId": "ac02873e-ad82-58bc-8266-b1e4abb684f4",
+  "origin": {
+    "kind": "local"
+  },
+  "curriculum": {
+    "title": "Soccer \u2192 machine learning",
+    "version": 1,
+    "researchDate": "2026-10-28",
+    "weeklyHours": 11,
+    "totalHours": 286,
+    "weeks": 26,
+    "resources": {
+      "data": {
+        "title": "StatsBomb Open Data",
+        "url": "https://github.com/hudl/open-data",
+        "use": "Use the README, competition list, match files, event schema, and attribution terms. Select a historical competition with enough matches."
+      },
+      "isl": {
+        "title": "An Introduction to Statistical Learning \u00b7 Python",
+        "url": "https://www.statlearning.com/",
+        "use": "Use selected chapters and Python labs. The book PDF is free on the authors\u2019 site."
+      },
+      "math": {
+        "title": "Mathematics for Machine Learning",
+        "url": "https://mml-book.github.io/",
+        "use": "Use selected sections as a reference after the visual experiment. The authors provide a free PDF."
+      },
+      "visual": {
+        "title": "3Blue1Brown \u00b7 visual mathematics",
+        "url": "https://www.3blue1brown.com/",
+        "use": "Find the linear algebra and calculus lessons. Recreate one visual idea in code."
+      },
+      "d2l": {
+        "title": "Dive into Deep Learning",
+        "url": "https://d2l.ai/",
+        "use": "Use the interactive book for calculus, automatic differentiation, training loops, and attention."
+      },
+      "tabpfn": {
+        "title": "Accurate predictions on small data with a tabular foundation model \u00b7 2025",
+        "url": "https://www.nature.com/articles/s41586-024-08328-6",
+        "use": "Read the question, evaluation design, and limitations. Reproduce one feasible comparison, not the original training run."
+      },
+      "paper2026": {
+        "title": "Why Large Language Models Fail at Tabular Prediction \u00b7 August 2026",
+        "url": "https://arxiv.org/abs/2608.02412",
+        "use": "Treat this preprint as a claim to examine. Compare its evaluation choices with your soccer experiments. No paid API experiment is required."
+      },
+      "research": {
+        "title": "Anthropic research",
+        "url": "https://www.anthropic.com/research",
+        "use": "Select a recent public article about evaluations or model behavior. Follow its paper or methods link and record limitations."
+      },
+      "careers": {
+        "title": "Anthropic careers",
+        "url": "https://www.anthropic.com/careers?hsLang=en",
+        "use": "Compare your evidence with a current engineering role. Requirements change. This curriculum does not guarantee a role or a credential."
+      }
+    },
+    "modules": [
+      {
+        "id": "m01",
+        "number": 1,
+        "title": "Start with a forecast",
+        "phase": "Foundations",
+        "question": "Can a simple rule predict a match?",
+        "outcome": "Build a reproducible match table and a baseline: a simple reference prediction.",
+        "math": "Refresh fractions, ratios, percentages, means, variables, functions, and summation through match statistics.",
+        "tasks": [
+          "Load historical matches. Record the source, download date, license, and a small data dictionary.",
+          "Create chronological training, validation, and untouched test sets. Count missing and duplicate rows.",
+          "Predict home/draw/away using training-set frequencies. Compute accuracy and Brier score, the squared error of probabilities.",
+          "Explain why a post-match statistic leaks the answer into a pre-match forecast. Record your baseline and evidence."
+        ],
+        "weeks": [
+          "Week 1: Spend 6 h on data and code, 3 h on algebra through match summaries, and 2 h on a data audit.",
+          "Week 2: Spend 6 h on baselines, 3 h on probability arithmetic, and 2 h on evaluation and reflection."
+        ],
+        "evidence": "A runnable baseline, a data dictionary, split dates, and a one-page explanation of what the model knows before kickoff.",
+        "challenge": "Recompute a three-outcome Brier score for one match. Explain why all three probabilities must sum to one.",
+        "resources": [
+          "data",
+          "isl"
+        ],
+        "reading": "ISL chapter 2. Use a small competition first. Preserve the same held-out test period throughout the project.",
+        "hours": 22,
+        "weekStart": 1,
+        "weekEnd": 2,
+        "prerequisites": [],
+        "dataset": "StatsBomb Open Data: competitions.json \u2192 matches/{competition_id}/{season_id}.json. Use scores, dates, and information available before kickoff. Build recent-form features only from earlier matches."
+      },
+      {
+        "id": "m02",
+        "number": 2,
+        "title": "Make the mathematics visible",
+        "phase": "Foundations",
+        "question": "How do numbers become a model?",
+        "outcome": "Build a small interactive forecast with adjustable weights for recent form and home advantage.",
+        "math": "Refresh equations, slopes, powers, exponentials, logarithms, function composition, and coordinate plots.",
+        "tasks": [
+          "Plot a weighted score as you vary each input. Label the units and ranges.",
+          "Convert scores to three probabilities with softmax, a function that turns scores into normalized probabilities.",
+          "Plot squared error and log loss as predictions become confidently wrong. Recreate one calculation without a model library.",
+          "Write what each symbol means and translate the formula into a small Python function."
+        ],
+        "weeks": [
+          "Week 3: 6 h building the forecast, 3 h on functions and plots, 2 h explaining your outputs.",
+          "Week 4: 6 h exploring losses, 3 h on powers and logarithms, 2 h recording counterexamples."
+        ],
+        "evidence": "A notebook with adjustable inputs, labeled plots, and examples of confident errors.",
+        "challenge": "Explain why a tiny probability for the actual outcome produces a large log loss. Calculate one example.",
+        "resources": [
+          "visual",
+          "isl"
+        ],
+        "reading": "ISL chapters 2 and 4. Use logarithms as measurements of multiplicative change.",
+        "hours": 22,
+        "weekStart": 3,
+        "weekEnd": 4,
+        "prerequisites": [
+          "m01"
+        ],
+        "dataset": "StatsBomb Open Data: competitions.json \u2192 matches/{competition_id}/{season_id}.json. Use scores, dates, and information available before kickoff. Build recent-form features only from earlier matches."
+      },
+      {
+        "id": "m03",
+        "number": 3,
+        "title": "Think in vectors",
+        "phase": "Foundations",
+        "question": "Can a whole season be one calculation?",
+        "outcome": "Implement batched predictions with NumPy and build a player similarity explorer.",
+        "math": "Learn vectors, matrix shapes, dot products, norms, projections, rank, and feature scaling.",
+        "tasks": [
+          "Represent matches as rows and pre-match measurements as columns. Annotate every matrix shape.",
+          "Compute one prediction with a loop and with a matrix product. Make sure that the results agree.",
+          "Build a player similarity search with normalized vectors. Show how scaling changes the neighbors.",
+          "Demonstrate redundant columns and explain why they create estimation problems."
+        ],
+        "weeks": [
+          "Week 5: 6 h building vectorized forecasts, 3 h on vectors and shapes, 2 h explaining one example.",
+          "Week 6: 6 h on player similarity, 3 h on projections and rank, 2 h testing scaling choices."
+        ],
+        "evidence": "A matrix implementation with numerical comparisons and a similarity example whose behavior you can explain.",
+        "challenge": "Calculate a small dot product yourself. Diagnose a shape error and explain one misleading similarity result.",
+        "resources": [
+          "math",
+          "visual"
+        ],
+        "reading": "Mathematics for Machine Learning chapters 2 and 3. Read only the sections used by the experiments.",
+        "hours": 22,
+        "weekStart": 5,
+        "weekEnd": 6,
+        "prerequisites": [
+          "m02"
+        ],
+        "dataset": "StatsBomb Open Data: competitions.json \u2192 matches/{competition_id}/{season_id}.json. Use scores, dates, and information available before kickoff. Build recent-form features only from earlier matches. Player similarity uses player statistics aggregated from event files; restrict these to training matches."
+      },
+      {
+        "id": "m04",
+        "number": 4,
+        "title": "Learn from error",
+        "phase": "Foundations",
+        "question": "How does a model learn its weights?",
+        "outcome": "Fit a linear model from scratch and compare it with a library implementation.",
+        "math": "Learn limits through finite differences, derivatives, partial derivatives, gradients, and the chain rule.",
+        "tasks": [
+          "Plot an error curve. Estimate its slope with small input changes before using a derivative formula.",
+          "Derive the squared-error gradient for a linear model and implement gradient descent.",
+          "Compare analytic gradients with finite differences. Try several learning rates and explain divergence.",
+          "Fit a reference library model and compare predictions, training curves, and numerical stability."
+        ],
+        "weeks": [
+          "Week 7: 6 h visualizing optimization, 3 h on derivatives, 2 h on numerical experiments.",
+          "Week 8: 6 h implementing training, 3 h on partial derivatives and the chain rule, 2 h explaining failures."
+        ],
+        "evidence": "A working training loop, gradient comparison, learning curves, and a written explanation of a failed learning rate.",
+        "challenge": "Derive one weight update, compute it on a tiny example, and explain how the loss changes.",
+        "resources": [
+          "math",
+          "d2l",
+          "visual"
+        ],
+        "reading": "Mathematics for Machine Learning chapters 5 and 7. D2L calculus and linear regression sections.",
+        "hours": 22,
+        "weekStart": 7,
+        "weekEnd": 8,
+        "prerequisites": [
+          "m03"
+        ],
+        "dataset": "StatsBomb Open Data: competitions.json \u2192 matches/{competition_id}/{season_id}.json. Use scores, dates, and information available before kickoff. Build recent-form features only from earlier matches."
+      },
+      {
+        "id": "m05",
+        "number": 5,
+        "title": "Predict goals and uncertainty",
+        "phase": "Core models",
+        "question": "What does a forecast actually promise?",
+        "outcome": "Build a Poisson goal model and simulate scorelines and season outcomes.",
+        "math": "Learn random variables, conditional probability, independence, expectation, variance, likelihood, and numerical integration.",
+        "tasks": [
+          "Estimate goal rates using training data and plot a Poisson distribution, a model for event counts.",
+          "Simulate scorelines and derive home/draw/away probabilities. Account for truncated probability mass.",
+          "Compare forecasts with the baseline. Explain when independent goal counts are a poor assumption.",
+          "Resample matches to estimate uncertainty. Distinguish outcome uncertainty from uncertainty in estimated performance."
+        ],
+        "weeks": [
+          "Week 9: 6 h on goal models, 3 h on probability and likelihood, 2 h on simulation.",
+          "Week 10: 6 h on uncertainty experiments, 3 h on expectations and numerical sums, 2 h on a model critique."
+        ],
+        "evidence": "A goal model, a scoreline simulator, and an evaluation with uncertainty and stated assumptions.",
+        "challenge": "Explain why a 70% forecast can lose. Calculate conditional probability on a small match table.",
+        "resources": [
+          "math",
+          "isl"
+        ],
+        "reading": "Mathematics for Machine Learning chapter 6. Use simulation before formal probability notation.",
+        "hours": 22,
+        "weekStart": 9,
+        "weekEnd": 10,
+        "prerequisites": [
+          "m04"
+        ],
+        "dataset": "StatsBomb Open Data: competitions.json \u2192 matches/{competition_id}/{season_id}.json. Use scores, dates, and information available before kickoff. Build recent-form features only from earlier matches."
+      },
+      {
+        "id": "m06",
+        "number": 6,
+        "title": "Build expected goals",
+        "phase": "Core models",
+        "question": "Which shots turn into goals?",
+        "outcome": "Train logistic regression to estimate expected goals: the scoring probability of a shot.",
+        "math": "Learn distance and angle geometry, sigmoid, log likelihood, regularization, and probability calibration.",
+        "tasks": [
+          "Extract shots and outcomes. Compute distance and angle to goal from pitch coordinates.",
+          "Split by match and date so shots from one match cannot cross partitions. Fit preprocessing on training data only.",
+          "Implement a small logistic model and compare it with a library model. Tune regularization on validation data.",
+          "Compare log loss and Brier score with a constant baseline. Plot calibration, the agreement between predicted and observed frequencies."
+        ],
+        "weeks": [
+          "Week 11: 6 h on shot data, 3 h on geometry and sigmoid, 2 h on split design.",
+          "Week 12: 6 h on logistic models, 3 h on likelihood and regularization, 2 h on calibration."
+        ],
+        "evidence": "An expected-goals model with grouped chronological splits, calibration plots, and a baseline comparison.",
+        "challenge": "Explain why shot outcome is a target and provider expected-goals values are excluded from your input features.",
+        "resources": [
+          "data",
+          "isl"
+        ],
+        "reading": "ISL chapters 4 and 6. Keep vendor expected-goals estimates out of the training features.",
+        "hours": 22,
+        "weekStart": 11,
+        "weekEnd": 12,
+        "prerequisites": [
+          "m05"
+        ],
+        "dataset": "StatsBomb Open Data: events/{match_id}.json joined to match dates. For shots, use shot locations and outcomes. Split by whole match and date."
+      },
+      {
+        "id": "m07",
+        "number": 7,
+        "title": "Run fair comparisons",
+        "phase": "Core models",
+        "question": "Does complexity earn its place?",
+        "outcome": "Compare trees and boosting with your linear and logistic models.",
+        "math": "Learn bias and variance, resampling, generalization, and regularization through model comparisons.",
+        "tasks": [
+          "Train a decision tree and a boosted tree model on the same task and partitions.",
+          "Run a small declared parameter search with chronological validation folds. Keep preprocessing inside each fold.",
+          "Record at least three controlled experiments. Change one design choice in each experiment.",
+          "Compare quality, runtime, and stability. Explain an overfit model and one result that contradicts your expectation."
+        ],
+        "weeks": [
+          "Week 13: 6 h on trees and boosting, 3 h on bias and variance, 2 h designing comparisons.",
+          "Week 14: 6 h running experiments, 3 h on resampling, 2 h writing a result table."
+        ],
+        "evidence": "A reproducible comparison of at least three model families and three experiments with explicit hypotheses.",
+        "challenge": "Explain why selecting a model using test scores invalidates the final test. Repair a deliberately flawed evaluation.",
+        "resources": [
+          "isl"
+        ],
+        "reading": "ISL chapters 5, 6, and 8. Prefer small searches with clear questions over large parameter sweeps.",
+        "hours": 22,
+        "weekStart": 13,
+        "weekEnd": 14,
+        "prerequisites": [
+          "m06"
+        ],
+        "dataset": "StatsBomb Open Data: events/{match_id}.json joined to match dates. For shots, use shot locations and outcomes. Split by whole match and date."
+      },
+      {
+        "id": "m08",
+        "number": 8,
+        "title": "Build a neural network",
+        "phase": "Deep learning",
+        "question": "Can learned features improve the forecast?",
+        "outcome": "Train a small PyTorch network for the shot prediction task.",
+        "math": "Apply the chain rule to backpropagation, the calculation of gradients through a network.",
+        "tasks": [
+          "Implement a two-layer network and annotate tensor shapes. Compare a tiny manual gradient with automatic differentiation.",
+          "Write a training loop with batches, validation, reproducible seeds, and saved model weights.",
+          "Overfit a tiny batch to diagnose the pipeline. Then use early stopping on the real training split.",
+          "Compare the network with logistic regression and boosting. Report when the neural network loses."
+        ],
+        "weeks": [
+          "Week 15: 6 h implementing the network, 3 h on the chain rule, 2 h explaining gradients.",
+          "Week 16: 6 h on training and diagnostics, 3 h on optimization, 2 h on the comparison."
+        ],
+        "evidence": "A reproducible neural training run, a tiny-batch diagnostic, learning curves, and comparisons with simpler models.",
+        "challenge": "Trace a prediction and gradient through a tiny network. Explain train versus evaluation mode.",
+        "resources": [
+          "d2l"
+        ],
+        "reading": "D2L chapters on linear networks, multilayer perceptrons, and training. Keep the network small enough for local experiments.",
+        "hours": 22,
+        "weekStart": 15,
+        "weekEnd": 16,
+        "prerequisites": [
+          "m07"
+        ],
+        "dataset": "StatsBomb Open Data: events/{match_id}.json joined to match dates. For shots, use shot locations and outcomes. Split by whole match and date."
+      },
+      {
+        "id": "m09",
+        "number": 9,
+        "title": "Understand attention",
+        "phase": "Deep learning",
+        "question": "Can the order of events help prediction?",
+        "outcome": "Build a small sequence model and an attention calculation for soccer events.",
+        "math": "Learn embeddings, softmax attention, positional information, and masking through matrix operations.",
+        "tasks": [
+          "Define a next-event task with information available at prediction time. Split by match and date.",
+          "Build a frequency baseline and a small recurrent or pooled-embedding baseline.",
+          "Implement scaled dot-product attention on a tiny sequence. Demonstrate why a future-event mask matters.",
+          "Train a small attention model if time permits. Otherwise evaluate the simpler sequence model and document the attention prototype."
+        ],
+        "weeks": [
+          "Week 17: 6 h on sequence data and a baseline, 3 h on embeddings, 2 h testing chronology.",
+          "Week 18: 6 h on attention, 3 h on matrix operations and masks, 2 h on evidence."
+        ],
+        "evidence": "A sequence baseline, a correct attention demonstration, and a clear account of whether training improved the task.",
+        "challenge": "Explain how attention weights are calculated and show a future-information leak prevented by a mask.",
+        "resources": [
+          "d2l"
+        ],
+        "reading": "D2L attention and transformer chapters. Full transformer training is a stretch goal, not a completion requirement.",
+        "hours": 22,
+        "weekStart": 17,
+        "weekEnd": 18,
+        "prerequisites": [
+          "m08"
+        ],
+        "dataset": "StatsBomb events/{match_id}.json: ordered events within each match. Define the target at a fixed prediction time and exclude all later events."
+      },
+      {
+        "id": "m10",
+        "number": 10,
+        "title": "Read research like an engineer",
+        "phase": "Research practice",
+        "question": "Which claims survive a closer look?",
+        "outcome": "Write two structured paper notes and design a small reproduction.",
+        "math": "Connect assumptions, objective functions, experimental controls, effect sizes, and uncertainty to research claims.",
+        "tasks": [
+          "Read the 2025 TabPFN paper and the 2026 tabular-prediction preprint. Record question, method, evidence, and limitations.",
+          "Trace one central equation into pseudocode. List every concept you cannot yet explain.",
+          "Choose one feasible claim about evaluation or tabular prediction. Specify data, baseline, metric, compute budget, and failure criteria.",
+          "Read one current Anthropic evaluation article. Explain how its evaluation principles transfer to your experiments."
+        ],
+        "weeks": [
+          "Week 19: 6 h reading and annotating two papers, 3 h unpacking notation, 2 h writing critiques.",
+          "Week 20: 6 h designing a reproduction, 3 h studying missing concepts, 2 h selecting a current evaluation article."
+        ],
+        "evidence": "Two paper notes, one current research note, and a preregistered reproduction plan with a local compute budget.",
+        "challenge": "Separate an author claim from evidence and your inference. Name a confounder that can reverse the conclusion.",
+        "resources": [
+          "tabpfn",
+          "paper2026",
+          "research"
+        ],
+        "reading": "Use abstracts to choose questions, then inspect methods and limitations. Refresh the current article when this stage begins.",
+        "hours": 22,
+        "weekStart": 19,
+        "weekEnd": 20,
+        "prerequisites": [
+          "m09"
+        ],
+        "dataset": "Reuse the frozen soccer datasets and splits. For reproduction, use the selected paper\u2019s public data if feasible; otherwise label the soccer experiment as an adaptation."
+      },
+      {
+        "id": "m11",
+        "number": 11,
+        "title": "Reproduce and investigate",
+        "phase": "Research practice",
+        "question": "Can you recover a result and explain a failure?",
+        "outcome": "Reproduce one limited research result and run an ablation, an experiment that removes one component.",
+        "math": "Apply confidence intervals, seed variability, multiple-comparison caution, and controlled comparisons.",
+        "tasks": [
+          "Freeze data and code versions. Implement the selected experiment with a baseline and an explicit compute limit.",
+          "Run multiple seeds or resamples where appropriate. Record metrics and variation, not only the best run.",
+          "Remove one component and compare the result. Investigate a discrepancy with the original claim.",
+          "Write a short report that distinguishes exact reproduction, adaptation, and failure to reproduce."
+        ],
+        "weeks": [
+          "Week 21: 6 h implementing the reproduction, 3 h on uncertainty, 2 h recording the protocol.",
+          "Week 22: 6 h on ablations, 3 h analyzing discrepancies, 2 h writing the report."
+        ],
+        "evidence": "A rerunnable experiment, an ablation table, and a report with limitations and negative results.",
+        "challenge": "Explain which conclusion your data supports and which it does not. Rerun one result from a clean command.",
+        "resources": [
+          "tabpfn",
+          "paper2026"
+        ],
+        "reading": "If pretrained weights or hardware are unavailable, reproduce an evaluation comparison using your existing models and label the adaptation.",
+        "hours": 22,
+        "weekStart": 21,
+        "weekEnd": 22,
+        "prerequisites": [
+          "m10"
+        ],
+        "dataset": "Reuse the frozen soccer datasets and splits. For reproduction, use the selected paper\u2019s public data if feasible; otherwise label the soccer experiment as an adaptation."
+      },
+      {
+        "id": "m12",
+        "number": 12,
+        "title": "Turn a model into a system",
+        "phase": "Engineering evidence",
+        "question": "Can another engineer trust and run your model?",
+        "outcome": "Package a local prediction service and an evaluation harness, code that measures model behavior consistently.",
+        "math": "Study numerical stability, data contracts, profiling, test design, and distribution shift through your own system.",
+        "tasks": [
+          "Package preprocessing and model weights together. Add a command that reproduces evaluation from saved data.",
+          "Test malformed inputs, missing values, changed categories, and data from a later period.",
+          "Measure prediction latency and memory use. Compare single predictions with batches. Document environment and model provenance.",
+          "Create a model report with intended use, training data, limitations, calibration, and monitoring signals."
+        ],
+        "weeks": [
+          "Week 23: 6 h packaging and tests, 3 h on numerical and data failures, 2 h documenting the run command.",
+          "Week 24: 6 h on profiling and evaluation, 3 h on drift, 2 h writing the model report."
+        ],
+        "evidence": "A local service or CLI, an evaluation harness, failure tests, performance measurements, and clear run instructions.",
+        "challenge": "Debug a failing prediction without an AI agent writing the fix. Explain how you would detect changing input data.",
+        "resources": [
+          "research",
+          "careers"
+        ],
+        "reading": "Use existing software skills. Spend time on ML-specific failure modes rather than introductory web development.",
+        "hours": 22,
+        "weekStart": 23,
+        "weekEnd": 24,
+        "prerequisites": [
+          "m11"
+        ],
+        "dataset": "Reuse the frozen soccer datasets and splits. For reproduction, use the selected paper\u2019s public data if feasible; otherwise label the soccer experiment as an adaptation."
+      },
+      {
+        "id": "m13",
+        "number": 13,
+        "title": "Make the work legible",
+        "phase": "Portfolio and review",
+        "question": "What can you now demonstrate independently?",
+        "outcome": "Finish two portfolio projects and assess the next six months against actual roles.",
+        "math": "Integrate mathematical explanations, experimental reasoning, and engineering tradeoffs.",
+        "tasks": [
+          "Finish a soccer prediction project with multiple models and a separate research reproduction with an ablation.",
+          "Give a recorded walkthrough: problem, data, loss, split, baseline, result, limitation, and next experiment.",
+          "Complete an independent exercise: train a simple model, explain its gradients, and diagnose a leaked feature.",
+          "Compare your evidence with two current engineering roles. Record gaps and select the next six-month focus."
+        ],
+        "weeks": [
+          "Week 25: 6 h finishing projects, 3 h revisiting weak mathematics, 2 h on a technical walkthrough.",
+          "Week 26: 6 h on independent assessment, 3 h on role analysis, 2 h planning the next phase."
+        ],
+        "evidence": "Two polished repositories or local project bundles, a technical walkthrough, and an honest skills assessment with a follow-on plan.",
+        "challenge": "Explain and modify your core model without generated code. Defend the experimental design and describe a result you do not trust.",
+        "resources": [
+          "careers",
+          "research"
+        ],
+        "reading": "The target is a stronger ML engineering portfolio. Frontier-lab hiring is selective and is not a guaranteed outcome of 286 study hours.",
+        "hours": 22,
+        "weekStart": 25,
+        "weekEnd": 26,
+        "prerequisites": [
+          "m12"
+        ],
+        "dataset": "Reuse the frozen soccer datasets and splits. For reproduction, use the selected paper\u2019s public data if feasible; otherwise label the soccer experiment as an adaptation."
+      }
+    ],
+    "nextPhase": [
+      "Deeper probability, Bayesian inference, optimization, and proof-based reasoning.",
+      "Large-scale training, distributed systems, GPU programming, and performance engineering.",
+      "Language-model training and evaluation, interpretability, and a sustained open-source contribution.",
+      "A larger research reproduction with mentorship and role-specific interview practice."
+    ],
+    "id": "soccer-ml",
+    "subtitle": "YOUR NEXT SIX MONTHS",
+    "description": "Build soccer models. Learn the mathematics. Run experiments that you can explain."
+  },
+  "state": {
+    "version": 1,
+    "revision": 3,
+    "curriculumId": "soccer-ml",
+    "weeklyHours": 8,
+    "startDate": "2026-01-05",
+    "modules": {
+      "m01": {
+        "status": "active",
+        "tasks": [
+          true,
+          true,
+          false,
+          false
+        ],
+        "notes": "Synthetic note: split the matches by date before any model.",
+        "evidence": "",
+        "hours": 3
+      }
+    },
+    "experiments": []
+  },
+  "status": "active",
+  "view": {
+    "selectedModuleId": "m01"
+  },
+  "draft": {
+    "experiment": null
+  }
+}
