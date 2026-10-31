@@ -3,12 +3,14 @@
 The core of these tests is workspace confinement. A check path comes from lesson
 content, so every way out of the workspace must fail without a read.
 """
+import errno
 import json
 import os
 from pathlib import Path
 import shutil
 import signal
 import socket
+import subprocess
 import stat
 import sys
 import tempfile
@@ -661,6 +663,123 @@ class JsonValidTests(Workspace):
 
     def test_a_missing_file_fails(self):
         self.assertEqual(self.check({'type': 'json-valid', 'path': 'nope.json'})['status'], 'failed')
+
+
+class ReviewFixTests(Workspace):
+    def test_every_hiding_character_is_removed_from_text(self):
+        for ch in ['\u200e', '\u200f', '\u061c', '\u00ad', '\u2028', '\u2029', '\u0085', '\u202a', '\u202e', '\u2066', '\u2069', '\u200b',
+                   '\u200d', '\u2060', '\ufeff', '\x00', '\x1b', '\x7f', '\x9f']:
+            with self.subTest(char=hex(ord(ch))):
+                self.assertEqual(check_runner.clean_text(f'a{ch}b', 10), 'ab')
+        self.assertEqual(check_runner.clean_text('caf\u00e9 \U0001f600', 20), 'caf\u00e9 \U0001f600')
+
+    def test_the_control_character_pattern_is_written_with_escapes_only(self):
+        source = (ROOT / 'check_runner.py').read_text(encoding='utf-8')
+        line = next(item for item in source.splitlines() if item.startswith('_CONTROL'))
+        self.assertTrue(all(ord(ch) < 128 for ch in line), 'the pattern holds a raw invisible character')
+        self.assertTrue(all(ord(ch) < 128 or ch in '\u00e9' for ch in line))
+
+    def test_a_read_that_fails_is_an_error_and_never_an_empty_file(self):
+        (self.work / 'f.txt').write_text('data')
+        for failure in (OSError(errno.EIO, 'io'), BlockingIOError(errno.EAGAIN, 'again')):
+            with self.subTest(failure=type(failure).__name__), mock.patch.object(check_workspace.os, 'read', side_effect=failure):
+                with self.assertRaises(check_workspace.WorkspaceError) as caught:
+                    check_workspace.read_file(self.work, 'f.txt')
+                self.assertEqual(caught.exception.code, 'unreadable')
+                result = self.check({'type': 'text-match', 'path': 'f.txt', 'text': 'data'})
+                self.assertEqual((result['status'], result['evidence']['reason']), ('error', 'unreadable'))
+
+    def test_whole_number_floats_are_accepted_as_integers_and_others_are_not(self):
+        self.assertEqual(self.check({'type': 'text-match', 'path': 'notes.txt', 'text': 'hello', 'minCount': 2.0})['status'], 'passed')
+        for value in (2.5, float('nan'), float('inf'), True, '2'):
+            self.assertEqual(self.check({'type': 'text-match', 'path': 'notes.txt', 'text': 'hello', 'minCount': value})['evidence']['reason'], 'invalid_descriptor')
+
+    def test_kill_group_says_whether_the_process_is_gone(self):
+        process = subprocess.Popen(['sleep', '30'], start_new_session=True)
+        self.assertIs(check_runner.kill_group(process), True)
+        process.wait(5)
+        self.assertIs(check_runner.kill_group(process), True, 'a process that is already gone counts as gone')
+        broken = mock.Mock(pid=2 ** 22)
+        broken.kill.side_effect = PermissionError('no')
+        with mock.patch.object(check_runner.os, 'killpg', side_effect=PermissionError('no')):
+            self.assertIs(check_runner.kill_group(broken), False)
+
+    def test_a_pattern_child_that_cannot_be_killed_is_reported_and_does_not_hang(self):
+        (self.work / 'evil.txt').write_text('a' * 64 + '!')
+        spawned = []
+        real = check_runner.subprocess.Popen
+
+        def spy(*args, **kwargs):
+            process = real(*args, **kwargs)
+            spawned.append(process)
+            return process
+
+        started = time.monotonic()
+        with mock.patch.object(check_runner, 'kill_group', return_value=False), mock.patch.object(check_runner.subprocess, 'Popen', spy):
+            result = self.check({'type': 'text-match', 'path': 'evil.txt', 'pattern': r'^(a+)+$'}, Limits(regex_timeout=0.3, kill_wait_seconds=0.5))
+        self.assertLess(time.monotonic() - started, 6)
+        self.assertEqual((result['status'], result['evidence']['reason']), ('error', 'kill_failed'))
+        for process in spawned:
+            os.killpg(process.pid, signal.SIGKILL)
+            process.wait(5)
+
+    def test_the_regex_child_is_killed_when_the_wait_itself_breaks(self):
+        class Broken:
+            pid = 1
+            returncode = None
+
+            def communicate(self, *args, **kwargs):
+                raise RuntimeError('boom')
+
+            def poll(self):
+                return None
+
+            def wait(self, timeout=None):
+                return 0
+
+        killed = []
+        with mock.patch.object(check_runner.subprocess, 'Popen', return_value=Broken()), \
+                mock.patch.object(check_runner, 'kill_group', lambda process: killed.append(process) or True):
+            with self.assertRaises(RuntimeError):
+                check_runner.count_matches('text', 'a', False, 1, 1.0)
+        self.assertEqual(len(killed), 1)
+        self.assertEqual(check_runner.live_regex_children(), 0)
+
+    def test_a_pattern_child_that_fails_never_gives_a_count(self):
+        class Fake:
+            pid = 1
+
+            def __init__(self, code, out):
+                self.returncode, self.out = code, out
+
+            def communicate(self, payload=None, timeout=None):
+                return self.out, b''
+
+            def poll(self):
+                return self.returncode
+
+            def wait(self, timeout=None):
+                return self.returncode
+
+        cases = {'non-zero exit with a big count': (1, b'{"count": 99999}'), 'not JSON': (0, b'not json'), 'no count': (0, b'{}'),
+                 'a count that is not a number': (0, b'{"count": "many"}'), 'a list': (0, b'[1]'), 'empty': (0, b''), 'not utf-8': (0, b'\xff\xfe')}
+        for label, (code, out) in cases.items():
+            with self.subTest(label=label), mock.patch.object(check_runner.subprocess, 'Popen', return_value=Fake(code, out)):
+                self.assertEqual(check_runner.count_matches('text', 'a', False, 5, 1.0), (0, 'pattern_failed'))
+        with mock.patch.object(check_runner.subprocess, 'Popen', side_effect=OSError('no')):
+            self.assertEqual(check_runner.count_matches('text', 'a', False, 5, 1.0), (0, 'pattern_failed'))
+        with mock.patch.object(check_runner, 'count_matches', return_value=(0, 'pattern_failed')):
+            result = self.check({'type': 'text-match', 'path': 'notes.txt', 'pattern': 'hello'})
+        self.assertEqual((result['status'], result['evidence']['reason']), ('error', 'pattern_failed'))
+
+    def test_the_pattern_worker_survives_a_bad_cpu_limit_argument(self):
+        done = subprocess.run([sys.executable, '-I', '-S', '-c', check_runner._REGEX_WORKER, 'not-a-number'], input=json.dumps(
+            {'text': 'aaa', 'pattern': 'a', 'ignoreCase': False, 'limit': 5}).encode(), capture_output=True, timeout=20)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(json.loads(done.stdout), {'count': 3})
+        done = subprocess.run([sys.executable, '-I', '-S', '-c', check_runner._REGEX_WORKER], input=json.dumps(
+            {'text': 'aaa', 'pattern': 'a', 'ignoreCase': False, 'limit': 5}).encode(), capture_output=True, timeout=20)
+        self.assertEqual(json.loads(done.stdout), {'count': 3})
 
 
 if __name__ == '__main__':

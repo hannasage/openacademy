@@ -25,20 +25,25 @@ if str(ROOT) not in sys.path:
 import check_consent
 import check_routes
 import check_runner
+import check_script
 from server import Handler
 
 FIXTURE = ROOT / 'tests' / 'fixtures' / 'contracts' / 'valid' / 'lesson-module-minimal.json'
 TOKEN_HEADER = 'X-Schola-Check-Token'
 
 
-def module_document(version='1.0.0', checks=None):
+SCRIPT = {'runtime': 'python3', 'source': 'print("hello")\n'}
+
+
+def module_document(version='1.0.0', checks=None, schema='1.1'):
     document = json.loads(FIXTURE.read_text())
     document['version'] = version
+    document['schemaVersion'] = schema
     document['checks'] = checks or [
         {'id': 'self', 'kind': 'self-reported', 'description': 'The student says it is done.'},
         {'id': 'has-readme', 'kind': 'automated', 'description': 'A README exists.', 'runner': {'type': 'file-exists', 'path': 'README.md'}},
-        {'id': 'script-a', 'kind': 'automated', 'description': 'A tier two check.', 'runner': {'type': 'script'}},
-        {'id': 'script-b', 'kind': 'automated', 'description': 'Another tier two check.', 'runner': {'type': 'script', 'name': 'other'}},
+        {'id': 'script-a', 'kind': 'automated', 'description': 'A tier two check.', 'runner': {'type': 'script'}, **SCRIPT},
+        {'id': 'script-b', 'kind': 'automated', 'description': 'Another tier two check.', 'runner': {'type': 'script', 'name': 'other'}, **SCRIPT},
     ]
     return document
 
@@ -70,11 +75,14 @@ class RouteCase(unittest.TestCase):
         base = Path(os.path.realpath(self.temp.name))
         self.data = base / 'data'
         self.data.mkdir()
-        self.work = base / 'work'
-        self.work.mkdir()
-        (self.work / 'README.md').write_text('hi')
         self.home = base / 'home'
         self.home.mkdir()
+        self.work = self.home / 'work'
+        self.work.mkdir()
+        (self.work / 'README.md').write_text('hi')
+        self.outside_home = base / 'elsewhere'
+        self.outside_home.mkdir()
+        self.base = base
         self.adapter = FakeScriptAdapter()
         self.start_server()
         self.import_module(module_document())
@@ -219,7 +227,7 @@ class WorkspaceTests(RouteCase):
         self.assertEqual((status, payload['configured'], payload['path']), (200, False, None))
 
     def test_a_folder_is_saved_as_its_real_path_and_survives_a_restart(self):
-        link = self.work.parent / 'link-to-work'
+        link = self.base / 'link-to-work'
         os.symlink(self.work, link)
         payload = self.set_workspace(link)
         self.assertEqual(payload['path'], str(self.work))
@@ -251,12 +259,17 @@ class WorkspaceTests(RouteCase):
         inside_lessons = self.data / '_lessons' / 'modules'
         deep_home = self.home / 'projects'
         deep_home.mkdir()
-        os.symlink(self.home, self.work.parent / 'home-link')
-        os.symlink(self.data, self.work.parent / 'data-link')
+        (self.home / '.ssh').mkdir()
+        (deep_home / '.venv').mkdir()
+        os.symlink(self.home / '.ssh', self.base / 'hidden-link')
+        os.symlink(self.home, self.base / 'home-link')
+        os.symlink(self.data, self.base / 'data-link')
         cases = {
             'root': '/', 'home': str(self.home), 'parent of home': str(self.home.parent), 'data dir': str(self.data),
             'inside data dir': str(inside_data), 'inside lessons': str(inside_lessons), 'contains data dir': str(self.data.parent),
-            'link to home': str(self.work.parent / 'home-link'), 'link to data': str(self.work.parent / 'data-link'),
+            'link to home': str(self.base / 'home-link'), 'link to data': str(self.base / 'data-link'),
+            'outside home': str(self.outside_home), 'a system folder': '/etc', 'a hidden folder in home': str(self.home / '.ssh'),
+            'a hidden folder below': str(self.home / 'projects' / '.venv'), 'a link to a hidden folder': str(self.base / 'hidden-link'),
             'missing': str(self.work / 'nope'), 'a file': str(self.work / 'file.txt'), 'relative': 'work', 'dot': '.', 'empty': '',
             'tilde': '~', 'nul': str(self.work) + '\x00', 'long': '/' + 'a' * 5000, 'parent parts': str(self.work) + '/../work/../../..',
         }
@@ -398,8 +411,10 @@ class ConsentTests(RouteCase):
         status, payload = self.call('POST', '/api/checks/run', self.ref('script-a', consentId=granted['consentId']))
         self.assertEqual((status, payload['result']['status'], payload['tier']), (200, 'passed', 2))
         self.assertEqual(self.adapter.calls, [('script-a', str(self.work))])
-        # The id is optional. A matching consent is enough.
-        self.assertEqual(self.call('POST', '/api/checks/run', self.ref('script-a'))[0], 200)
+        # The id is required. A matching binding without the id is not enough.
+        status, payload = self.call('POST', '/api/checks/run', self.ref('script-a'))
+        self.assertEqual((status, payload['code']), (403, 'consent_required'))
+        self.assertEqual(len(self.adapter.calls), 1)
 
     def test_consent_needs_the_workspace(self):
         status, shown = self.call('POST', '/api/checks/inspect', self.ref('script-a'))
@@ -442,13 +457,13 @@ class ConsentTests(RouteCase):
 
     def test_consent_is_bound_to_the_workspace(self):
         self.set_workspace()
-        self.consent()
-        other = self.work.parent / 'other'
+        granted = self.consent()
+        other = self.home / 'other'
         other.mkdir()
         self.set_workspace(other)
-        self.assertEqual(self.call('POST', '/api/checks/run', self.ref('script-a'))[1]['code'], 'consent_required')
+        self.assertEqual(self.call('POST', '/api/checks/run', self.ref('script-a', consentId=granted['consentId']))[1]['code'], 'consent_required')
         self.set_workspace(self.work)
-        self.assertEqual(self.call('POST', '/api/checks/run', self.ref('script-a'))[0], 200)
+        self.assertEqual(self.call('POST', '/api/checks/run', self.ref('script-a', consentId=granted['consentId']))[0], 200)
 
     def test_consent_ends_with_the_server_session(self):
         self.set_workspace()
@@ -465,7 +480,7 @@ class ConsentTests(RouteCase):
         self.set_workspace()
         granted = self.consent('script-a')
         changed = module_document(version='1.1.0', checks=[
-            {'id': 'script-a', 'kind': 'automated', 'description': 'A tier two check.', 'runner': {'type': 'script', 'changed': True}}])
+            {'id': 'script-a', 'kind': 'automated', 'description': 'A tier two check.', 'runner': {'type': 'script', 'changed': True}, **SCRIPT}])
         self.import_module(changed)
         body = {'moduleId': 'hello-module', 'version': '1.1.0', 'checkId': 'script-a', 'consentId': granted['consentId']}
         self.assertEqual(self.call('POST', '/api/checks/run', body)[1]['code'], 'consent_required')
@@ -511,30 +526,95 @@ class ConsentTests(RouteCase):
     def test_a_consent_matches_only_its_exact_binding(self):
         registry = check_consent.ConsentRegistry()
         record = registry.grant('m', '1.0.0', 'c', 'a' * 64, '/w')
-        self.assertEqual(registry.find('m', '1.0.0', 'c', 'a' * 64, '/w')['consentId'], record['consentId'])
+        self.assertEqual(registry.find('m', '1.0.0', 'c', 'a' * 64, '/w', consent_id=record['consentId'])['consentId'], record['consentId'])
+        self.assertIsNone(registry.find('m', '1.0.0', 'c', 'a' * 64, '/w'), 'the id is required')
+        self.assertIsNone(registry.find('m', '1.0.0', 'c', 'a' * 64, '/w', consent_id=None))
+        self.assertIsNone(registry.find('m', '1.0.0', 'c', 'a' * 64, '/w', consent_id=''))
         for binding in (('n', '1.0.0', 'c', 'a' * 64, '/w'), ('m', '1.0.1', 'c', 'a' * 64, '/w'), ('m', '1.0.0', 'd', 'a' * 64, '/w'),
                         ('m', '1.0.0', 'c', 'b' * 64, '/w'), ('m', '1.0.0', 'c', 'a' * 64, '/x')):
-            self.assertIsNone(registry.find(*binding), binding)
+            self.assertIsNone(registry.find(*binding, consent_id=record['consentId']), binding)
         self.assertIsNone(registry.find('m', '1.0.0', 'c', 'a' * 64, '/w', consent_id='wrong'))
         registry.clear()
-        self.assertIsNone(registry.find('m', '1.0.0', 'c', 'a' * 64, '/w'))
+        self.assertIsNone(registry.find('m', '1.0.0', 'c', 'a' * 64, '/w', consent_id=record['consentId']))
 
     def test_the_consent_list_is_bounded(self):
         registry = check_consent.ConsentRegistry(limit=3)
         for index in range(10):
             registry.grant('m', '1.0.0', f'c{index}', 'h' * 64, '/w')
         self.assertEqual(len(registry.records()), 3)
-        self.assertIsNone(registry.find('m', '1.0.0', 'c0', 'h' * 64, '/w'))
-        self.assertIsNotNone(registry.find('m', '1.0.0', 'c9', 'h' * 64, '/w'))
+        first = registry.records()
+        self.assertEqual([r['checkId'] for r in first], ['c7', 'c8', 'c9'])
+
+
+class ReviewFixTests(RouteCase):
+    def test_a_run_for_a_script_needs_the_consent_id_and_checks_it(self):
+        self.set_workspace()
+        granted = self.consent('script-a')
+        other = self.consent('script-b')
+        for body in (self.ref('script-a'), self.ref('script-a', consentId=''), self.ref('script-a', consentId='x' * 24),
+                     self.ref('script-a', consentId=other['consentId'])):
+            with self.subTest(body=body):
+                status, payload = self.call('POST', '/api/checks/run', body)
+                self.assertEqual((status, payload['code']), (403, 'consent_required'))
+        self.assertEqual(self.adapter.calls, [])
+        self.assertEqual(self.call('POST', '/api/checks/run', self.ref('script-a', consentId=granted['consentId']))[0], 200)
+
+    def test_every_check_route_refuses_a_foreign_host_even_with_a_good_token(self):
+        routes = [('GET', '/api/checks/workspace', None), ('POST', '/api/checks/workspace', {'path': str(self.work)}),
+                  ('POST', '/api/checks/inspect', self.ref('has-readme')), ('POST', '/api/checks/run', self.ref('has-readme')),
+                  ('POST', '/api/checks/consent', self.ref('script-a', confirm=True, shownHash='0' * 64))]
+        for method, path, body in routes:
+            for host in ('evil.example', 'evil.example:80', '127.0.0.1:1', f'127.0.0.1.evil.example:{self.server.server_port}'):
+                with self.subTest(path=path, host=host):
+                    status, payload = self.call(method, path, body, host=host, origin=False)
+                    self.assertEqual((status, payload['code']), (403, 'forbidden_origin'))
+        self.assertFalse((self.data / '_lessons' / 'check-workspace.json').exists())
+
+    def test_a_saved_setting_with_the_wrong_shape_is_damage_and_never_unconfigured(self):
+        self.set_workspace()
+        stored = self.data / '_lessons' / 'check-workspace.json'
+        for text in ('', '[]', '{}', '{"version": 1}', '{"version": 1, "path": 5}', '{"version": 2, "path": "/x"}', 'null', '"text"'):
+            stored.write_text(text)
+            with self.subTest(text=text):
+                status, payload = self.call('GET', '/api/checks/workspace')
+                self.assertEqual((status, payload['code']), (500, 'corrupt_file'))
+                status, payload = self.call('POST', '/api/checks/run', self.ref('has-readme'))
+                self.assertEqual((status, payload['code']), (500, 'corrupt_file'))
+                self.assertEqual(stored.read_text(), text)
+
+    def test_a_version_1_0_script_runner_with_no_fields_needs_no_consent_and_is_skipped(self):
+        legacy = module_document(version='2.0.0', schema='1.0', checks=[
+            {'id': 'old-script', 'kind': 'automated', 'description': 'A 1.0 script runner.', 'runner': {'type': 'script'}}])
+        self.import_module(legacy)
+        self.set_workspace()
+        real = check_runner.Registry()
+        real.register(check_runner.BuiltinAdapter())
+        real.register(check_script.ScriptAdapter())
+        self.server.check_session.registry = real
+        ref = {'moduleId': 'hello-module', 'version': '2.0.0', 'checkId': 'old-script'}
+        status, shown = self.call('POST', '/api/checks/inspect', ref)
+        self.assertEqual((status, shown['needsConsent']), (200, False))
+        status, payload = self.call('POST', '/api/checks/run', ref)
+        self.assertEqual(status, 200, payload)
+        self.assertEqual((payload['tier'], payload['result']['status']), (1, 'skipped'))
+        self.assertEqual(self.adapter.calls, [])
+
+    def test_inspect_lists_the_limits_that_do_not_apply(self):
+        self.set_workspace()
+        status, shown = self.call('POST', '/api/checks/inspect', self.ref('script-a'))
+        self.assertTrue(any(item.lower().startswith('memory') for item in shown['limitsNotApplied']), shown)
+        self.assertTrue(any(item.startswith('timeout=') for item in shown['limits']))
+        status, builtin = self.call('POST', '/api/checks/inspect', self.ref('has-readme'))
+        self.assertEqual(builtin['limitsNotApplied'], [])
 
 
 class BusyTests(RouteCase):
     def test_a_second_run_while_one_is_going_gets_429(self):
         self.set_workspace()
-        self.consent()
+        granted = self.consent()
         self.adapter.release.clear()
         first = {}
-        thread = threading.Thread(target=lambda: first.update(zip(('status', 'payload'), self.call('POST', '/api/checks/run', self.ref('script-a')))))
+        thread = threading.Thread(target=lambda: first.update(zip(('status', 'payload'), self.call('POST', '/api/checks/run', self.ref('script-a', consentId=granted['consentId'])))))
         thread.start()
         self.assertTrue(self.adapter.started.wait(5))
         status, payload = self.call('POST', '/api/checks/run', self.ref('has-readme'))

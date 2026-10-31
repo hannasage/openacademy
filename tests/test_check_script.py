@@ -308,10 +308,21 @@ class RunTests(ScriptCase):
 
     @unittest.skipUnless(NODE, 'node is not on the PATH')
     def test_a_node_script_runs(self):
+        # The runtime is looked up only in the standard program folders. A node from a version manager lives elsewhere,
+        # so this test adds its folder to the lookup path.
+        safe = os.path.dirname(NODE) + ':' + check_script.SAFE_PATH
         check = script_check('console.log("from node", process.argv.slice(2).join(","), require("fs").readFileSync("notes.txt", "utf8").trim())', runtime='node', args=['a', 'b'])
-        result = self.go(check)
+        with mock.patch.object(check_script, 'SAFE_PATH', safe):
+            result = self.go(check)
         self.assertEqual((result['status'], result['evidence']['output']), ('passed', 'from node a,b hello notes'))
         self.assertWorkspaceUnchanged()
+
+    @unittest.skipUnless(NODE, 'node is not on the PATH')
+    def test_a_runtime_outside_the_standard_folders_is_skipped_for_self_report(self):
+        if shutil.which('node', path=check_script.SAFE_PATH):
+            self.skipTest('node is in a standard folder here')
+        result = self.go(script_check('console.log(1)', runtime='node'))
+        self.assertEqual((result['status'], result['evidence']['reason']), ('skipped', 'runtime_unavailable'))
 
     def test_the_scratch_folder_is_removed_after_success_failure_and_timeout(self):
         self.go(script_check('print(1)'))
@@ -455,23 +466,6 @@ class LimitTests(ScriptCase):
         self.assertEqual(result['status'], 'passed')
         self.assertTrue(wait_dead(int(pid_file.read_text())), 'a background child survived the run')
 
-    def test_a_child_that_keeps_the_output_open_does_not_hang_the_run(self):
-        pid_file = self.outside / 'child.pid'
-        source = f'''
-            import os, subprocess
-            child = subprocess.Popen(["sleep", "60"], start_new_session=True)
-            open({str(pid_file)!r}, "w").write(str(child.pid))
-            print("done")
-        '''
-        started = time.monotonic()
-        result = self.go(script_check(source, timeout=2))
-        self.assertLess(time.monotonic() - started, 10)
-        self.assertEqual(result['status'], 'passed')
-        # A child that starts its own session is outside the group. Record the limit and clean up.
-        pid = int(pid_file.read_text())
-        if alive(pid):
-            os.kill(pid, signal.SIGKILL)
-
     def test_a_flood_of_output_is_cut_off_and_the_script_is_killed(self):
         pid_file = self.outside / 'flood.pid'
         source = f'''
@@ -498,7 +492,7 @@ class LimitTests(ScriptCase):
         result = self.go(script_check('import sys\nsys.stdout.write("y" * 65536)'))
         self.assertEqual(result['status'], 'passed')
         self.assertEqual(result['evidence']['outputBytes'], 65536)
-        self.assertIs(result['evidence']['outputTruncated'], False)
+        self.assertNotIn('reason', result['evidence'])
 
     def test_the_limits_that_were_set_are_listed_and_the_ones_that_were_not_are_never_silent(self):
         result = self.go(script_check('print(1)', timeout=7))
@@ -621,6 +615,243 @@ class LimitTests(ScriptCase):
         self.assertEqual(self.go(script_check('print("again")'))['status'], 'passed')
 
 
+class ReviewFixTests(ScriptCase):
+    def popen_spy(self):
+        return mock.patch.object(check_script.subprocess, 'Popen', side_effect=AssertionError('a process was started'))
+
+    def test_a_version_1_0_script_runner_with_no_fields_is_skipped_and_needs_no_consent(self):
+        legacy = {'id': 'old', 'kind': 'automated', 'description': 'A 1.0 script runner.', 'runner': {'type': 'script'}}
+        self.assertFalse(check_consent.needs_consent(legacy))
+        with self.popen_spy() as popen:
+            result = run(legacy, self.work, None, self.registry, consent=None)
+        self.assertEqual((result['status'], result['evidence']['reason']), ('skipped', 'script_not_defined'))
+        self.assertIn('self-report', ' '.join(result['log']).lower())
+        popen.assert_not_called()
+        self.assertTrue(check_consent.needs_consent(dict(legacy, runtime='python3')))
+        self.assertTrue(check_consent.needs_consent(dict(legacy, source='print(1)')))
+
+    def test_a_whole_number_float_for_the_time_limit_is_the_same_as_the_integer(self):
+        as_float, as_int = script_check('print("ok")', timeout=30.0), script_check('print("ok")', timeout=30)
+        self.assertEqual(check_consent.check_hash(as_float), check_consent.check_hash(as_int))
+        self.assertEqual(self.go(as_float)['status'], 'passed')
+        for bad in (30.5, float('nan'), float('inf'), 0.0, 121.0, True):
+            with self.subTest(bad=bad), self.popen_spy():
+                self.assertEqual(self.go(script_check('print(1)', timeout=bad))['evidence']['reason'], 'invalid_descriptor')
+
+    def test_a_child_in_its_own_session_that_holds_the_output_is_flagged(self):
+        pid_file = self.outside / 'escaped.pid'
+        source = f"""
+            import subprocess
+            child = subprocess.Popen(["sleep", "30"], start_new_session=True)
+            open({str(pid_file)!r}, "w").write(str(child.pid))
+            print("done")
+        """
+        try:
+            result = self.go(script_check(source, timeout=10))
+            self.assertEqual(result['evidence']['outputIncomplete'], True)
+            self.assertTrue(any(item.startswith('process group') for item in result['evidence']['limitsNotApplied']), result['evidence']['limitsNotApplied'])
+            self.assertIn('own session', ' '.join(result['log']))
+        finally:
+            deadline = time.monotonic() + 10
+            while not pid_file.exists() and time.monotonic() < deadline:
+                time.sleep(0.05)
+            if pid_file.exists() and alive(int(pid_file.read_text())):
+                os.kill(int(pid_file.read_text()), signal.SIGKILL)
+
+    def test_a_normal_run_is_not_flagged_incomplete(self):
+        result = self.go(script_check('print(1)'))
+        self.assertIs(result['evidence']['outputIncomplete'], False)
+
+    @unittest.skipIf(hasattr(os, 'geteuid') and os.geteuid() == 0, 'root can read everything')
+    def test_a_folder_or_file_that_cannot_be_read_refuses_the_run(self):
+        (self.work / 'locked').mkdir()
+        (self.work / 'locked' / 'secret.txt').write_text('x')
+        os.chmod(self.work / 'locked', 0)
+        self.addCleanup(os.chmod, self.work / 'locked', 0o700)
+        with self.popen_spy() as popen:
+            result = self.go(script_check('print(1)'))
+        self.assertEqual((result['status'], result['evidence']['reason']), ('error', 'unreadable_workspace'))
+        popen.assert_not_called()
+        os.chmod(self.work / 'locked', 0o700)
+        (self.work / 'locked' / 'secret.txt').chmod(0)
+        self.addCleanup(os.chmod, self.work / 'locked' / 'secret.txt', 0o600)
+        with self.popen_spy() as popen:
+            result = self.go(script_check('print(1)'))
+        self.assertEqual((result['status'], result['evidence']['reason']), ('error', 'unreadable_workspace'))
+        popen.assert_not_called()
+
+    def test_a_runtime_that_cannot_start_is_an_error_and_not_a_failed_check(self):
+        with mock.patch.object(check_script.shutil, 'which', return_value='/nonexistent/python3'):
+            result = self.go(script_check('print(1)'))
+        self.assertEqual((result['status'], result['evidence']['reason']), ('error', 'script_not_started'))
+        self.assertNotEqual(result['status'], 'failed')
+
+    def test_a_launcher_that_dies_before_it_reports_is_an_error(self):
+        with mock.patch.object(check_script, '_LAUNCHER', 'import sys\nsys.exit(3)'):
+            result = self.go(script_check('print(1)'))
+        self.assertEqual((result['status'], result['evidence']['reason']), ('error', 'script_not_started'))
+
+    def test_exit_code_127_gets_a_hint(self):
+        result = self.go(script_check('import sys\nsys.exit(127)'))
+        self.assertEqual(result['status'], 'failed')
+        self.assertIn('runtime could not start', ' '.join(result['log']))
+
+    def test_the_runtime_is_looked_up_on_the_safe_path_only(self):
+        seen = []
+        real = check_script.shutil.which
+
+        def spy(name, *args, **kwargs):
+            seen.append(kwargs.get('path'))
+            return real(name, *args, **kwargs)
+
+        with mock.patch.object(check_script.shutil, 'which', spy):
+            self.go(script_check('print(1)'))
+        self.assertEqual(seen, [check_script.SAFE_PATH])
+
+    def test_cleanup_never_changes_the_mode_of_a_target_outside_the_scratch_folder(self):
+        folder, file = self.outside / 'target-folder', self.outside / 'target-file.txt'
+        folder.mkdir(mode=0o755)
+        os.chmod(folder, 0o755)
+        file.write_text('x')
+        os.chmod(file, 0o644)
+        source = f"import os\nos.symlink({str(folder)!r}, 'link-to-folder')\nos.symlink({str(file)!r}, 'link-to-file')\nos.makedirs('own/inner')\nos.chmod('own/inner', 0o500)"
+        result = self.go(script_check(source))
+        self.assertEqual(result['status'], 'passed')
+        self.assertEqual(stat.S_IMODE(folder.stat().st_mode), 0o755)
+        self.assertEqual(stat.S_IMODE(file.stat().st_mode), 0o644)
+
+    def test_a_scratch_folder_that_cannot_be_removed_is_noted(self):
+        with mock.patch.object(check_script.shutil, 'rmtree', lambda *a, **k: None):
+            result = self.go(script_check('print(1)'))
+        self.assertEqual(result['status'], 'passed')
+        self.assertIn('could not remove', ' '.join(result['log']).lower())
+        for name in scratch_leftovers():
+            if name not in self.leftovers:
+                shutil.rmtree(Path(tempfile.gettempdir()) / name, ignore_errors=True)
+
+    def test_a_kill_that_fails_is_an_error_that_does_not_hang_and_frees_the_lock(self):
+        pid_file = self.outside / 'stubborn.pid'
+        source = f'import os, time\nopen({str(pid_file)!r}, "w").write(str(os.getpid()))\ntime.sleep(60)'
+        started = time.monotonic()
+        try:
+            with mock.patch.object(check_runner, 'kill_group', return_value=False):
+                result = self.go(script_check(source, timeout=1), limits=Limits(kill_wait_seconds=0.5))
+            self.assertLess(time.monotonic() - started, 10)
+            self.assertEqual((result['status'], result['evidence']['reason']), ('error', 'kill_failed'))
+        finally:
+            deadline = time.monotonic() + 5
+            while not pid_file.exists() and time.monotonic() < deadline:
+                time.sleep(0.05)
+            if pid_file.exists():
+                try:
+                    os.killpg(int(pid_file.read_text()), signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+        self.assertEqual(self.go(script_check('print("again")'))['status'], 'passed')
+
+    def test_output_cut_for_the_result_is_flagged(self):
+        result = self.go(script_check('print("z" * 2000)'))
+        self.assertEqual(len(result['evidence']['output']), 500)
+        self.assertIs(result['evidence']['outputTruncated'], True)
+        result = self.go(script_check('print("z" * 2000)'), limits=Limits(max_evidence_chars=100))
+        self.assertEqual(len(result['evidence']['output']), 100)
+        self.assertIs(result['evidence']['outputTruncated'], True)
+        self.assertIs(self.go(script_check('print("short")'))['evidence']['outputTruncated'], False)
+
+    def test_the_collector_snapshot_is_never_torn_while_the_reader_is_still_writing(self):
+        read_end, write_end = os.pipe()
+        self.addCleanup(os.close, write_end)
+        process = mock.Mock(stdout=os.fdopen(read_end, 'rb', buffering=0))
+        collector = check_script.Collector(process, 1000)
+        thread = threading.Thread(target=collector.run, daemon=True)
+        thread.start()
+        stop = threading.Event()
+
+        def writer():
+            while not stop.is_set():
+                try:
+                    os.write(write_end, b'x' * 37)
+                except OSError:
+                    return
+
+        pump = threading.Thread(target=writer, daemon=True)
+        pump.start()
+        for _ in range(3000):
+            data, total, overflow = collector.snapshot()
+            self.assertEqual(len(data), min(total, 1000))
+            self.assertEqual(overflow, total > 1000)
+        stop.set()
+        collector.stop()
+        pump.join(2)
+
+    def test_a_collector_that_is_stopped_adds_nothing_afterward(self):
+        read_end, write_end = os.pipe()
+        process = mock.Mock(stdout=os.fdopen(read_end, 'rb', buffering=0))
+        collector = check_script.Collector(process, 100)
+        thread = threading.Thread(target=collector.run, daemon=True)
+        thread.start()
+        os.write(write_end, b'abc')
+        deadline = time.monotonic() + 3
+        while collector.snapshot()[1] < 3 and time.monotonic() < deadline:
+            time.sleep(0.01)
+        collector.stop()
+        before = collector.snapshot()
+        os.write(write_end, b'more')
+        os.close(write_end)
+        thread.join(3)
+        self.assertEqual(collector.snapshot(), before)
+
+    def test_the_lock_is_released_after_an_unhandled_exception_in_the_adapter(self):
+        with mock.patch.object(check_script.ScriptAdapter, '_run', side_effect=RuntimeError('/secret/path')):
+            result = self.go(script_check('print(1)'))
+        self.assertEqual((result['status'], result['evidence']['reason']), ('error', 'adapter_failed'))
+        self.assertNotIn('secret', json.dumps(result))
+        self.assertEqual(self.go(script_check('print("again")'))['status'], 'passed')
+
+    def test_skipped_content_is_noted_in_the_log(self):
+        os.mkfifo(self.work / 'pipe')
+        (self.work / '.git').mkdir()
+        os.symlink('src', self.work / 'srclink')
+        result = self.go(script_check('print(1)'))
+        log = ' '.join(result['log'])
+        self.assertIn('.git or node_modules', log)
+        self.assertIn('special files, linked folders', log)
+
+    def test_the_file_count_cap_stops_the_copy_inside_the_loop(self):
+        for index in range(60):
+            (self.work / f'f{index}.txt').write_text('x')
+        reads = []
+        real = check_script.check_workspace.read_file
+
+        def spy(*args, **kwargs):
+            reads.append(args[1])
+            return real(*args, **kwargs)
+
+        with mock.patch.object(check_script.check_workspace, 'read_file', spy), self.popen_spy() as popen:
+            result = self.go(script_check('print(1)'), limits=Limits(script_copy_files=10))
+        self.assertEqual(result['evidence']['reason'], 'workspace_too_large')
+        self.assertLessEqual(len(reads), 10)
+        popen.assert_not_called()
+
+    def test_a_missing_launcher_report_is_noted(self):
+        with mock.patch.object(check_script, '_read_report', return_value=None):
+            result = self.go(script_check('print(1)'))
+        self.assertEqual(result['status'], 'passed')
+        self.assertTrue(any(item.startswith('resource limits') for item in result['evidence']['limitsNotApplied']))
+        self.assertIn('resource limits', ' '.join(result['log']))
+
+    def test_the_limits_that_do_not_apply_can_be_listed_before_a_run(self):
+        planned, missing = check_script.describe_limits(Limits(), 20)
+        self.assertTrue(any(item.startswith('timeout=20s') for item in planned))
+        self.assertTrue(any(item.lower().startswith('memory') for item in missing))
+        with mock.patch.object(check_script, 'resource', None):
+            _, missing = check_script.describe_limits(Limits(), 20)
+        self.assertTrue(any(item.startswith('cpu') for item in missing))
+        with mock.patch.object(check_script.sys, 'platform', 'darwin'):
+            _, missing = check_script.describe_limits(Limits(), 20)
+        self.assertTrue(any('macOS' in item for item in missing))
+
+
 class RouteTests(unittest.TestCase):
     """The whole path: import a version 1.1 lesson, inspect it, agree, and run it, over HTTP."""
 
@@ -628,8 +859,9 @@ class RouteTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         base = Path(os.path.realpath(self.temp.name))
-        self.data, self.work, self.home = base / 'data', base / 'work', base / 'home'
-        for folder in (self.data, self.work, self.home):
+        self.data, self.home = base / 'data', base / 'home'
+        self.work = self.home / 'work'
+        for folder in (self.data, self.home, self.work):
             folder.mkdir()
         (self.work / 'notes.txt').write_text('hello notes\n')
         self.server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
@@ -687,34 +919,35 @@ class RouteTests(unittest.TestCase):
         self.assertEqual(payload['checkHash'], shown['checkHash'])
 
     def test_a_new_version_with_changed_script_bytes_needs_its_own_consent(self):
-        self.agree()
+        _, granted = self.agree()
         changed = json.loads(json.dumps(self.document))
         changed['version'] = '1.0.1'
         changed['checks'][0]['source'] += '# one more line\n'
         status, payload = self.call('POST', '/api/lessons/import', {'source': json.dumps(changed), 'filename': 'm2.json'}, token=False)
         self.assertEqual(status, 200, payload)
-        body = {**self.ref(), 'version': '1.0.1'}
+        body = {**self.ref(), 'version': '1.0.1', 'consentId': granted['consentId']}
         self.assertEqual(self.call('POST', '/api/checks/run', body)[1]['code'], 'consent_required')
-        self.assertEqual(self.call('POST', '/api/checks/run', self.ref())[0], 200)
+        self.assertEqual(self.call('POST', '/api/checks/run', self.ref(consentId=granted['consentId']))[0], 200)
 
     def test_a_damaged_stored_script_is_not_run(self):
-        self.agree()
+        _, granted = self.agree()
         path = self.data / '_lessons' / 'modules' / self.document['id'] / self.document['version'] / 'module.json'
         data = path.read_bytes()
         path.write_bytes(data.replace(b'route ok', b'evil ok'))
-        status, payload = self.call('POST', '/api/checks/run', self.ref())
+        status, payload = self.call('POST', '/api/checks/run', self.ref(consentId=granted['consentId']))
         self.assertEqual((status, payload['code']), (500, 'corrupt_file'))
 
     def test_a_second_run_over_http_is_busy(self):
-        self.agree('slow-script')
+        _, granted = self.agree('slow-script')
+        body = self.ref('slow-script', consentId=granted['consentId'])
         first = {}
-        thread = threading.Thread(target=lambda: first.update(zip(('status', 'payload'), self.call('POST', '/api/checks/run', self.ref('slow-script')))))
+        thread = threading.Thread(target=lambda: first.update(zip(('status', 'payload'), self.call('POST', '/api/checks/run', body))))
         thread.start()
         deadline = time.monotonic() + 5
         status = None
         while time.monotonic() < deadline:
             time.sleep(0.2)
-            status, payload = self.call('POST', '/api/checks/run', self.ref('slow-script'))
+            status, payload = self.call('POST', '/api/checks/run', body)
             if status == 429:
                 break
         thread.join(20)

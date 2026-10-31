@@ -302,6 +302,11 @@ def _drain(stream, keep, box):
                 kept += chunk[:keep - len(kept)]
     except (OSError, ValueError):
         pass
+    finally:
+        try:
+            stream.close()
+        except OSError:
+            pass
     box.append(bytes(kept))
 
 
@@ -322,39 +327,43 @@ def run_git(git, gitdir, workspace, private, args, limits, input_bytes=None):
     finally:
         if stdin_handle is not None:
             stdin_handle.close()
-    state = {'timed_out': False}
     errors = []
-    reader = threading.Thread(target=_drain, args=(process.stderr, MAX_STDERR_BYTES, errors), daemon=True)
-    reader.start()
-
-    def expire():
-        if process.poll() is None:
-            state['timed_out'] = True
-            check_runner.kill_group(process)
-
-    timer = threading.Timer(limits.git_timeout, expire)
-    timer.daemon = True
-    timer.start()
+    collector = check_runner.Collector(process, limits.git_output_bytes, on_overflow=lambda: check_runner.kill_group(process))
+    out_reader = threading.Thread(target=collector.run, daemon=True)
+    err_reader = threading.Thread(target=_drain, args=(process.stderr, MAX_STDERR_BYTES, errors), daemon=True)
+    out_reader.start()
+    err_reader.start()
+    timed_out = False
     try:
-        out = process.stdout.read(limits.git_output_bytes + 1)
-        truncated = len(out) > limits.git_output_bytes
-        if truncated:
-            check_runner.kill_group(process)
-        process.wait()
-        reader.join(2)
+        try:
+            process.wait(timeout=limits.git_timeout)
+        except subprocess.TimeoutExpired:
+            timed_out = True
+            killed = check_runner.kill_group(process)
+            try:
+                process.wait(timeout=limits.kill_wait_seconds)
+            except subprocess.TimeoutExpired:
+                killed = False
+            if not killed:
+                raise GitProblem('error', 'kill_failed', 'Git took too long and Schola could not stop it. Close Schola and open it again.') from None
+        # Anything git left running in its group goes now.
+        check_runner.kill_group(process)
+        out_reader.join(2)
+        err_reader.join(2)
     finally:
-        timer.cancel()
+        collector.stop()
         if process.poll() is None:
             check_runner.kill_group(process)
-            process.wait()
-        process.stdout.close()
-        reader.join(2)
-        process.stderr.close()
-    if state['timed_out']:
+            try:
+                process.wait(timeout=limits.kill_wait_seconds)
+            except subprocess.TimeoutExpired:
+                pass
+    data, total, overflow = collector.snapshot()
+    if timed_out:
         raise GitProblem('error', 'git_timeout', 'Git took too long, so Schola stopped it.')
-    if truncated:
+    if overflow:
         raise GitProblem('error', 'output_too_large', 'Git printed more than Schola reads for a check.')
-    return process.returncode, out, errors[0] if errors else b''
+    return process.returncode, data, errors[0] if errors else b''
 
 
 def _remove_private(path):

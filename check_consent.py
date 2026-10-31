@@ -31,9 +31,10 @@ MAX_RECORDS = 200
 
 
 def needs_consent(check):
+    """True for a check that carries a script to run. A version 1.0 script runner has no script, so it needs no consent."""
     runner = check.get('runner') if isinstance(check, dict) else None
     return (isinstance(check, dict) and check.get('kind') == 'automated' and isinstance(runner, dict)
-            and runner.get('type') in TIER2_TYPES)
+            and runner.get('type') in TIER2_TYPES and ('runtime' in check or 'source' in check))
 
 
 def source_bytes(check):
@@ -44,8 +45,10 @@ def source_bytes(check):
 
 def canonical_descriptor(check):
     """The parts of a check that run, as stable JSON bytes."""
-    parts = {'runner': check.get('runner'), 'args': check.get('args', []),
-             'timeoutSeconds': check.get('timeoutSeconds', DEFAULT_TIMEOUT_SECONDS)}
+    timeout = check.get('timeoutSeconds', DEFAULT_TIMEOUT_SECONDS)
+    if isinstance(timeout, float) and timeout.is_integer():
+        timeout = int(timeout)  # 30.0 and 30 are the same time limit
+    parts = {'runner': check.get('runner'), 'args': check.get('args', []), 'timeoutSeconds': timeout}
     if 'runtime' in check:
         parts['runtime'] = check['runtime']
     return json.dumps(parts, sort_keys=True, separators=(',', ':'), ensure_ascii=True).encode('ascii')
@@ -77,15 +80,18 @@ class ConsentRegistry:
             return self._public(self._records[consent_id])
 
     def find(self, module_id, version, check_id, digest, workspace, consent_id=None):
+        """The consent with this id, if it was given for exactly this binding. The id is required."""
+        if not isinstance(consent_id, str) or not consent_id:
+            return None
         binding = (module_id, version, check_id, digest, workspace)
+        given = consent_id.encode('utf-8', errors='replace')
         with self._lock:
+            found = None
             for record in self._records.values():
-                if record['binding'] != binding:
-                    continue
-                if consent_id is not None and not (isinstance(consent_id, str) and secrets.compare_digest(consent_id.encode('utf-8'), record['consentId'].encode('utf-8'))):
-                    continue
-                return self._public(record)
-        return None
+                # Compare against every record, so the time does not say which id was close.
+                if secrets.compare_digest(given, record['consentId'].encode('utf-8')) and record['binding'] == binding:
+                    found = record
+            return self._public(found) if found is not None else None
 
     def records(self):
         with self._lock:

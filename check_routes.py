@@ -36,6 +36,7 @@ from pathlib import Path
 
 import check_consent
 import check_runner
+import check_script
 from lesson_store import LessonStoreError
 from local_store import StoreError
 
@@ -135,6 +136,10 @@ def validate_workspace(path, data_dir, home):
         raise _bad('Choose a project folder, not the top of the disk.', 'path', 'invalid_workspace')
     if _inside(home_real, real):
         raise _bad('Choose a folder inside your home folder, not your home folder or a folder that holds it.', 'path', 'invalid_workspace')
+    if not _inside(real, home_real):
+        raise _bad('Choose a folder inside your home folder. Schola does not read folders outside it.', 'path', 'invalid_workspace')
+    if any(part.startswith('.') for part in os.path.relpath(real, home_real).split(os.sep)):
+        raise _bad('Choose a folder that is not hidden. A folder whose name starts with a dot is not allowed.', 'path', 'invalid_workspace')
     if _inside(real, data_real) or _inside(data_real, real):
         raise _bad('Choose a folder that does not hold Schola\'s own data, and is not inside it.', 'path', 'invalid_workspace')
     return real
@@ -201,8 +206,14 @@ def _find_check(lessons, module_id, version, check_id):
 # Handlers
 # ---------------------------------------------------------------------------
 
-def _shown(check, workspace, digest):
+def _shown(check, workspace, digest, limits=None):
     source = check.get('source')
+    timeout = check.get('timeoutSeconds', check_consent.DEFAULT_TIMEOUT_SECONDS)
+    if isinstance(timeout, float) and timeout.is_integer():
+        timeout = int(timeout)
+    planned, missing = ([], [])
+    if check_consent.needs_consent(check) and isinstance(timeout, int) and not isinstance(timeout, bool):
+        planned, missing = check_script.describe_limits(limits or check_runner.Limits(), timeout)
     return {
         'needsConsent': check_consent.needs_consent(check),
         'checkHash': digest,
@@ -211,8 +222,10 @@ def _shown(check, workspace, digest):
         'runtime': check.get('runtime'),
         'source': source if isinstance(source, str) else None,
         'args': list(check.get('args', [])),
-        'timeoutSeconds': check.get('timeoutSeconds', check_consent.DEFAULT_TIMEOUT_SECONDS),
+        'timeoutSeconds': timeout,
         'workspace': workspace,
+        'limits': planned,
+        'limitsNotApplied': missing,
     }
 
 
@@ -237,7 +250,7 @@ def handle_post(server, lessons, path, payload, headers):
         module_id, version, check_id = _reference(payload)
         check = _find_check(lessons, module_id, version, check_id)
         workspace = _usable_workspace(lessons, session)
-        return 200, _shown(check, workspace, check_consent.check_hash(check))
+        return 200, _shown(check, workspace, check_consent.check_hash(check), session.limits)
     if path == '/api/checks/consent':
         return 200, _grant(session, lessons, payload, headers)
     if path == '/api/checks/run':

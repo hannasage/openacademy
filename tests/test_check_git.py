@@ -788,6 +788,23 @@ class LimitTests(GitCase):
                 alive = False
         self.assertFalse(alive, 'the child of git is still running')
 
+    def test_a_kill_that_fails_is_an_error_and_does_not_hang(self):
+        self.repo_with('a')
+        pid_file = self.base / 'git.pid'
+        fake = self.fake_git(f'echo $$ > "{pid_file}"\nsleep 60\n')
+        started = time.monotonic()
+        try:
+            with mock.patch.object(check_git, 'find_git', return_value=fake), mock.patch.object(check_runner, 'kill_group', return_value=False):
+                result = self.check(limits=Limits(git_timeout=0.4, kill_wait_seconds=0.4))
+            self.assertLess(time.monotonic() - started, 8)
+            self.assertEqual((result['status'], result['evidence']['reason']), ('error', 'kill_failed'))
+        finally:
+            if pid_file.exists():
+                try:
+                    os.killpg(int(pid_file.read_text()), signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+
     def test_git_output_over_the_cap_is_killed(self):
         self.repo_with('a')
         fake = self.fake_git('yes xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n')

@@ -33,6 +33,7 @@ import os
 import re
 import signal
 import subprocess
+import threading
 import sys
 
 import check_workspace
@@ -40,7 +41,8 @@ from check_workspace import WorkspaceError
 
 STATUSES = ('passed', 'failed', 'error', 'skipped')
 
-_CONTROL = re.compile('[\x00-\x1f\x7f-\x9f​-‍‪-‮⁠⁦-⁩﻿]')
+# Control characters, and the invisible or direction-changing characters that can make text look different from what it is.
+_CONTROL = re.compile('[\\x00-\\x1f\\x7f-\\x9f\\u00ad\\u061c\\u200b-\\u200f\\u2028\\u2029\\u202a-\\u202e\\u2060\\u2066-\\u2069\\ufeff]')
 
 
 @dataclasses.dataclass(frozen=True)
@@ -59,6 +61,7 @@ class Limits:
     max_log_lines: int = 20
     max_log_chars: int = 300
     git_timeout: float = 10.0
+    kill_wait_seconds: float = 5.0
     git_output_bytes: int = 1_000_000
     git_max_scan: int = 500
     script_output_bytes: int = 65536
@@ -83,8 +86,12 @@ def result(status, evidence=None, log=None):
     return {'status': status, 'evidence': dict(evidence or {}), 'log': list(log or [])}
 
 
-def _clean(value, limit):
+def clean_text(value, limit):
+    """Text with control, invisible, and direction characters removed, cut to `limit` characters."""
     return _CONTROL.sub('', value)[:limit]
+
+
+_clean = clean_text
 
 
 def _scalar(value, limits):
@@ -177,6 +184,8 @@ def take_fields(runner, spec):
                 raise DescriptorError(f'This check needs the field {name}.')
             continue
         value = runner[name]
+        if kind == 'int' and isinstance(value, float) and value.is_integer():
+            value = int(value)  # JSON Schema counts 2.0 as an integer, so the runtime does too
         ok = {'str': isinstance(value, str), 'bool': isinstance(value, bool),
               'int': isinstance(value, int) and not isinstance(value, bool),
               'strlist': isinstance(value, list) and all(isinstance(item, str) for item in value)}[kind]
@@ -255,21 +264,31 @@ def live_regex_children():
 
 
 def kill_group(process):
-    """Kill a child and every process in its group. Never raises."""
+    """Kill a child and every process in its group. Never raises.
+
+    Returns True when the signal was sent or the process was already gone. Returns False when it could not be killed.
+    """
     try:
         if hasattr(os, 'killpg'):
             os.killpg(process.pid, signal.SIGKILL)
         else:
             process.kill()
-    except (ProcessLookupError, PermissionError, OSError):
-        try:
-            process.kill()
-        except OSError:
-            pass
+        return True
+    except ProcessLookupError:
+        return True
+    except OSError:
+        pass
+    try:
+        process.kill()
+        return True
+    except ProcessLookupError:
+        return True
+    except OSError:
+        return False
 
 
-def count_matches(text, pattern, ignore_case, limit, timeout):
-    """(count, problem). `problem` is None, `invalid_pattern`, `pattern_timeout`, or `pattern_failed`."""
+def count_matches(text, pattern, ignore_case, limit, timeout, kill_wait=5.0):
+    """(count, problem). `problem` is None, `invalid_pattern`, `pattern_timeout`, `kill_failed`, or `pattern_failed`."""
     payload = json.dumps({'text': text, 'pattern': pattern, 'ignoreCase': ignore_case, 'limit': limit}).encode('utf-8')
     cpu = max(1, int(timeout) + 1)
     command = [sys.executable, '-I', '-S', '-c', _REGEX_WORKER, str(cpu)]
@@ -284,22 +303,32 @@ def count_matches(text, pattern, ignore_case, limit, timeout):
         try:
             out, _ = process.communicate(payload, timeout=timeout)
         except subprocess.TimeoutExpired:
-            kill_group(process)
-            process.communicate()
+            if not kill_group(process):
+                return 0, 'kill_failed'
+            try:
+                process.communicate(timeout=kill_wait)
+            except subprocess.TimeoutExpired:
+                return 0, 'kill_failed'
             return 0, 'pattern_timeout'
         if process.returncode != 0:
             return 0, 'pattern_failed'
         try:
             answer = json.loads(out.decode('utf-8'))
-        except (ValueError, UnicodeError):
+            count = answer['count'] if not answer.get('invalid') else None
+        except (ValueError, UnicodeError, KeyError, TypeError, AttributeError):
             return 0, 'pattern_failed'
         if answer.get('invalid'):
             return 0, 'invalid_pattern'
-        return int(answer['count']), None
+        if isinstance(count, bool) or not isinstance(count, int) or count < 0:
+            return 0, 'pattern_failed'
+        return count, None
     finally:
         if process.poll() is None:
             kill_group(process)
-            process.wait()
+            try:
+                process.wait(timeout=kill_wait)
+            except subprocess.TimeoutExpired:
+                pass
         _live_children.discard(process)
 
 
@@ -360,11 +389,13 @@ class BuiltinAdapter:
         if 'text' in fields:
             matches = (content.casefold() if ignore_case else content).count(needle.casefold() if ignore_case else needle)
         else:
-            matches, problem = count_matches(content, needle, ignore_case, minimum, limits.regex_timeout)
+            matches, problem = count_matches(content, needle, ignore_case, minimum, limits.regex_timeout, limits.kill_wait_seconds)
             if problem == 'pattern_timeout':
                 return result('error', {'reason': problem, 'path': path}, ['The pattern took too long, so Schola stopped it. Ask the lesson author to simplify it.'])
             if problem == 'invalid_pattern':
                 return result('error', {'reason': problem}, ['The pattern in this check is not valid.'])
+            if problem == 'kill_failed':
+                return result('error', {'reason': problem}, ['The pattern took too long and Schola could not stop it. Close Schola and open it again.'])
             if problem:
                 return result('error', {'reason': problem}, ['The pattern could not be run.'])
         evidence = {'path': path, 'matches': min(matches, limits.max_min_count), 'required': minimum}
@@ -413,6 +444,59 @@ def _json_kind(value):
     if value is None:
         return 'null'
     return 'string' if isinstance(value, str) else 'number'
+
+
+# ---------------------------------------------------------------------------
+# Reading a child's output
+# ---------------------------------------------------------------------------
+
+class Collector:
+    """Reads the merged output of a process on its own thread. The reader and the caller share it through a lock.
+
+    `snapshot()` is always whole: the bytes kept, the number of bytes seen, and whether the cap was passed.
+    After `stop()` the reader adds nothing more, even if a child still holds the pipe open.
+    """
+
+    def __init__(self, process, cap, on_overflow=None):
+        self._process, self._cap, self._on_overflow = process, cap, on_overflow
+        self._lock = threading.Lock()
+        self._stopped = threading.Event()
+        self._data, self._total, self._overflow = bytearray(), 0, False
+
+    def run(self):
+        stream = self._process.stdout
+        try:
+            fd = stream.fileno()
+            while not self._stopped.is_set():
+                chunk = os.read(fd, 65536)
+                if not chunk:
+                    break
+                with self._lock:
+                    if self._stopped.is_set():
+                        break
+                    self._total += len(chunk)
+                    if len(self._data) < self._cap:
+                        self._data += chunk[:self._cap - len(self._data)]
+                    over = self._total > self._cap
+                    self._overflow = over
+                if over:
+                    if self._on_overflow is not None:
+                        self._on_overflow()
+                    break
+        except (OSError, ValueError):
+            pass
+        finally:
+            try:
+                stream.close()
+            except OSError:
+                pass
+
+    def stop(self):
+        self._stopped.set()
+
+    def snapshot(self):
+        with self._lock:
+            return bytes(self._data), self._total, self._overflow
 
 
 # ---------------------------------------------------------------------------

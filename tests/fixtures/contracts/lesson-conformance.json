@@ -446,5 +446,12 @@
     "file": "valid/lesson-module-script-version-1-0-runner-only.json",
     "expect": "valid",
     "stage": "none"
+  },
+  {
+    "name": "lesson-module-script-timeout-whole-float",
+    "kind": "lesson-module",
+    "file": "valid/lesson-module-script-timeout-whole-float.json",
+    "expect": "valid",
+    "stage": "none"
   }
 ]
