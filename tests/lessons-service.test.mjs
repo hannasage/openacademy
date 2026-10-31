@@ -46,7 +46,7 @@ test('every service call stays on the local lesson routes', async () => {
   const {calls, transport} = recorder(() => json({revision: 1, modules: []}));
   const service = createLessonService(transport);
   await service.previewImport(source); await service.importLessons(source); await service.listLessons();
-  await service.switchPin('intro', '1.1.0', {confirm: true}); await service.exportLessons();
+  await service.switchPin('intro', '1.1.0', {confirm: true, expectedRevision: 1}); await service.exportLessons();
   await service.previewRestore({format: 'schola-lesson-backup'}); await service.restoreBackup({format: 'schola-lesson-backup'});
   await service.migrate();
   assert.deepEqual(calls.map(call => call.url), [
@@ -71,6 +71,10 @@ test('a pin switch without an explicit confirm makes no call', async () => {
   }
   await assert.rejects(service.switchPin('intro', '1.1.0'), LessonServiceError);
   assert.equal(calls.length, 0);
+  for (const expectedRevision of [undefined, null, '4', -1, 1.5, NaN]) {
+    await assert.rejects(service.switchPin('intro', '1.1.0', {confirm: true, expectedRevision}), error => error instanceof LessonServiceError && error.code === 'expected_revision_required', String(expectedRevision));
+  }
+  assert.equal(calls.length, 0, 'a switch without the revision you read makes no call');
   await service.switchPin('intro', '1.1.0', {confirm: true, expectedRevision: 4});
   assert.deepEqual(JSON.parse(calls[0].options.body), {moduleId: 'intro', version: '1.1.0', confirm: true, expectedRevision: 4});
 });
@@ -96,6 +100,7 @@ test('server errors and network failures surface visible messages', async () => 
     [409, 'unsupported_version', 'unsupported_version', /newer.*version|not supported/i],
     [409, 'revision_conflict', 'revision_conflict', /changed|reload/i],
     [413, 'payload_too_large', 'too_large', /too large/i],
+    [422, 'expected_revision_required', 'expected_revision_required', /revision/i],
     [400, 'invalid_request', 'request_failed', /could not finish/i],
   ];
   for (const [status, serverCode, code, pattern] of cases) {

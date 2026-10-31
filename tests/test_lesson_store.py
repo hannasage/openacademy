@@ -496,6 +496,90 @@ class MissingDataFolderTests(unittest.TestCase):
             self.assertFalse(data.exists())
 
 
+def big_module(identifier, blocks=3, size=50000, character='\U0001F600'):
+    """A valid module whose text is as costly to escape as possible: four byte characters, 12 bytes each in a backup."""
+    document = json.loads(fixture('lesson-module-minimal.json'))
+    document['id'] = identifier
+    document['blocks'] = [{'type': 'text', 'id': f'b{n}', 'body': character * size} for n in range(blocks)]
+    return (json.dumps(document, indent=2, ensure_ascii=False) + '\n').encode()
+
+
+class QuotaTests(StoreCase):
+    def test_a_full_store_refuses_more_with_store_full_and_changes_nothing(self):
+        self.store.import_files(self.files(('a.json', big_module('big-one')), ('b.json', big_module('big-two'))))
+        before = tree(self.data)
+        with self.assertRaises(LessonStoreError) as caught:
+            self.store.import_files(self.files(('c.json', big_module('big-three'))))
+        self.assertEqual((caught.exception.code, caught.exception.status), ('store_full', 413))
+        self.assertEqual(tree(self.data), before)
+        preview = self.store.preview_import(self.files(('c.json', big_module('big-three'))))
+        self.assertFalse(preview['importable'])
+        self.assertEqual(preview['problems'][0]['code'], 'store_full')
+        self.assertEqual(tree(self.data), before)
+
+    def test_a_full_store_still_exports_and_restores_inside_the_5_mb_cap(self):
+        self.store.import_files(self.files(('a.json', big_module('big-one')), ('b.json', big_module('big-two'))))
+        # Fill what is left with small modules until the store says no.
+        for number in range(lesson_store.MAX_STORE_VERSIONS):
+            try:
+                self.store.import_files(self.files((f'm{number}.json', big_module(f'small-{number}', blocks=1, size=5000))))
+            except LessonStoreError as full:
+                self.assertEqual(full.code, 'store_full')
+                break
+        else:
+            self.fail('the store never filled')
+        usage, _ = self.store.usage()
+        self.assertLessEqual(usage, lesson_store.MAX_STORE_BYTES)
+        import lesson_backup
+        import lesson_contract
+        backup = lesson_backup.export_backup(self.store, clock=FIXED_CLOCK)
+        size = len(json.dumps(backup).encode())
+        self.assertLessEqual(size, lesson_contract.MAX_BYTES)
+        self.assertLessEqual(len(json.dumps({'source': backup, 'filename': 'x.json'}).encode()), lesson_contract.MAX_BYTES, 'the restore request fits too')
+        with tempfile.TemporaryDirectory() as other:
+            target = LessonStore(other, clock=FIXED_CLOCK)
+            lesson_backup.restore_backup(target, backup)
+            self.assertEqual(target.list_modules(), self.store.list_modules())
+
+    def test_the_estimate_is_never_below_the_real_size_of_the_backup(self):
+        import lesson_backup
+        long_name = '\u00e9' * 100 + '.json'
+        for number in range(6):
+            self.store.import_files(self.files((long_name, variant('lesson-module-minimal.json', id=f'mod-{number}'))))
+        self.store.import_files(self.files(('packet.json', fixture('packet-one-module.json')), ('m.json', fixture('lesson-module-minimal.json'))))
+        estimate, count = self.store.usage()
+        real = len(json.dumps(lesson_backup.export_backup(self.store, clock=FIXED_CLOCK)).encode())
+        self.assertEqual(count, 8)
+        self.assertGreaterEqual(estimate, real)
+        self.assertLess(estimate - real, 8 * 2048, 'the estimate stays close')
+
+    def test_the_number_of_versions_is_limited(self):
+        with mock.patch.object(lesson_store, 'MAX_STORE_VERSIONS', 2):
+            self.store.import_files(self.files(('a.json', fixture('lesson-module-minimal.json')), ('b.json', variant('lesson-module-minimal.json', version='1.1.0'))))
+            with self.assertRaises(LessonStoreError) as caught:
+                self.store.import_files(self.files(('c.json', variant('lesson-module-minimal.json', version='1.2.0'))))
+        self.assertEqual(caught.exception.code, 'store_full')
+        self.assertEqual(self.store.versions('hello-module'), ['1.0.0', '1.1.0'])
+
+    def test_importing_what_is_already_stored_never_trips_the_limit(self):
+        self.store.import_files(self.files(('a.json', big_module('big-one')), ('b.json', big_module('big-two'))))
+        result = self.store.import_files(self.files(('a.json', big_module('big-one'))))
+        self.assertEqual(result['imported'][0]['status'], 'already-stored')
+
+    def test_restoring_into_a_store_that_would_overflow_is_refused(self):
+        import lesson_backup
+        self.store.import_files(self.files(('a.json', big_module('big-one')), ('b.json', big_module('big-two'))))
+        backup = lesson_backup.export_backup(self.store, clock=FIXED_CLOCK)
+        with tempfile.TemporaryDirectory() as other:
+            target = LessonStore(other, clock=FIXED_CLOCK)
+            target.import_files([('c.json', big_module('other-big')), ('d.json', big_module('other-big-two'))])
+            before = tree(other)
+            with self.assertRaises(LessonStoreError) as caught:
+                lesson_backup.restore_backup(target, backup)
+            self.assertEqual(caught.exception.code, 'store_full')
+            self.assertEqual(tree(other), before)
+
+
 class PinTests(StoreCase):
     def setUp(self):
         super().setUp()

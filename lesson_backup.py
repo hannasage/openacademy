@@ -305,6 +305,9 @@ def plan_restore(lessons, source):
         if revision > MAX_REVISION:
             return {'problems': [_problem('revision_limit', 409, 'Revision limit reached.')]}
         help_files.append((f"help/{group['moduleId']}.json", help_file_bytes(group['moduleId'], revision, existing + added)))
+    full = lessons.quota_problem(fresh, help_files)
+    if full:
+        return {'problems': [full]}
     pins_document = None
     if merged != current['pins']:
         revision = current['revision'] + 1 if (lessons.root / 'pins.json').exists() else document['pins']['revision']

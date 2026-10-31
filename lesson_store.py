@@ -48,6 +48,12 @@ PINS_VERSION = 1
 MAX_FILES = 2000
 MAX_FILE_NAME = 120
 STALE_SECONDS = 3600
+# The store may grow until a backup of it would be this big. A backup is one request or answer, and a
+# request is limited to lesson_contract.MAX_BYTES (5 MB). The rest is room for pins, help records, and
+# the envelope of the backup. A full store can always be exported and restored.
+MAX_STORE_BYTES = 4_000_000
+MAX_STORE_VERSIONS = 500
+_ENTRY_OVERHEAD = 2048
 
 _ID = re.compile(r'[a-z0-9][a-z0-9-]{0,59}', re.ASCII)
 _VERSION = re.compile(r'(?:0|[1-9][0-9]{0,8})\.(?:0|[1-9][0-9]{0,8})\.(?:0|[1-9][0-9]{0,8})', re.ASCII)
@@ -306,6 +312,8 @@ class LessonStore:
         """Move a pin to a stored version. Needs confirm to be exactly True."""
         if confirm is not True:
             raise LessonStoreError('Confirm the change before a pin moves.', 'confirmation_required', 400, field='confirm')
+        if expected_revision is None:
+            raise LessonStoreError('Send the pin revision you last read.', 'expected_revision_required', 422, field='expectedRevision')
         if not self._has_module(module_id, version):
             raise LessonStoreError('That module version is not stored.', 'not_found', 404)
         current = self.pins()
@@ -406,7 +414,60 @@ class LessonStore:
             items.append(item)
         if not problems:
             problems.extend(self._reference_problems(items))
+        if not problems:
+            full = self.quota_problem([item for item in items if item['status'] == 'new'])
+            if full:
+                problems.append(full)
         return {'items': items, 'problems': problems}
+
+    # ------------------------------------------------------------------
+    # Store quota
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def entry_cost(data, packet_ids=()):
+        """What one stored file adds to a backup: its escaped text plus the fields around it."""
+        return len(json.dumps(data.decode('utf-8'))) + _ENTRY_OVERHEAD + 70 * len(packet_ids)
+
+    def usage(self, skip_help=()):
+        """(estimated backup bytes, stored versions) for what is on disk now. Reads files; writes nothing."""
+        total, count = 0, 0
+        for kind, ids, name in (('modules', self.module_ids(), 'module.json'), ('packets', self.packet_ids(), 'packet.json')):
+            for identifier in ids:
+                for version in self._children(self.root / kind / identifier, _VERSION):
+                    folder = self._safe(self.root / kind / identifier / version)
+                    source = self._read_json(folder / 'source.json')
+                    packets = source.get('packetIds', []) if isinstance(source, dict) and isinstance(source.get('packetIds', []), list) else []
+                    total += self.entry_cost(self._read_bytes(folder / name), packets)
+                    count += 1
+        help_folder = self._safe(self.root / 'help')
+        if help_folder.is_dir():
+            for path in sorted(help_folder.glob('*.json')):
+                if path.stem not in skip_help:
+                    total += self.help_cost(self._read_bytes(path))
+        return total, count
+
+    @staticmethod
+    def help_cost(data):
+        try:
+            return len(json.dumps(json.loads(data.decode('utf-8'))['records'])) + 200
+        except (ValueError, KeyError, TypeError, UnicodeError):
+            return len(data) * 6
+
+    def quota_problem(self, fresh, help_files=()):
+        """A problem entry when adding `fresh` items (and rewriting `help_files`) would make the store too big, else None."""
+        if not fresh and not help_files:
+            return None
+        rewritten = {Path(relative).stem for relative, _ in help_files}
+        total, count = self.usage(skip_help=rewritten)
+        total += sum(self.entry_cost(item['data'], (item.get('source') or {}).get('packetIds') or ()) for item in fresh)
+        total += sum(self.help_cost(data) for _, data in help_files)
+        count += len(fresh)
+        if total > MAX_STORE_BYTES or count > MAX_STORE_VERSIONS:
+            return {'file': 'the lesson library', 'code': 'store_full', 'status': 413, 'reason': 'too_large',
+                    'errors': [{'pointer': '', 'message': f'Your lesson library would pass its limit of {MAX_STORE_BYTES // 1_000_000} MB of lessons or {MAX_STORE_VERSIONS} lesson versions. '
+                                                           'The limit keeps a full backup under the 5 MB file size. Nothing was changed.'}]}
+        return None
 
     def _classify(self, data):
         try:

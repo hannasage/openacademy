@@ -110,7 +110,7 @@ Schola never switches by itself.
 A switch needs two steps in the app: Review the switch, then Switch to the new version.
 Choosing Keep the current version, or closing the screen, changes nothing.
 The server also refuses a pin change that does not carry `confirm: true`.
-Send `expectedRevision` with a switch to refuse it when the lessons changed since you read them.
+A switch must also carry `expectedRevision`, the revision of the lessons you last read. Without it the server answers 422 with the code `expected_revision_required`. If the lessons changed since you read them, the server answers 409 `revision_conflict` and changes nothing.
 
 ## Migration of existing curricula
 
@@ -179,11 +179,21 @@ Restoring into a used data directory only adds what is missing:
 - A pin is set only for a module that has no pin. A restore never moves a pin.
 - Help records are added after the stored ones, with no repeats.
 
-## Size limit
+## Size limits
 
 A lesson request may be up to 5 MB. A single lesson file may be up to 5 MB. A request may hold up to 2000 files.
 A larger request gets status 413 and writes nothing.
 The other routes keep their 2 MB limit.
+A request that declares a body and never sends it is dropped after 10 seconds with status 408, so it cannot hold the server.
+
+The lesson library has a limit too, so a full library can always be exported and restored inside the 5 MB file size.
+These are the defaults:
+
+- The lessons may add up to 4,000,000 bytes to a backup. Schola counts each stored file as it is written into a backup, with its escaped text and about 2 KB for the fields around it, plus the help records.
+- The library may hold up to 500 module and packet versions.
+
+An import or restore that would pass either limit gets status 413 with the code `store_full` and changes nothing. The preview says so too.
+Because of the first limit, a single lesson file of more than about 4 MB cannot be stored, even though a request may carry 5 MB.
 
 ## Lesson routes
 
@@ -198,9 +208,19 @@ All lesson routes use the local address and the same Host and Origin checks as t
 | `POST /api/lessons/pins` | Move one pin. Needs `confirm: true` |
 | `POST /api/lessons/migrate` | Run the one-time migration. Send an empty object |
 
-Import and preview take `{source, filename}`. The `source` is the file text, one parsed document, or a list of documents.
+Import and preview take `{source, filename}`. The `source` is the file text, a list of file texts, or one parsed document.
 Send the text when the exact bytes matter.
-The error codes are: 422 `invalid_lesson` and `missing_module`, 409 `version_conflict`, `unsupported_version`, and `revision_conflict`, 413 `payload_too_large`, and 400 for a malformed request.
+The error codes are: 422 `invalid_lesson`, `missing_module`, and `expected_revision_required`, 409 `version_conflict`, `unsupported_version`, `revision_conflict`, and `revision_limit`, 413 `payload_too_large` and `store_full`, 408 `request_timeout`, 400 for a malformed request, and 500 `internal_error` for a fault in stored data.
+A 500 `internal_error` answer carries no path and no trace. The details go to the server console only.
+
+## Known limits
+
+These are deliberate choices for this release, not oversights.
+
+- The server supports macOS and Linux. Windows is untested. Schola does not reject Windows reserved names such as `con` or `nul` as lesson IDs.
+- The lesson routes check the Host header, and the Origin header when a browser sends one. A request with no Origin header is accepted. A later step adds a per-launch token for the tutor surface.
+- The pin file is read, changed, and written without a lock file. Do not run two writers at once. Stop the server before you run the command line.
+- The module list reads each stored module on every request. It does not cache.
 
 ## Recovery
 

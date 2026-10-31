@@ -20,6 +20,7 @@ const CODE_TEXT = {
   revision_conflict: {code: 'revision_conflict', text: 'Your lessons changed since you opened this screen. Reload your lessons and try again.'},
   payload_too_large: {code: 'too_large', text: 'This file is too large. The limit is 5 MB.'},
   confirmation_required: {code: 'confirmation_required', text: 'Confirm the switch before Schola changes the version you use.'},
+  expected_revision_required: {code: 'expected_revision_required', text: 'Reload your lessons before you switch. Schola needs their current revision.'},
 };
 /** @type {Record<number, {code: LessonErrorCode, text: string}>} */
 const STATUS_TEXT = {
@@ -88,9 +89,9 @@ export function createLessonService(transport = globalThis.fetch.bind(globalThis
     listLessons: async () => /** @type {LessonListing} */(withModules(await request(ROUTES.list))),
     switchPin: async (moduleId, version, options) => {
       if (!options || options.confirm !== true) throw new LessonServiceError(0, 'confirmation_required', 'Confirm the switch before Schola changes the version you use.');
+      if (!Number.isSafeInteger(options.expectedRevision) || options.expectedRevision < 0) throw new LessonServiceError(0, 'expected_revision_required', 'Reload your lessons before you switch. Schola needs their current revision.');
       /** @type {PinSwitchRequest} */
-      const body = {moduleId, version, confirm: true};
-      if (options.expectedRevision !== undefined) body.expectedRevision = options.expectedRevision;
+      const body = {moduleId, version, confirm: true, expectedRevision: options.expectedRevision};
       return /** @type {LessonListing} */(await request(ROUTES.pins, {method: 'POST', body}));
     },
     exportLessons: async () => await request(ROUTES.export),

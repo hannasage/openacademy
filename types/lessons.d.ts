@@ -106,14 +106,14 @@ interface PinSwitchRequest {
   moduleId: string;
   version: string;
   confirm: true;
-  expectedRevision?: number;
+  expectedRevision: number;
 }
 
 type LessonBackupFile = Record<string, unknown>;
 
 type LessonErrorCode =
   | 'conflict' | 'too_large' | 'invalid' | 'missing_module' | 'unsupported_version' | 'revision_conflict'
-  | 'network_error' | 'invalid_response' | 'confirmation_required' | 'request_failed';
+  | 'network_error' | 'invalid_response' | 'confirmation_required' | 'expected_revision_required' | 'request_failed';
 
 type LessonPhase =
   | 'idle' | 'previewing' | 'reviewing' | 'importing' | 'done' | 'failed' | 'cancelled';
@@ -159,7 +159,7 @@ interface LessonService {
   previewImport(source: LessonSource, filename?: string): Promise<LessonPreview>;
   importLessons(source: LessonSource, filename?: string): Promise<LessonImportResult>;
   listLessons(): Promise<LessonListing>;
-  switchPin(moduleId: string, version: string, options: { confirm: boolean; expectedRevision?: number }): Promise<LessonListing>;
+  switchPin(moduleId: string, version: string, options: { confirm: boolean; expectedRevision: number }): Promise<LessonListing>;
   exportLessons(): Promise<LessonBackupFile>;
   previewRestore(backup: LessonBackupFile, filename?: string): Promise<LessonPreview>;
   restoreBackup(backup: LessonBackupFile, filename?: string): Promise<LessonImportResult>;

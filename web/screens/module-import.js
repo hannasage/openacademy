@@ -176,7 +176,7 @@ export function createImportReviewController({service, source, filename = '', re
 /**
  * An offer to use a newer imported version. Two explicit steps lead to the one call that changes a pin.
  * Declining at any step never calls the server.
- * @param {{service: LessonService, offer: PinOffer, expectedRevision?: number}} options
+ * @param {{service: LessonService, offer: PinOffer, expectedRevision: number}} options
  */
 export function createPinSwitchController({service, offer, expectedRevision}) {
   /** @type {{phase: 'offered'|'confirming'|'switching'|'done'|'failed'|'declined', offer: PinOffer, message: LessonMessage|null, listing?: LessonListing}} */
@@ -192,7 +192,7 @@ export function createPinSwitchController({service, offer, expectedRevision}) {
       if (state.phase !== 'confirming') return false;
       state = {phase: 'switching', offer, message: null};
       try {
-        const listing = await service.switchPin(offer.moduleId, offer.toVersion, {confirm: true, ...(expectedRevision === undefined ? {} : {expectedRevision})});
+        const listing = await service.switchPin(offer.moduleId, offer.toVersion, {confirm: true, expectedRevision});
         state = {phase: 'done', offer, message: {kind: 'success', text: `You now use version ${offer.toVersion} of "${offer.title}".`}, listing};
         return true;
       } catch (problem) {

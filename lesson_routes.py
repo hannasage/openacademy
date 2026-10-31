@@ -7,7 +7,7 @@ rest of the server, which `server.py` applies before it calls anything here):
     GET  /api/lessons/export          the lesson backup file
     POST /api/lessons/import/preview  check a file and say what an import would do; writes nothing
     POST /api/lessons/import          import a module or packet, or restore a lesson backup
-    POST /api/lessons/pins            move one pin; needs `confirm: true`
+    POST /api/lessons/pins            move one pin; needs `confirm: true` and the `expectedRevision` you last read
     POST /api/lessons/migrate         one-time progress migration for existing curricula
 
 Import and preview take `{source, filename}`. `source` is one parsed document,
@@ -96,9 +96,8 @@ def handle_post(lessons, path, payload, local=None):
     if path == '/api/lessons/pins':
         allowed = {'moduleId', 'version', 'confirm', 'expectedRevision'}
         if not isinstance(payload, dict) or not {'moduleId', 'version', 'confirm'} <= set(payload) or set(payload) - allowed:
-            raise _bad('Send {moduleId, version, confirm, expectedRevision?}.', 'request')
-        expected = payload.get('expectedRevision', lessons.pins()['revision'])
-        return 200, lessons.set_pin(payload['moduleId'], payload['version'], payload['confirm'], expected)
+            raise _bad('Send {moduleId, version, confirm, expectedRevision}.', 'request')
+        return 200, lessons.set_pin(payload['moduleId'], payload['version'], payload['confirm'], payload.get('expectedRevision'))
     if path == '/api/lessons/migrate':
         if payload != {}:
             raise _bad('Send an empty object.', 'request')
