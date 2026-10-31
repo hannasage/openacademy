@@ -94,6 +94,41 @@ export function validateEvent(document) {
   return errors.length > 0 ? invalid(errors) : { ok: true };
 }
 
+// Report whether any object in JSON text repeats a key. JSON.parse keeps the last value of a repeated key
+// without a word, so this scan runs on text that JSON.parse has already accepted. Keys are compared after
+// their escapes are decoded, so "a" and "\\u0061" are the same key.
+function repeatsAKey(text) {
+  const stack = [];
+  let expectKey = false;
+  for (let at = 0; at < text.length; at += 1) {
+    const mark = text[at];
+    if (mark === '"') {
+      let end = at + 1;
+      while (text[end] !== '"') end += text[end] === '\\' ? 2 : 1;
+      const top = stack.at(-1);
+      if (top?.keys && expectKey) {
+        const key = JSON.parse(text.slice(at, end + 1));
+        if (top.keys.has(key)) return true;
+        top.keys.add(key);
+        expectKey = false;
+      }
+      at = end;
+    } else if (mark === '{') {
+      stack.push({ keys: new Set() });
+      expectKey = true;
+    } else if (mark === '[') {
+      stack.push({ keys: null });
+      expectKey = false;
+    } else if (mark === '}' || mark === ']') {
+      stack.pop();
+      expectKey = false;
+    } else if (mark === ',') {
+      expectKey = Boolean(stack.at(-1)?.keys);
+    }
+  }
+  return false;
+}
+
 // Returns { result, stage, document }. The document is set only when the text parsed.
 function runText(text) {
   if (typeof text !== 'string') return { result: invalid([error('', 'The text must be a string.')]), stage: 'parse' };
@@ -104,6 +139,7 @@ function runText(text) {
   } catch {
     return { result: invalid([error('', 'The text is not complete, valid JSON.')]), stage: 'parse' };
   }
+  if (repeatsAKey(text)) return { result: invalid([error('', 'The text is not complete, valid JSON.')]), stage: 'repeat' };
   return { result: validateEvent(document), stage: 'event', document };
 }
 

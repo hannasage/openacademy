@@ -81,7 +81,7 @@ class ConformanceTests(unittest.TestCase):
                     for error in result['errors']:
                         self.assertEqual(sorted(error), ['message', 'pointer'])
                 self.assertEqual(stage, entry['stage'])
-                if stage != 'parse':
+                if stage not in ('parse', 'repeat'):
                     self.assertEqual(le.validate_event(json.loads(text)), result)
 
     def test_every_log_case_matches_lines_and_tail(self):
@@ -325,7 +325,8 @@ class TextAndLogTests(unittest.TestCase):
 
     def test_a_repeated_object_key_is_rejected_by_this_validator(self):
         result, stage = le.validate_event_text_with_stage('{"schemaVersion": "1.0", "schemaVersion": "1.1"}')
-        self.assertEqual((result['reason'], stage), ('invalid', 'parse'))
+        self.assertEqual((result['reason'], stage), ('invalid', 'repeat'))
+        self.assertEqual(pointers(result), [''])
 
     def test_a_log_over_the_cap_is_refused_as_a_whole(self):
         result = le.validate_log_text('{' + ' ' * le.MAX_BYTES)

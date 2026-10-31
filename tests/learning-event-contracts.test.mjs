@@ -64,7 +64,7 @@ test('the manifest lists every fixture file under learning-events, and nothing e
     assert.match(entry.expect, /^(valid|invalid:(invalid|unsupported_version))$/, entry.name);
     assert.equal(entry.file.startsWith(entry.expect === 'valid' ? 'learning-events/valid/' : 'learning-events/invalid/'), true, entry.name);
     if (entry.kind === 'learning-event') {
-      const stageReason = { none: 'valid', parse: 'invalid:invalid', schema: 'invalid:invalid', semantic: 'invalid:invalid', version: 'invalid:unsupported_version' };
+      const stageReason = { none: 'valid', parse: 'invalid:invalid', repeat: 'invalid:invalid', schema: 'invalid:invalid', semantic: 'invalid:invalid', version: 'invalid:unsupported_version' };
       assert.equal(entry.expect, stageReason[entry.stage], `${entry.name}: stage and expectation disagree`);
       assert.match(entry.file, /\.json$/, entry.name);
     } else {
@@ -100,6 +100,11 @@ for (const entry of eventEntries) {
     }
     if (entry.stage === 'parse') {
       assert.throws(() => JSON.parse(text), SyntaxError, 'a parse case must not be valid JSON');
+      return;
+    }
+    if (entry.stage === 'repeat') {
+      assert.doesNotThrow(() => JSON.parse(text), 'a repeat case is valid JSON that repeats a key');
+      assert.deepEqual(result.errors.map((error) => error.pointer), ['']);
       return;
     }
     const document = JSON.parse(text);
@@ -276,7 +281,7 @@ test('integer bounds hold at the edge', async () => {
 
 test('the validator never changes a document, even a frozen one', async () => {
   for (const entry of eventEntries) {
-    if (entry.stage === 'parse') continue;
+    if (entry.stage === 'parse' || entry.stage === 'repeat') continue;
     const document = JSON.parse(await readText(fixture(entry.file)));
     const copy = structuredClone(document);
     const result = validateEvent(deepFreeze(document));
@@ -306,6 +311,28 @@ test('a non-object document is an invalid result', () => {
     const result = validateEvent(value);
     assert.equal(result.ok, false);
     assert.equal(result.reason, 'invalid');
+  }
+});
+
+test('an object that repeats a key is invalid, at any depth and however the key is written', () => {
+  const repeats = [
+    '{"a":1,"a":2}', '{"a":{"b":1,"b":2}}', '{"a":[{"b":1,"b":2}]}', '{"a":1,"\\u0061":2}', '{"__proto__":1,"__proto__":2}',
+    '{"":1,"":2}', '{"a":1,"b":2,"a":3}', '[{"a":1,"a":1}]', '{"a\\n":1,"a\\u000a":2}', '{"\\ud800":1,"\\ud800":2}',
+  ];
+  for (const text of repeats) {
+    const result = validateEventText(text);
+    assert.equal(result.ok, false, text);
+    assert.equal(result.reason, 'invalid', text);
+    assert.deepEqual(result.errors.map((error) => error.pointer), [''], text);
+  }
+  // The same key in different objects, or a key text inside a string value, is not a repeat.
+  const fine = [
+    '{"a":{"a":1},"b":{"a":2}}', '{"a":[{"a":1},{"a":2}]}', '{"a":"a","b":"a"}', '{"a":"x\\",\\"a\\":1"}', '{"a":"{\\"a\\":1,\\"a\\":2}"}', '{"a":1,"A":2}',
+  ];
+  for (const text of fine) {
+    const result = validateEventText(text);
+    assert.equal(result.reason, 'invalid', text);
+    assert.notDeepEqual(result.errors.map((error) => error.pointer), [''], `${text} is damaged by the schema, not by a repeat`);
   }
 });
 

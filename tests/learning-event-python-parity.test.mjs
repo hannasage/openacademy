@@ -308,18 +308,30 @@ test('the two validators agree on a log of valid events with repeated ids and mi
   assert.equal(python.truncatedTail, true);
 });
 
-// The one known difference: the Python validator refuses an object that repeats a key, and the Node
-// validator accepts it, because JSON.parse keeps the last value. This test records the difference
-// so that it stays deliberate. A repeated key is therefore left out of the conformance manifest.
-test('a repeated object key is refused by Python and accepted by Node', async () => {
+// Both validators refuse an object that repeats a key, at any depth and however the key is written.
+// JSON.parse alone keeps the last value, so the Node validator scans the text for repeats first.
+test('a repeated object key is refused by both validators in the same way', async () => {
   const opened = JSON.stringify(await fixtureDocument('valid/task-opened.json'));
-  const repeated = opened.replace(/"source":"(\w+)"/, '"source":"$1","source":"student"');
-  assert.notEqual(repeated, opened);
-  const [python] = runJobs([{ op: 'event', text: repeated }]);
-  assert.equal(python.ok, false);
-  assert.equal(python.reason, 'invalid');
-  assert.deepEqual(python.errors.map((error) => error.pointer), ['']);
-  assert.equal(validateEventText(repeated).ok, true);
+  const texts = [
+    opened.replace(/"source":"(\w+)"/, '"source":"$1","source":"student"'),
+    opened.replace('"data":{}', '"data":{"a":1,"a":2}'),
+    opened.replace(/"source":"(\w+)"/, '"source":"$1","\\u0073ource":"student"'),
+    opened.replace('"skills":["brief-writing"]', '"skills":[{"a":1,"a":2}]'),
+    opened.replace('"data":{}', '"data":{"__proto__":1,"__proto__":2}'),
+    '{"a":1,"a":2}',
+    '{"":1,"":2}',
+    '{"\\ud800":1,"\\ud800":2}',
+    '{"a":{"a":1},"b":{"a":2}}',
+    '{"a":"x\\",\\"a\\":1"}',
+  ];
+  for (const text of texts.slice(0, 5)) assert.notEqual(text, opened);
+  const results = runJobs(texts.map((text) => ({ op: 'event', text })));
+  texts.forEach((text, index) => assertSameEvent(results[index], validateEventText(text), text.slice(0, 80)));
+  for (const index of [0, 1, 2, 3, 4, 5, 6, 7]) {
+    assert.equal(results[index].ok, false);
+    assert.deepEqual(results[index].errors.map((error) => error.pointer), ['']);
+    assert.equal(validateEventText(texts[index]).ok, false);
+  }
 });
 
 // A small seeded mutation run. It keeps the two validators in step on documents the
@@ -364,7 +376,7 @@ test('the two validators agree on seeded mutations of every event fixture', asyn
   };
   const jobs = [];
   for (const entry of eventEntries) {
-    if (entry.stage === 'parse') continue;
+    if (entry.stage === 'parse' || entry.stage === 'repeat') continue;
     const document = JSON.parse(await textOf(entry));
     for (let count = 0; count < 12; count += 1) jobs.push({ op: 'event', text: JSON.stringify(mutate(document)) });
   }

@@ -22,8 +22,7 @@ that cannot be read) returns `ok` false, a `reason`, `errors`, an empty `lines` 
 and `truncatedTail` false.
 
 A call never changes its input and never writes a file. Files are opened for
-reading only. This validator rejects an object that repeats a key. The Node
-validator accepts one, because `JSON.parse` keeps the last value.
+reading only. Both validators reject an object that repeats a key, at any depth.
 """
 import errno
 import functools
@@ -159,10 +158,14 @@ def _reject_constant(name):
     raise ValueError(f'{name} is not allowed in JSON.')
 
 
+class _RepeatedKey(ValueError):
+    """An object repeats a key."""
+
+
 def _no_repeats(pairs):
     keys = [key for key, _ in pairs]
     if len(set(keys)) != len(keys):
-        raise ValueError('An object repeats a key.')
+        raise _RepeatedKey('An object repeats a key.')
     return dict(pairs)
 
 
@@ -185,6 +188,8 @@ def _run_text(text):
         return _too_large_line(), 'size', None
     try:
         document = json.loads(text, parse_constant=_reject_constant, object_pairs_hook=_no_repeats)
+    except _RepeatedKey:
+        return _invalid([_error('', 'The text is not complete, valid JSON.')]), 'repeat', None
     except (ValueError, RecursionError):
         return _invalid([_error('', 'The text is not complete, valid JSON.')]), 'parse', None
     try:
@@ -197,8 +202,8 @@ def _run_text(text):
 def validate_event_text_with_stage(text):
     """Like validate_event_text, and also names the stage that gave the result.
 
-    The stage is `none`, `size`, `parse`, `document`, `version`, `schema`, or
-    `semantic`. Returns (result, stage).
+    The stage is `none`, `size`, `parse`, `repeat`, `document`, `version`, `schema`, or
+    `semantic`. The stage `repeat` means valid JSON in which an object repeats a key. Returns (result, stage).
     """
     result, stage, _ = _run_text(text)
     return result, stage

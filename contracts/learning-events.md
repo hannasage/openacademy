@@ -233,9 +233,9 @@ A schema cannot state these rules. The validators check them after the schema pa
 - An `agent_offer` event must not name its own `eventId` as its `triggerEventId`.
 - An event id must not repeat in a log.
 
-### Known difference
+### Repeated keys
 
-The Python validator rejects a JSON object that repeats a key. The Node validator accepts it, because `JSON.parse` keeps the last value. Writers must never repeat a key. No conformance fixture repeats a key.
+A JSON object must not repeat a key. This holds at any depth. It also holds for a key written with an escape, such as `"\u0073ource"`. Both validators reject the text with the reason `invalid` and one error with an empty pointer. A parser such as `JSON.parse` keeps the last value of a repeated key and says nothing, so the Node validator scans the text itself. The check works on text. `validateEvent` takes a parsed value, so it cannot see a repeat.
 
 ### Changing the contract
 
@@ -262,7 +262,7 @@ The file `tests/fixtures/contracts/learning-event-conformance.json` lists every 
 - `kind` is `learning-event` or `learning-event-log`.
 - `file` is a path relative to `tests/fixtures/contracts/`.
 - `expect` is `valid`, `invalid:invalid`, or `invalid:unsupported_version`.
-- `stage` names where an event first fails. It is `none`, `parse`, `version`, `schema`, or `semantic`. A log entry has the stage `none` or `lines`.
+- `stage` names where an event first fails. It is `none`, `parse`, `repeat`, `version`, `schema`, or `semantic`. A `repeat` fixture is valid JSON in which an object repeats a key. A log entry has the stage `none` or `lines`.
 
 A log entry also has these fields:
 
@@ -283,6 +283,6 @@ Another implementation, for example a Rust service, proves conformance in these 
 8. For each `learning-event-log` entry, split the text on `\n`. Run steps 3 to 6 on each line. Then apply the truncated tail rule and the repeated id rule. Compare `ok`, `truncatedTail`, and the invalid lines with the entry.
 9. Check that every file has the same bytes after the run.
 
-An implementation that applies only steps 1 to 5 passes every entry whose `stage` is not `semantic`. It must apply step 6 to pass the rest.
+An implementation that applies only steps 1 to 5 passes every entry whose `stage` is not `semantic`. It must apply step 6 to pass the rest. Step 3 includes the repeated key rule.
 
 The Node tests are `tests/learning-event-contracts.test.mjs` and `tests/learning-event-python-parity.test.mjs`. The Python tests are in `tests/test_learning_event.py`. The parity test runs both validators on every fixture and compares the verdict, the reason, and the error pointers.

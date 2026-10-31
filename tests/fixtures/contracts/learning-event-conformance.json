@@ -671,6 +671,34 @@
     "stage": "schema"
   },
   {
+    "name": "repeated-key-top-level",
+    "file": "learning-events/invalid/repeated-key-top-level.json",
+    "kind": "learning-event",
+    "expect": "invalid:invalid",
+    "stage": "repeat"
+  },
+  {
+    "name": "repeated-key-in-data",
+    "file": "learning-events/invalid/repeated-key-in-data.json",
+    "kind": "learning-event",
+    "expect": "invalid:invalid",
+    "stage": "repeat"
+  },
+  {
+    "name": "repeated-key-written-with-an-escape",
+    "file": "learning-events/invalid/repeated-key-written-with-an-escape.json",
+    "kind": "learning-event",
+    "expect": "invalid:invalid",
+    "stage": "repeat"
+  },
+  {
+    "name": "repeated-key-in-nested-array",
+    "file": "learning-events/invalid/repeated-key-in-nested-array.json",
+    "kind": "learning-event",
+    "expect": "invalid:invalid",
+    "stage": "repeat"
+  },
+  {
     "name": "damaged-json",
     "file": "learning-events/invalid/damaged-json.json",
     "kind": "learning-event",
@@ -756,6 +784,28 @@
       "5": "truncated_tail"
     },
     "truncatedTail": true
+  },
+  {
+    "name": "log-repeated-key-line",
+    "file": "learning-events/invalid/log-repeated-key-line.jsonl",
+    "kind": "learning-event-log",
+    "expect": "invalid:invalid",
+    "stage": "lines",
+    "invalidLines": {
+      "2": "invalid"
+    },
+    "truncatedTail": false
+  },
+  {
+    "name": "log-repeated-key-in-tail",
+    "file": "learning-events/invalid/log-repeated-key-in-tail.jsonl",
+    "kind": "learning-event-log",
+    "expect": "invalid:invalid",
+    "stage": "lines",
+    "invalidLines": {
+      "2": "invalid"
+    },
+    "truncatedTail": false
   },
   {
     "name": "log-line-with-schema-error",
