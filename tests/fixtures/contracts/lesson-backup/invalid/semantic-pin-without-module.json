@@ -1,0 +1,14 @@
+{
+  "format": "schola-lesson-backup",
+  "schemaVersion": "1.0",
+  "createdAt": "2026-02-04T05:06:07Z",
+  "modules": [],
+  "packets": [],
+  "pins": {
+    "revision": 1,
+    "pins": {
+      "full-module": "2.1.0"
+    }
+  },
+  "help": []
+}

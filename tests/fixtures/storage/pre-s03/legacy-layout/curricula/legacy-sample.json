@@ -1,0 +1,130 @@
+{
+  "title": "Synthetic legacy sample",
+  "version": 1,
+  "researchDate": "2026-10-28",
+  "weeklyHours": 11,
+  "totalHours": 44,
+  "weeks": 26,
+  "resources": {
+    "data": {
+      "title": "StatsBomb Open Data",
+      "url": "https://github.com/hudl/open-data",
+      "use": "Use the README, competition list, match files, event schema, and attribution terms. Select a historical competition with enough matches."
+    },
+    "isl": {
+      "title": "An Introduction to Statistical Learning \u00b7 Python",
+      "url": "https://www.statlearning.com/",
+      "use": "Use selected chapters and Python labs. The book PDF is free on the authors\u2019 site."
+    },
+    "math": {
+      "title": "Mathematics for Machine Learning",
+      "url": "https://mml-book.github.io/",
+      "use": "Use selected sections as a reference after the visual experiment. The authors provide a free PDF."
+    },
+    "visual": {
+      "title": "3Blue1Brown \u00b7 visual mathematics",
+      "url": "https://www.3blue1brown.com/",
+      "use": "Find the linear algebra and calculus lessons. Recreate one visual idea in code."
+    },
+    "d2l": {
+      "title": "Dive into Deep Learning",
+      "url": "https://d2l.ai/",
+      "use": "Use the interactive book for calculus, automatic differentiation, training loops, and attention."
+    },
+    "tabpfn": {
+      "title": "Accurate predictions on small data with a tabular foundation model \u00b7 2025",
+      "url": "https://www.nature.com/articles/s41586-024-08328-6",
+      "use": "Read the question, evaluation design, and limitations. Reproduce one feasible comparison, not the original training run."
+    },
+    "paper2026": {
+      "title": "Why Large Language Models Fail at Tabular Prediction \u00b7 August 2026",
+      "url": "https://arxiv.org/abs/2608.02412",
+      "use": "Treat this preprint as a claim to examine. Compare its evaluation choices with your soccer experiments. No paid API experiment is required."
+    },
+    "research": {
+      "title": "Anthropic research",
+      "url": "https://www.anthropic.com/research",
+      "use": "Select a recent public article about evaluations or model behavior. Follow its paper or methods link and record limitations."
+    },
+    "careers": {
+      "title": "Anthropic careers",
+      "url": "https://www.anthropic.com/careers?hsLang=en",
+      "use": "Compare your evidence with a current engineering role. Requirements change. This curriculum does not guarantee a role or a credential."
+    }
+  },
+  "modules": [
+    {
+      "id": "m01",
+      "number": 1,
+      "title": "Start with a forecast",
+      "phase": "Foundations",
+      "question": "Can a simple rule predict a match?",
+      "outcome": "Build a reproducible match table and a baseline: a simple reference prediction.",
+      "math": "Refresh fractions, ratios, percentages, means, variables, functions, and summation through match statistics.",
+      "tasks": [
+        "Load historical matches. Record the source, download date, license, and a small data dictionary.",
+        "Create chronological training, validation, and untouched test sets. Count missing and duplicate rows.",
+        "Predict home/draw/away using training-set frequencies. Compute accuracy and Brier score, the squared error of probabilities.",
+        "Explain why a post-match statistic leaks the answer into a pre-match forecast. Record your baseline and evidence."
+      ],
+      "weeks": [
+        "Week 1: Spend 6 h on data and code, 3 h on algebra through match summaries, and 2 h on a data audit.",
+        "Week 2: Spend 6 h on baselines, 3 h on probability arithmetic, and 2 h on evaluation and reflection."
+      ],
+      "evidence": "A runnable baseline, a data dictionary, split dates, and a one-page explanation of what the model knows before kickoff.",
+      "challenge": "Recompute a three-outcome Brier score for one match. Explain why all three probabilities must sum to one.",
+      "resources": [
+        "data",
+        "isl"
+      ],
+      "reading": "ISL chapter 2. Use a small competition first. Preserve the same held-out test period throughout the project.",
+      "hours": 22,
+      "weekStart": 1,
+      "weekEnd": 2,
+      "prerequisites": [],
+      "dataset": "StatsBomb Open Data: competitions.json \u2192 matches/{competition_id}/{season_id}.json. Use scores, dates, and information available before kickoff. Build recent-form features only from earlier matches."
+    },
+    {
+      "id": "m02",
+      "number": 2,
+      "title": "Make the mathematics visible",
+      "phase": "Foundations",
+      "question": "How do numbers become a model?",
+      "outcome": "Build a small interactive forecast with adjustable weights for recent form and home advantage.",
+      "math": "Refresh equations, slopes, powers, exponentials, logarithms, function composition, and coordinate plots.",
+      "tasks": [
+        "Plot a weighted score as you vary each input. Label the units and ranges.",
+        "Convert scores to three probabilities with softmax, a function that turns scores into normalized probabilities.",
+        "Plot squared error and log loss as predictions become confidently wrong. Recreate one calculation without a model library.",
+        "Write what each symbol means and translate the formula into a small Python function."
+      ],
+      "weeks": [
+        "Week 3: 6 h building the forecast, 3 h on functions and plots, 2 h explaining your outputs.",
+        "Week 4: 6 h exploring losses, 3 h on powers and logarithms, 2 h recording counterexamples."
+      ],
+      "evidence": "A notebook with adjustable inputs, labeled plots, and examples of confident errors.",
+      "challenge": "Explain why a tiny probability for the actual outcome produces a large log loss. Calculate one example.",
+      "resources": [
+        "visual",
+        "isl"
+      ],
+      "reading": "ISL chapters 2 and 4. Use logarithms as measurements of multiplicative change.",
+      "hours": 22,
+      "weekStart": 3,
+      "weekEnd": 4,
+      "prerequisites": [
+        "m01"
+      ],
+      "dataset": "StatsBomb Open Data: competitions.json \u2192 matches/{competition_id}/{season_id}.json. Use scores, dates, and information available before kickoff. Build recent-form features only from earlier matches."
+    }
+  ],
+  "nextPhase": [
+    "Deeper probability, Bayesian inference, optimization, and proof-based reasoning.",
+    "Large-scale training, distributed systems, GPU programming, and performance engineering.",
+    "Language-model training and evaluation, interpretability, and a sustained open-source contribution.",
+    "A larger research reproduction with mentorship and role-specific interview practice."
+  ],
+  "id": "legacy-sample",
+  "subtitle": "Two lessons kept from an imported plan",
+  "description": "Synthetic curriculum used to test files from the first builds."
+}

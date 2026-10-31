@@ -7,7 +7,7 @@
 <template id="legacy-workspace">
 <a class="skip" href="#main">Skip to learning plan</a>
 <header><a class="brand" href="/">schola</a><div class="header-actions" id="header-actions-slot" data-renderer="react"></div><input id="import" type="file" accept="application/json" hidden disabled></header>
-<div class="hub-bar"><label for="curriculum-select">Your curricula</label><select id="curriculum-select" disabled></select><button id="add-curriculum" disabled>Import curriculum</button><button id="template" disabled>Download template</button><input id="curriculum-file" type="file" accept="application/json" hidden></div>
+<div class="hub-bar"><label for="curriculum-select">Your curricula</label><select id="curriculum-select" disabled></select><button id="add-curriculum" disabled>Import curriculum</button><button id="template" disabled>Download template</button><input id="curriculum-file" type="file" accept="application/json" multiple hidden></div>
 <div id="notice" role="status" aria-live="polite">Loading your curriculum…</div>
 <section id="record-recovery" class="learning-card" aria-label="Local record recovery" hidden></section>
 <main id="main"><div hidden><h1 id="plan-title"></h1><p id="plan-subtitle"></p><p id="plan-description"></p><span id="completed"></span><span id="hours"></span><span id="experiments-count"></span><span id="duration"></span><span id="pace"></span><div id="resume-slot" data-renderer="react"></div><div id="progress-slot" data-renderer="react"></div></div>

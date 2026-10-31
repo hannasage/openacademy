@@ -19,7 +19,8 @@ These JSON Schemas use JSON Schema draft 2020-12. Their `urn:touchline:contract:
 | `lesson-module.v1` | One single-lesson module: outcome, content, tasks, hint ladders, checks, optional harness, license, optional price |
 | `packet.v1` | An ordered set of lesson module references, each with an exact version |
 | `help-record.v1` | One hint request, with the attempt it follows |
-| `lesson-common.v1` | Shared definitions for the three schemas above |
+| `lesson-backup.v1` | A backup of stored lesson modules, packets, pins, and help records |
+| `lesson-common.v1` | Shared definitions for the lesson schemas above |
 
 ## Local identity and revisions
 
@@ -165,3 +166,39 @@ Another implementation, for example a Rust service, proves conformance in these 
 8. Check that every file has the same bytes after the run.
 
 An implementation that applies only steps 1 to 5 passes every entry whose `stage` is not `semantic`. Entries with a `schema` stage include a hint ladder out of order. It must apply step 6 to pass the rest. The Node test is `tests/lesson-contracts.test.mjs`. Run it with `node --test tests/lesson-contracts.test.mjs`.
+
+## Lesson storage and backup
+
+The server checks every lesson file itself. It does not trust the browser.
+`lesson_contract.py` is a Python reader for these same schema files. It uses only the Python standard library.
+It must give the same verdict, reason, and error pointers as `contracts/validate.mjs`.
+`tests/lesson-python-parity.test.mjs` runs both on every case in `lesson-conformance.json` and compares them.
+Change a schema, a semantic rule, or a fixture in both places, or that test fails.
+
+### `lesson-backup.v1`
+
+A lesson backup is a new file format. It does not change `local-record.v2` or any older schema.
+Its `format` is `schola-lesson-backup`. Its fields are `schemaVersion`, `createdAt`, `modules`, `packets`, `pins`, and `help`.
+
+- Each entry in `modules` and `packets` holds the `id`, the `version`, the `sha256` digest of its text, the exact `text` that was imported, and a small `source` record.
+- `pins` holds a `revision` and a map from module ID to the pinned version.
+- `help` holds one group of help records for each module.
+- The backup holds no progress. A curriculum record backup already covers progress.
+
+Restore checks a backup in this order, and writes nothing until every step passes:
+
+1. Read `schemaVersion`. An unknown major version is `unsupported_version`.
+2. Validate the schema.
+3. Check every digest against its text.
+4. Validate every module and packet text with the lesson rules above.
+5. Check the references. A packet needs its modules, a pin needs its module, and a help record needs its module and task.
+
+The fixtures are in `tests/fixtures/contracts/lesson-backup/`. The manifest is `lesson-backup-conformance.json`. Each entry has a `stage` of `none`, `version`, `schema`, or `semantic`.
+`tests/lesson-backup.test.mjs` checks the schema stage. `tests/test_lesson_backup.py` checks the others, and the restore itself.
+
+### Where lessons live on disk
+
+Imported lessons live under `_lessons/` in the data directory. They are stored as the exact bytes that were imported.
+A version is written once. The same ID and version with different bytes is a conflict, and Schola refuses it.
+The layout, the pin rules, the migration, and the rollback steps are in [Release and recovery](../docs/RELEASE.md#lesson-modules-and-the-_lessons-folder).
+The routes and their size limit are in the same guide.

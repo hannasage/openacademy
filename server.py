@@ -6,9 +6,13 @@ from pathlib import Path
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import parse_qs, urlsplit
 from local_store import LocalStore, StoreError, finite_json, strict_keys, validate_origin
+import lesson_routes
+from lesson_store import LessonStore
 
 ROOT = Path(__file__).resolve().parent
 import re
+import sys
+import traceback
 
 class CurriculumError(ValueError):
     def __init__(self, message, field):
@@ -114,6 +118,9 @@ def validate(s, c):
     return s
 
 class Handler(BaseHTTPRequestHandler):
+    # A client that declares more body than it sends must not hold this single-threaded server forever.
+    timeout = 10
+
     def log_message(self, *args):
         pass
 
@@ -177,23 +184,65 @@ class Handler(BaseHTTPRequestHandler):
             return self.respond(500, {"error": "Cannot access saved data. Keep your edits and check that the data folder is writable.", "code": "storage_unavailable", "retryable": True})
         return self.respond(400, {"error": str(error), "code": "invalid_request", "retryable": False})
 
+    def lesson_response(self, call):
+        """Run a lesson route. A named problem keeps its status. Anything else is a server fault: 500, no detail."""
+        try:
+            return self.respond(*call())
+        except StoreError as error:
+            return self.fail(error)
+        except OSError as error:
+            return self.fail(error)
+        except Exception:  # noqa: BLE001 - any other fault, including bad stored data, must answer in JSON
+            traceback.print_exc(file=sys.stderr)
+            return self.respond(500, {"error": "Schola hit an unexpected problem and could not finish. Check your lessons before you try again.", "code": "internal_error", "retryable": False})
+
     def forbidden(self):
         return self.respond(403, {"error": "Use the local application address.", "code": "forbidden_origin", "retryable": False})
 
     def not_found(self):
         return self.respond(404, {"error": "Not found.", "code": "not_found", "retryable": False})
 
-    def body(self):
+    def lessons(self):
+        return LessonStore(self.server.data_dir)
+
+    def drain(self, size):
+        """Read and drop the body of a request that is too big, so the client can still read the answer.
+
+        A client that sends a body while the server answers and closes would see a reset instead of the
+        413. Only a bounded amount is read, and only while data keeps arriving.
+        """
+        if size > 16 * 1024 * 1024:
+            return
+        self.connection.settimeout(0.25)
+        remaining = size
+        try:
+            while remaining > 0:
+                chunk = self.rfile.read1(min(65536, remaining))
+                if not chunk:
+                    break
+                remaining -= len(chunk)
+        except OSError:
+            pass
+        finally:
+            self.connection.settimeout(self.timeout)
+
+    def body(self, limit=2_000_000):
         if self.headers.get("Content-Type", "").split(";", 1)[0].strip() != "application/json":
             raise StoreError("Expected JSON.", "unsupported_media_type", 415)
         try:
             size = int(self.headers.get("Content-Length", "0"))
         except ValueError:
             raise StoreError("Invalid content length.", "invalid_request") from None
-        if not 0 < size <= 2_000_000:
-            raise StoreError("Backup must be smaller than 2 MB.", "payload_too_large", 413)
+        if not 0 < size <= limit:
+            if size > limit:
+                self.drain(size)
+            raise StoreError("Backup must be smaller than 2 MB." if limit == 2_000_000 else "Lesson files must be smaller than 5 MB.", "payload_too_large", 413)
         try:
-            result = json.loads(self.rfile.read(size), parse_constant=lambda value: (_ for _ in ()).throw(ValueError(value)))
+            raw = self.rfile.read(size)
+        except TimeoutError:
+            raise StoreError("The request body did not arrive in time.", "request_timeout", 408) from None
+        try:
+            result = json.loads(raw, parse_constant=lambda value: (_ for _ in ()).throw(ValueError(value)))
         except (ValueError, UnicodeError):
             raise StoreError("Request must contain valid, finite JSON.", "invalid_json") from None
         finite_json(result)
@@ -204,6 +253,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.forbidden()
         path = urlsplit(self.path).path
         try:
+            if path in lesson_routes.GET_ROUTES:
+                return self.lesson_response(lambda: lesson_routes.handle_get(self.lessons(), path))
             if path == "/api/recovery":
                 return self.respond(200, self.store().recovery_options())
             if path == "/api/cloud-config":
@@ -256,10 +307,14 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         if not self.allowed():
             return self.forbidden()
-        if urlsplit(self.path).path not in ("/api/import", "/api/import/preview", "/api/recovery"):
+        route = urlsplit(self.path).path
+        lesson = route in lesson_routes.POST_ROUTES
+        if not lesson and route not in ("/api/import", "/api/import/preview", "/api/recovery"):
             return self.not_found()
         try:
-            payload = self.body()
+            payload = self.body(lesson_routes.BODY_LIMIT if lesson else 2_000_000)
+            if lesson:
+                return self.lesson_response(lambda: lesson_routes.handle_post(self.lessons(), route, payload, self.store() if route.endswith("/migrate") else None))
             if urlsplit(self.path).path == "/api/recovery":
                 strict_keys(payload, ["recordId", "damagedDigest"], "request")
                 return self.respond(200, self.store().recover_record(payload["recordId"], payload["damagedDigest"]))

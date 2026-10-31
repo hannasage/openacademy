@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "revision": 4,
+  "curriculumId": "legacy-sample",
+  "weeklyHours": 11,
+  "startDate": "",
+  "modules": {
+    "m02": {
+      "status": "active",
+      "tasks": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "notes": "Synthetic note: imported plan.",
+      "evidence": "",
+      "hours": 0.5
+    }
+  },
+  "experiments": []
+}

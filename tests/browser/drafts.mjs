@@ -159,20 +159,20 @@ export async function verifyAccountInvalidation({page,server}) {
   const beforeRestoreLocal=await (await fetch(`${server.url}/api/records/${localId}`)).json();
   const query=new URLSearchParams({hubId:origin.hubId,backendOrigin:origin.backendOrigin,accountId:origin.accountId});
   const beforeRestoreCloud=await (await fetch(`${server.url}/api/records/${cloudId}?${query}`)).json();
-  await page.evaluate(()=>{window.originalFileText=File.prototype.text;File.prototype.text=async function(){window.readingBackup=true;await new Promise(resolve=>{window.releaseBackup=resolve;});return window.originalFileText.call(this);};});
+  await page.evaluate(()=>{window.originalFileText=File.prototype.arrayBuffer;File.prototype.arrayBuffer=async function(){window.readingBackup=true;await new Promise(resolve=>{window.releaseBackup=resolve;});return window.originalFileText.call(this);};});
   await page.locator('#import').setInputFiles({name:'pending-cloud-backup.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(beforeRestoreCloud))});
   await page.waitForFunction(()=>window.readingBackup);
   await page.evaluate(()=>window.touchline.invalidateAccountScope());
-  await page.evaluate(()=>{window.releaseBackup();File.prototype.text=window.originalFileText;delete window.readingBackup;delete window.releaseBackup;});
+  await page.evaluate(()=>{window.releaseBackup();File.prototype.arrayBuffer=window.originalFileText;delete window.readingBackup;delete window.releaseBackup;});
   await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('account changed'));
   assert.deepEqual(await (await fetch(`${server.url}/api/records/${localId}`)).json(),beforeRestoreLocal);
   assert.deepEqual(await (await fetch(`${server.url}/api/records/${cloudId}?${query}`)).json(),beforeRestoreCloud);
   // Changing a local course while reading a backup must also reject the old target.
   const otherLocal=await page.locator('#curriculum-select option').evaluateAll((options,id)=>options.find(option=>option.value!==id)?.value,localId);
-  await page.evaluate(()=>{window.originalFileText=File.prototype.text;File.prototype.text=async function(){window.readingBackup=true;await new Promise(resolve=>{window.releaseBackup=resolve;});return window.originalFileText.call(this);};});
+  await page.evaluate(()=>{window.originalFileText=File.prototype.arrayBuffer;File.prototype.arrayBuffer=async function(){window.readingBackup=true;await new Promise(resolve=>{window.releaseBackup=resolve;});return window.originalFileText.call(this);};});
   await page.locator('#import').setInputFiles({name:'pending-local-backup.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(beforeRestoreLocal))});
   await page.waitForFunction(()=>window.readingBackup);await choose(page,otherLocal);
-  await page.evaluate(()=>{window.releaseBackup();File.prototype.text=window.originalFileText;delete window.readingBackup;delete window.releaseBackup;});
+  await page.evaluate(()=>{window.releaseBackup();File.prototype.arrayBuffer=window.originalFileText;delete window.readingBackup;delete window.releaseBackup;});
   await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('selected record changed'));
   assert.deepEqual(await (await fetch(`${server.url}/api/records/${localId}`)).json(),beforeRestoreLocal);
   await choose(page,localId);await page.evaluate(origin=>window.touchline.setAccountScope(origin),origin);await choose(page,cloudId);

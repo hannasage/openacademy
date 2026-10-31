@@ -1,0 +1,98 @@
+[
+  {
+    "name": "empty",
+    "file": "valid/empty.json",
+    "expect": "valid",
+    "stage": "none"
+  },
+  {
+    "name": "one-module",
+    "file": "valid/one-module.json",
+    "expect": "valid",
+    "stage": "none"
+  },
+  {
+    "name": "module-and-packet",
+    "file": "valid/module-and-packet.json",
+    "expect": "valid",
+    "stage": "none"
+  },
+  {
+    "name": "two-versions",
+    "file": "valid/two-versions.json",
+    "expect": "valid",
+    "stage": "none"
+  },
+  {
+    "name": "schema-extra-property",
+    "file": "invalid/schema-extra-property.json",
+    "expect": "invalid",
+    "stage": "schema"
+  },
+  {
+    "name": "schema-wrong-format",
+    "file": "invalid/schema-wrong-format.json",
+    "expect": "invalid",
+    "stage": "schema"
+  },
+  {
+    "name": "schema-short-digest",
+    "file": "invalid/schema-short-digest.json",
+    "expect": "invalid",
+    "stage": "schema"
+  },
+  {
+    "name": "schema-missing-pins",
+    "file": "invalid/schema-missing-pins.json",
+    "expect": "invalid",
+    "stage": "schema"
+  },
+  {
+    "name": "version-unknown-major",
+    "file": "invalid/version-unknown-major.json",
+    "expect": "invalid",
+    "stage": "version"
+  },
+  {
+    "name": "semantic-digest-mismatch",
+    "file": "invalid/semantic-digest-mismatch.json",
+    "expect": "invalid",
+    "stage": "semantic"
+  },
+  {
+    "name": "semantic-invalid-module",
+    "file": "invalid/semantic-invalid-module.json",
+    "expect": "invalid",
+    "stage": "semantic"
+  },
+  {
+    "name": "semantic-duplicate-module",
+    "file": "invalid/semantic-duplicate-module.json",
+    "expect": "invalid",
+    "stage": "semantic"
+  },
+  {
+    "name": "semantic-pin-without-module",
+    "file": "invalid/semantic-pin-without-module.json",
+    "expect": "invalid",
+    "stage": "semantic"
+  },
+  {
+    "name": "semantic-packet-without-module",
+    "file": "invalid/semantic-packet-without-module.json",
+    "expect": "invalid",
+    "stage": "semantic"
+  },
+  {
+    "name": "semantic-help-unknown-task",
+    "file": "invalid/semantic-help-unknown-task.json",
+    "expect": "invalid",
+    "stage": "semantic"
+  },
+  {
+    "name": "semantic-help-unknown-module",
+    "file": "invalid/semantic-help-unknown-module.json",
+    "expect": "invalid",
+    "stage": "semantic"
+  }
+]

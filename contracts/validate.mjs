@@ -158,7 +158,12 @@ export async function validateLessonFile(kind, file) {
   try {
     const info = await stat(file);
     if (info.size > MAX_BYTES) return tooLarge();
-    text = await readFile(file, 'utf8');
+    const bytes = await readFile(file);
+    try {
+      text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes);
+    } catch {
+      return invalid([{ pointer: '', message: 'The text is not valid UTF-8.' }]);
+    }
   } catch (error) {
     return unreadable(error);
   }
