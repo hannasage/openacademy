@@ -6,15 +6,26 @@ const MAX_LINE = 300;
 /** Server text is untrusted. Keep a one-line field plain and short. @param {unknown} value @param {number} [limit] */
 const line = (value, limit = MAX_LINE) => (typeof value === 'string' || typeof value === 'number' ? String(value) : '').replace(/[\p{Cc}\p{Cf}]+/gu, ' ').trim().slice(0, limit);
 
+/** @param {string} ch */
+const tag = ch => `<U+${(ch.codePointAt(0) ?? 0).toString(16).toUpperCase().padStart(4, '0')}>`;
+
 /**
- * The script as the student reads it. Characters that can hide code, such as direction marks and zero-width characters,
- * become visible tags like <U+202E>. The hash still covers the real bytes. Tabs and line breaks stay.
- * @param {unknown} source
+ * Text as the student reads it. Every control, invisible, direction, line-separator, and lone-surrogate character becomes a
+ * visible tag such as <U+202E>, so it cannot hide code. Only the line feed stays as a line break, and the tab stays as a tab,
+ * because they hide nothing. The hash still covers the real bytes.
+ * @param {unknown} value
+ * @param {boolean} [keepBreaks] keep line feeds and tabs as they are
  */
-export function visibleSource(source) {
-  if (typeof source !== 'string') return '';
-  return source.replace(/[\p{Cc}\p{Cf}]/gu, ch => ch === '\n' || ch === '\t' || ch === '\r' ? ch : `<U+${ch.codePointAt(0)?.toString(16).toUpperCase().padStart(4, '0')}>`);
+export function visibleText(value, keepBreaks = true) {
+  if (typeof value !== 'string') return '';
+  return value.replace(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}\p{Cs}]/gu, ch => keepBreaks && (ch === '\n' || ch === '\t') ? ch : tag(ch));
 }
+
+/** The script as the student reads it. @param {unknown} source */
+export const visibleSource = source => visibleText(source, true);
+
+/** @param {unknown} list @returns {string[]} */
+const strings = list => Array.isArray(list) ? list.filter(item => typeof item === 'string') : [];
 
 /**
  * The consent screen for a script check. It shows exactly what would run and asks the student to agree.
@@ -116,17 +127,33 @@ export function openCheckConsent(dialog, {service, ref, onFinish}) {
         body.append(element('p', 'This check runs no script. It needs no consent.'), button('Close', () => close({consented: false})));
       } else if (shown) {
         const busy = phase === 'saving';
-        const args = Array.isArray(shown.args) && shown.args.length ? shown.args.map(item => line(item, 100)).join(' ') : 'None';
+        const args = strings(shown.args);
         const source = element('pre', visibleSource(shown.source), 'consent-source');
         source.setAttribute('tabindex', '0');
+        const nonAscii = [...`${shown.source ?? ''}${args.join('')}`].some(ch => (ch.codePointAt(0) ?? 0) > 127);
+        const argumentList = element('ul', '', 'consent-args');
+        for (const item of args) argumentList.append(element('li', visibleText(item, false), 'consent-arg'));
+        const applied = strings(shown.limits).map(item => element('li', visibleText(item, false)));
+        const notApplied = [...strings(shown.limitsNotApplied)];
+        if (!notApplied.some(item => item.toLowerCase().startsWith('memory'))) notApplied.unshift('memory: no memory limit is set');
+        const limitList = element('ul');
+        limitList.append(...applied);
+        const missingList = element('ul');
+        missingList.append(...notApplied.map(item => element('li', visibleText(item, false))));
         body.append(
           element('p', 'A lesson author wrote this script. If you agree, Schola runs it on this computer when you run the check.'),
           element('p', 'This is consent, not a sandbox. A script you allow can still read your files and use the network.', 'import-warning'),
+          ...(nonAscii ? [element('p', 'This script or its arguments hold characters outside plain ASCII. Look for letters that only look like other letters.', 'import-conflict')] : []),
           row('Runtime', line(shown.runtime, 40) || 'Not named'),
-          row('Arguments', args),
+          element('p', 'Arguments, one to a line:'),
+          args.length ? argumentList : element('p', 'None'),
           row('Time limit', `${Number.isSafeInteger(shown.timeoutSeconds) ? shown.timeoutSeconds : 30} seconds`),
           row('Your folder', line(shown.workspace, 1000)),
           row('SHA-256 of what runs', line(shown.checkHash, 64)),
+          element('h2', 'Limits that apply'),
+          limitList,
+          element('h2', 'Limits that do not apply'),
+          missingList,
           element('h2', 'Script'),
           source,
         );

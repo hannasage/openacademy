@@ -229,40 +229,53 @@ The check routes use the local address and the same Host and Origin checks as th
 | `POST /api/checks/workspace` | Set that folder. Send `{path}` |
 | `POST /api/checks/inspect` | Say what a check would run, with its hash. Send `{moduleId, version, checkId}` |
 | `POST /api/checks/consent` | Record the student's agreement to one script. Send `{moduleId, version, checkId, confirm: true, shownHash}` |
-| `POST /api/checks/run` | Run one check. Send `{moduleId, version, checkId, consentId?}` |
+| `POST /api/checks/run` | Run one check. Send `{moduleId, version, checkId}`. A script check also needs the `consentId` that the consent route returned |
 
 Every route after the first needs the token in the `X-Schola-Check-Token` header. The server makes the token when it starts and compares it in constant time. The first route gives the token only to a request that passes the Host and Origin checks and that no browser marks as cross-site.
 
 ### The workspace folder
 
-The workspace is the one folder that checks read. It is saved in `_lessons/check-workspace.json` in the data folder. The path must exist, be a folder, and be resolved with its real path. Schola refuses the top of the disk, the home folder, any folder that holds the home folder, the data folder, any folder inside the data folder, and any folder that holds the data folder. It checks again each time it runs a check.
+The workspace is the one folder that checks read. It is saved in `_lessons/check-workspace.json` in the data folder. The path must exist, be a folder, and be resolved with its real path. The folder must be inside the home folder. Schola refuses the home folder itself, any folder that holds it, the top of the disk, any folder outside the home folder (so `/etc` and an external drive are refused), any folder with a name that starts with a dot anywhere below the home folder (so `~/.ssh` is refused), the data folder, any folder inside the data folder, and any folder that holds the data folder. It checks again each time it runs a check.
 
 ### Consent
 
 - A consent record is tied to the module, the version, the check, the SHA-256 hash of everything that would run, and the real path of the workspace. The hash covers the runner fields, the runtime, the arguments, the time limit, and the script bytes. If any of these change, the old consent no longer applies.
 - Only `POST /api/checks/consent` creates a consent. It needs `confirm: true` and a `shownHash` equal to the hash the server computes now. The run route has no field and no header that can grant consent. A run request with an unknown field is refused.
 - Consent lives in memory. It ends when the server stops.
+- A run for a script needs the `consentId` that the consent route gave back. Schola looks the id up and checks that it was given for this module, version, check, hash, and folder. A matching binding without the id is not enough.
+- A version 1.0 `script` runner holds no script. It needs no consent. Schola skips it, and the student reports the result by hand.
 - A built-in check needs no consent.
 - A run for a script without a valid consent answers 403 `consent_required`, and no process starts.
 - One check runs at a time. A second run request while one is going answers 429 `busy`.
 
-The consent screen is `web/screens/check-consent.js`. It shows the runtime, the arguments, the time limit, the folder, the hash, and the script. It says that this is consent, not a sandbox. Cancel and Escape make no call. No other screen opens it yet.
+The consent screen is `web/screens/check-consent.js`. It shows the runtime, each argument on its own line and whole, the time limit, the folder, the hash, the limits that apply and the limits that do not apply, and the script. Every control, invisible, direction, and line-separator character in the script and the arguments is shown as a tag such as `<U+202E>`. Only line feeds and tabs stay plain. A banner warns when the script holds characters outside plain ASCII. It says that this is consent, not a sandbox. Cancel and Escape make no call. No other screen opens it yet.
 
-Error codes: 403 `invalid_token`, `consent_required`, and `forbidden_origin`, 400 `invalid_workspace`, `confirmation_required`, `consent_not_needed`, and `invalid_request`, 409 `workspace_required` and `hash_mismatch`, 404 `not_found`, 413 `payload_too_large`, 429 `busy`, and 500 `internal_error` or `corrupt_file`.
+Error codes (the `code` of an HTTP answer): 403 `invalid_token`, `consent_required`, and `forbidden_origin`, 400 `invalid_workspace`, `confirmation_required`, `consent_not_needed`, `invalid_request`, and `invalid_json`, 415 `unsupported_media_type`, 408 `request_timeout`, 409 `workspace_required` and `hash_mismatch`, 404 `not_found`, 413 `payload_too_large`, 429 `busy`, and 500 `internal_error` or `corrupt_file`.
+
+A check that runs answers 200 even when it cannot finish. The `result.evidence.reason` then says why. The reasons are:
+
+- Any check: `invalid_check`, `invalid_descriptor`, `unknown_runner_type` (status `skipped`), `self_reported` (status `skipped`), `workspace_unavailable`, and `adapter_failed`.
+- File checks: `not_found` and `wrong_kind` (status `failed`), `unsafe_path`, `not_regular`, `file_too_large`, and `unreadable`. Also `empty`, `invalid_json`, `wrong_top_level`, and `missing_keys` (status `failed`).
+- Pattern checks: `invalid_pattern`, `pattern_timeout`, `pattern_failed`, and `kill_failed`.
+- Git checks: `no_repository` and `no_commits` (status `failed`), `unsafe_git_dir`, `untrusted_repository`, `git_failed`, `git_timeout`, `output_too_large`, `kill_failed`, and `git_unavailable` (status `skipped`).
+- Script checks: `consent_required`, `busy`, `script_not_defined` and `runtime_unavailable` (status `skipped`), `workspace_too_large`, `unsafe_workspace`, `unreadable_workspace`, `script_not_started`, `script_failed`, `script_timeout`, `script_killed`, `output_too_large`, and `kill_failed`.
 
 ### The git commit check
 
 The `git-commit-exists` check runs git on the student's repository. A repository can name programs in its own config, so Schola treats it as untrusted.
 
 - Git runs from an argument list, never through a shell, with the workspace as its working folder and a clean environment. No `GIT_*` variable of the server reaches it. System and user config are switched off.
-- Schola checks the `.git` entry first. It must be a real folder, or a file that points at a folder inside the workspace. A link, a file that points outside, a borrowed object store, or a git entry that is a link or a pipe is refused. Schola then names the folder with `--git-dir`, so git never walks up to a parent repository.
+- Schola checks the `.git` entry first. It must be a real folder, or a plain file (a gitfile) that names a folder inside the workspace. A link is refused. A gitfile that names a folder outside the workspace is refused. A borrowed object store is refused. Any git entry that is a link or a pipe is refused. Schola then names the folder with `--git-dir`, so git never walks up to a parent repository.
 - A fixed list of `-c` overrides switches off the settings that name a program: file system monitor, hooks path, SSH command, pager, editor, ask-pass program, alternate refs command, attributes and ignore files, external diff, credential helper, signature program, pack hook, and automatic housekeeping.
-- Only `rev-parse`, `rev-list`, and `cat-file --batch` run. Each run has a time limit of 10 seconds and an output limit of 1 MB. Past either limit, Schola kills git and every process it started.
+- Schola reads the repository config as text before git runs. It accepts only a short list of plain-data settings, such as `user.name`, `remote.<name>.url`, and `branch.<name>.merge`. It refuses a setting that names a program, an `include`, an `extensions` key other than `objectformat`, a partial clone or promisor setting, a `ext::` remote address, and a `.promisor` pack file. A partial clone fetches a missing object by running a transport, and a hostile repository can name a program for it. Git LFS repositories hold a `filter` setting and are refused too.
+- The environment also sets `GIT_NO_LAZY_FETCH=1` and `GIT_ALLOW_PROTOCOL=none`, and `-c protocol.allow=never` closes every transport. On git 2.39.5 (Apple build) the first one is honored: git printed that lazy fetching was disabled. A test turns the config check off. It showed that removing either the lazy-fetch variable or the protocol settings still stops the transport, and that removing both lets git run the program.
+- Only `rev-parse`, `show-ref`, `rev-list`, and `cat-file --batch` run. `show-ref` runs only to tell an empty repository from a damaged one: no commits counts as "no commits yet" only when `HEAD` names a branch and the repository holds no refs. Any other case is an error. Each run has a time limit of 10 seconds and an output limit of 1 MB. Past either limit, Schola kills git and every process it started.
 - Schola checks that the current user owns the repository. Git skips its own ownership check when it is given `--git-dir`, so Schola repeats it. Schola never passes `safe.directory`.
 
 What the tests proved, on git 2.39.5 (Apple build) on macOS. Each hostile repository was built at test time. A control step first showed that a dangerous command runs the marker program.
 
-- With a repository whose config names a file system monitor, hooks, an SSH command, a pager, an editor, an external diff, a text converter, a credential helper, a signature program, a pack hook, and an included file that sets more of them, the three commands run none of them. This holds with the overrides and also without them. The three commands work on commits and refs, and the test shows that no program ran.
+- With a repository whose config names a file system monitor, hooks, an SSH command, a pager, an editor, an external diff, a text converter, a credential helper, a signature program, a pack hook, and an included file that sets more of them, the read commands run none of them. This holds with the overrides and also without them. These tests turn the config check off, so they prove the second layer. With the config check on, such a repository is refused before git starts.
+- A partial-clone repository with a missing commit makes plain git run the program named in `remote.<name>.uploadpack`. Schola refuses the repository, and with the config check off the environment layers stop it.
 - The overrides do stop `status`, `diff`, `commit`, `stash`, and `ls-remote` from running the file system monitor, the hooks, the external diff, and the SSH command. The overrides stay as a second layer, in case a later git reads more.
 - A pager starts only on a terminal. Schola gives git a pipe, `--no-pager`, and `core.pager=cat`.
 - Hooks in the repository's own `hooks` folder and in a configured hooks path did not run.
@@ -291,7 +304,14 @@ What Schola does to limit a script:
 - It sets no memory limit, because no portable one exists.
 - One script runs at a time. A second request gets `busy`.
 
-The result holds the exit code, the first 500 characters of the output, the output size, the time taken, whether the script timed out, and the limits that were and were not applied.
+The result holds the exit code, the first 500 characters of the output, the output size, the time taken, whether the script timed out, and the limits that were and were not applied. `outputTruncated` is true when the output passed 64 KB or was cut to 500 characters for the result. `outputIncomplete` is true when a child that started its own session still held the output after the run, so the output may be incomplete and the child may still run. The log says so. The script's output is evidence. The student and the student's agent can read it, and a script can print the content of a file it reads.
+
+Other rules:
+
+- Schola looks up `python3` and `node` only in `/usr/local/bin`, `/opt/homebrew/bin`, `/usr/bin`, and `/bin`. A runtime from a version manager, such as nvm or pyenv, is not found there. The check is then skipped, and the student reports the result by hand.
+- A folder or file in the workspace that Schola cannot read stops the run, because a partial copy could give a wrong answer.
+- If the runtime or the launcher cannot start, the result is an error (`script_not_started`), not a failed check. An exit code of 126 or 127 from the script itself stays a failed check, with a hint in the log.
+- If Schola cannot kill a script that ran too long, the result is the error `kill_failed`, and the run lock is released.
 
 What was checked, on macOS 15 (Darwin 24) with Python 3.14:
 
@@ -314,7 +334,7 @@ These are deliberate choices for this release, not oversights.
 - The lesson routes check the Host header, and the Origin header when a browser sends one. A request with no Origin header is accepted. The check routes add a per-launch token.
 - Consent is not isolation. A script that a student agrees to run can still read the student's files and use the network. It can write to any path the student can write to, if it knows the path. The token and the consent protect against lesson content, not against another program on the same computer.
 - Hidden tests cannot stay hidden. A script check stores its script as text in the lesson file on the student's disk, and the student sees it before they agree. A lesson that needs a secret answer key must check the work elsewhere.
-- Script limits on macOS and Linux only. Windows is untested. On macOS no memory limit applies, because the system refuses one. On Linux the limits are untested.
+- Script limits on macOS and Linux only. Windows is untested. On macOS no memory limit applies, because the system refuses one. On Linux the limits are untested. A runtime that lives outside the standard program folders, such as a node from nvm, is skipped.
 - A script that starts a new session escapes the process group kill. The process limit helps, but it counts all processes of the user, so Schola sets it to the user's count plus 100.
 - The server handles one request at a time. While a check runs, other requests wait. The busy answer protects a future server that handles requests at the same time.
 - The pin file is read, changed, and written without a lock file. Do not run two writers at once. Stop the server before you run the command line.

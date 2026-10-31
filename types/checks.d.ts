@@ -20,6 +20,10 @@ interface CheckInspection {
   args: string[];
   timeoutSeconds: number;
   workspace: string;
+  /** What Schola sets for a script run. Empty for a check that runs no script. */
+  limits?: string[];
+  /** What Schola does not limit, such as memory, the network, and the files the student can read. */
+  limitsNotApplied?: string[];
 }
 
 interface CheckConsentGrant {

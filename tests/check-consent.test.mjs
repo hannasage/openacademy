@@ -285,3 +285,97 @@ test('a failed inspect shows a message and offers only Close', async () => {
   assert.equal(dialog.open, false);
   assert.ok(!calls.some(call => call.key.includes('consent')));
 });
+
+const open = async inspected => {
+  const dialog = installDom();
+  const {calls, service} = server({...session, 'POST /api/checks/inspect': () => json(inspected), 'POST /api/checks/consent': () => json({consentId: 'c'.repeat(24)})});
+  openCheckConsent(dialog, {service, ref});
+  await settle();
+  return {dialog, calls, service};
+};
+
+test('every character that can hide code is tagged, and only the line feed and the tab stay plain', async () => {
+  const hidden = ['\r', '\u2028', '\u2029', '\u0085', '\u202e', '\u200b', '\u200f', '\u061c', '\u00ad', '\ufeff', '\u2066', '\x1b', '\x00', '\x7f'];
+  const source = hidden.map((ch, index) => `line${index}${ch}end`).join('\n') + '\n\tindented\n';
+  const {dialog} = await open({...inspection, source});
+  const text = dialog.textContent;
+  for (const ch of hidden) assert.ok(!text.includes(ch), `U+${ch.codePointAt(0).toString(16)} is still raw`);
+  for (const tag of ['<U+000D>', '<U+2028>', '<U+2029>', '<U+0085>', '<U+202E>', '<U+200B>', '<U+200F>', '<U+061C>', '<U+00AD>', '<U+FEFF>', '<U+2066>', '<U+001B>', '<U+0000>', '<U+007F>']) {
+    assert.ok(text.includes(tag), tag);
+  }
+  assert.ok(text.includes('\tindented'));
+  assert.ok(text.includes('line0<U+000D>end\nline1'));
+});
+
+test('a lone surrogate in the script or an argument is tagged and does not crash the screen', async () => {
+  const {dialog} = await open({...inspection, source: 'x = "\ud800"\n', args: ['a\udc00b']});
+  assert.ok(dialog.open);
+  assert.match(dialog.textContent, /<U\+D800>/);
+  assert.match(dialog.textContent, /<U\+DC00>/);
+});
+
+test('a banner warns when the script holds characters outside plain ASCII, and only then', async () => {
+  const withBanner = (await open({...inspection, source: 'caf\u00e9 = 1\n'})).dialog.textContent;
+  assert.match(withBanner, /outside plain ASCII/);
+  assert.match((await open({...inspection, args: ['\u0430pple']})).dialog.textContent, /outside plain ASCII/);
+  assert.doesNotMatch((await open(inspection)).dialog.textContent, /outside plain ASCII/);
+});
+
+test('arguments are shown whole, one to a line, with hidden characters tagged', async () => {
+  const long = 'x'.repeat(200);
+  const args = [long, 'two words', 'tab\there', 'line\nbreak', 'bidi\u202e'];
+  const {dialog} = await open({...inspection, args});
+  const items = find(dialog, node => node.tag === 'li' && node.className === 'consent-arg');
+  assert.equal(items.length, args.length);
+  assert.ok(items[0].textContent.includes(long), 'the 200-character argument is cut');
+  assert.ok(items[2].textContent.includes('<U+0009>'));
+  assert.ok(items[3].textContent.includes('<U+000A>'));
+  assert.ok(items[4].textContent.includes('<U+202E>'));
+  const none = find((await open({...inspection, args: []})).dialog, node => node.tag === 'li' && node.className === 'consent-arg');
+  assert.equal(none.length, 0);
+});
+
+test('the limits that apply and the limits that do not apply are listed', async () => {
+  const {dialog} = await open({...inspection, limits: ['timeout=30s', 'cpu=31s'], limitsNotApplied: ['memory: macOS does not allow a memory limit, so none is set', 'network: the script can use the network']});
+  const text = dialog.textContent;
+  assert.match(text, /Limits that apply/);
+  assert.match(text, /timeout=30s/);
+  assert.match(text, /Limits that do not apply/);
+  assert.match(text, /macOS does not allow a memory limit/);
+  assert.match(text, /the script can use the network/);
+  assert.doesNotMatch(text, /[;\u2014]/);
+});
+
+test('a server that sends no limit lists still gets a screen that says no memory limit is set', async () => {
+  const {dialog} = await open(inspection);
+  assert.ok(dialog.open);
+  assert.match(dialog.textContent, /no memory limit/i);
+});
+
+test('Escape while consent is being saved does not close the screen or add a call', async () => {
+  const dialog = installDom();
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  const {calls, service} = server({
+    ...session,
+    'POST /api/checks/inspect': () => json(inspection),
+    'POST /api/checks/consent': async () => { await gate; return json({consentId: 'c'.repeat(24)}); },
+  });
+  const finished = [];
+  openCheckConsent(dialog, {service, ref, onFinish: outcome => finished.push(outcome)});
+  await settle();
+  labelled(dialog, 'Agree and allow this script').listeners.click();
+  await settle();
+  const before = calls.length;
+  let prevented = false;
+  dialog.oncancel({preventDefault() { prevented = true; }});
+  await settle();
+  assert.equal(prevented, true);
+  assert.equal(dialog.open, true);
+  assert.equal(calls.length, before);
+  assert.deepEqual(finished, []);
+  release();
+  await settle();
+  assert.match(dialog.textContent, /has not run yet/);
+  assert.deepEqual(finished, []);
+});

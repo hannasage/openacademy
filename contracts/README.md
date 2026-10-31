@@ -115,9 +115,9 @@ The types:
 - `text-match`: `path` (required), and exactly one of `text` or `pattern`. `text` is a literal substring. `pattern` is a regular expression of at most 200 characters, run in a separate process that is stopped after two seconds. `ignoreCase` (boolean) and `minCount` (integer from 1 to 1,000, default 1) are optional.
 - `json-valid`: `path` (required), `topLevel` (`any`, `object`, or `array`, default `any`), and `requiredKeys` (a list of top-level key names).
 
-- `git-commit-exists`: `minCommits` (integer from 1 to 1,000, default 1), `messageContains` (a literal text of 1 to 500 characters), and `ignoreCase` (boolean). Without `messageContains`, the check counts the commits reachable from `HEAD`. With it, the check counts the commits among the newest 500 whose message holds the text. The workspace must be a git repository that the current user owns. Its `.git` entry must be a real folder, or a file that points at a folder inside the workspace.
+- `git-commit-exists`: `minCommits` (integer from 1 to 1,000, default 1), `messageContains` (a literal text of 1 to 500 characters), and `ignoreCase` (boolean). Without `messageContains`, the check counts the commits reachable from `HEAD`. With it, the check counts the commits among the newest 500 whose message holds the text. The workspace must be a git repository that the current user owns. Its `.git` entry must be a real folder, or a plain file (a gitfile) that names a folder inside the workspace. The repository config may hold only plain-data settings. A partial clone, a setting that names a program, an `include`, and a promisor pack are refused.
 
-A run returns a `status` of `passed`, `failed`, `error`, or `skipped`, a small flat `evidence` object, and a short `log`. The evidence holds counts and names. It never holds the content of a student file.
+A run returns a `status` of `passed`, `failed`, `error`, or `skipped`, a small flat `evidence` object, and a short `log`. The evidence of a built-in check holds counts and names, not the content of a student file. A script check is different: its evidence holds the first 500 characters of the script's output, and a script can print the content of a file it reads. Treat the evidence of a script check as readable by the student and by the student's agent.
 
 ### Script checks (schemaVersion 1.1)
 
@@ -133,6 +133,8 @@ The `runner` of a script check holds only `type`. The script fields are allowed 
 The version rule: these fields exist from schema version 1.1. A document with `schemaVersion` `1.0` that holds any of them is invalid, and the error points at `/schemaVersion`. A document with `schemaVersion` `1.1` or later that has a `script` runner must hold `runtime` and `source`. A `1.0` document with `{ "type": "script" }` and no fields stays valid, as it was. A reader that cannot run it skips the check, and the student reports the result by hand.
 
 The change is additive. The schema file keeps the identifier `urn:schola:contract:lesson-module:v1`. Every earlier fixture and test passes unchanged. The Python and Node validators apply the same rules and give the same answers on every fixture.
+
+`timeoutSeconds` may be written as a whole-number float such as `30.0`. JSON Schema counts it as an integer, both validators accept it, and the runtime treats it as `30`.
 
 A reader must treat the script as untrusted. It shows the runtime, the arguments, the time limit, and the script to the student. It records the student's agreement for the SHA-256 hash of everything that would run. See [Release and recovery](../docs/RELEASE.md#local-checks) for how Schola runs one and what it does not protect.
 

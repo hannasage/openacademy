@@ -154,6 +154,11 @@ def read_script(check, limits):
     if (not isinstance(args, list) or len(args) > MAX_ARGS
             or any(not isinstance(item, str) or len(item) > MAX_ARG_CHARS or '\x00' in item for item in args)):
         raise DescriptorError(f'The arguments must be at most {MAX_ARGS} short texts.')
+    try:
+        for item in args:
+            item.encode('utf-8')
+    except UnicodeError:
+        raise DescriptorError('An argument holds a character that is not valid text.') from None
     timeout = check.get('timeoutSeconds', check_consent.DEFAULT_TIMEOUT_SECONDS)
     if isinstance(timeout, float) and timeout.is_integer():
         timeout = int(timeout)  # JSON Schema counts 30.0 as an integer, so the runtime does too

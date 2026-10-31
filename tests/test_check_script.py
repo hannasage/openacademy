@@ -153,7 +153,7 @@ class ConsentGateTests(ScriptCase):
             dict(good, runtime='ruby'), dict(good, runtime=None), {k: v for k, v in good.items() if k != 'runtime'},
             {k: v for k, v in good.items() if k != 'source'}, dict(good, source=''), dict(good, source=5), dict(good, source='a\x00b'),
             dict(good, source='x' * 65537), dict(good, source='€' * 22000), dict(good, source='\ud800'),
-            dict(good, args=['a'] * 9), dict(good, args=[1]), dict(good, args='x'), dict(good, args=['a\x00']), dict(good, args=['x' * 201]),
+            dict(good, args=['a'] * 9), dict(good, args=[1]), dict(good, args='x'), dict(good, args=['a\x00']), dict(good, args=['x' * 201]), dict(good, args=['a\ud800']),
             dict(good, timeoutSeconds=0), dict(good, timeoutSeconds=121), dict(good, timeoutSeconds=True), dict(good, timeoutSeconds='5'), dict(good, timeoutSeconds=1.5),
             dict(good, runner={'type': 'script', 'extra': 'x'}),
         ]
