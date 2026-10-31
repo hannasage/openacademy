@@ -189,6 +189,13 @@
     "stage": "none"
   },
   {
+    "name": "evidence-allowed-punctuation",
+    "file": "learning-events/valid/evidence-allowed-punctuation.json",
+    "kind": "learning-event",
+    "expect": "valid",
+    "stage": "none"
+  },
+  {
     "name": "evidence-200-characters",
     "file": "learning-events/valid/evidence-200-characters.json",
     "kind": "learning-event",
@@ -288,6 +295,118 @@
   {
     "name": "evidence-line-separator",
     "file": "learning-events/invalid/evidence-line-separator.json",
+    "kind": "learning-event",
+    "expect": "invalid:invalid",
+    "stage": "schema"
+  },
+  {
+    "name": "evidence-tag-character",
+    "file": "learning-events/invalid/evidence-tag-character.json",
+    "kind": "learning-event",
+    "expect": "invalid:invalid",
+    "stage": "schema"
+  },
+  {
+    "name": "evidence-zero-width-space",
+    "file": "learning-events/invalid/evidence-zero-width-space.json",
+    "kind": "learning-event",
+    "expect": "invalid:invalid",
+    "stage": "schema"
+  },
+  {
+    "name": "evidence-left-to-right-mark",
+    "file": "learning-events/invalid/evidence-left-to-right-mark.json",
+    "kind": "learning-event",
+    "expect": "invalid:invalid",
+    "stage": "schema"
+  },
+  {
+    "name": "evidence-right-to-left-mark",
+    "file": "learning-events/invalid/evidence-right-to-left-mark.json",
+    "kind": "learning-event",
+    "expect": "invalid:invalid",
+    "stage": "schema"
+  },
+  {
+    "name": "evidence-arabic-letter-mark",
+    "file": "learning-events/invalid/evidence-arabic-letter-mark.json",
+    "kind": "learning-event",
+    "expect": "invalid:invalid",
+    "stage": "schema"
+  },
+  {
+    "name": "evidence-first-isolate",
+    "file": "learning-events/invalid/evidence-first-isolate.json",
+    "kind": "learning-event",
+    "expect": "invalid:invalid",
+    "stage": "schema"
+  },
+  {
+    "name": "evidence-last-isolate",
+    "file": "learning-events/invalid/evidence-last-isolate.json",
+    "kind": "learning-event",
+    "expect": "invalid:invalid",
+    "stage": "schema"
+  },
+  {
+    "name": "evidence-delete-character",
+    "file": "learning-events/invalid/evidence-delete-character.json",
+    "kind": "learning-event",
+    "expect": "invalid:invalid",
+    "stage": "schema"
+  },
+  {
+    "name": "evidence-c1-next-line",
+    "file": "learning-events/invalid/evidence-c1-next-line.json",
+    "kind": "learning-event",
+    "expect": "invalid:invalid",
+    "stage": "schema"
+  },
+  {
+    "name": "evidence-c1-last-control",
+    "file": "learning-events/invalid/evidence-c1-last-control.json",
+    "kind": "learning-event",
+    "expect": "invalid:invalid",
+    "stage": "schema"
+  },
+  {
+    "name": "evidence-start-of-heading",
+    "file": "learning-events/invalid/evidence-start-of-heading.json",
+    "kind": "learning-event",
+    "expect": "invalid:invalid",
+    "stage": "schema"
+  },
+  {
+    "name": "evidence-lone-surrogate",
+    "file": "learning-events/invalid/evidence-lone-surrogate.json",
+    "kind": "learning-event",
+    "expect": "invalid:invalid",
+    "stage": "schema"
+  },
+  {
+    "name": "evidence-non-ascii-letter",
+    "file": "learning-events/invalid/evidence-non-ascii-letter.json",
+    "kind": "learning-event",
+    "expect": "invalid:invalid",
+    "stage": "schema"
+  },
+  {
+    "name": "evidence-emoji",
+    "file": "learning-events/invalid/evidence-emoji.json",
+    "kind": "learning-event",
+    "expect": "invalid:invalid",
+    "stage": "schema"
+  },
+  {
+    "name": "evidence-angle-brackets",
+    "file": "learning-events/invalid/evidence-angle-brackets.json",
+    "kind": "learning-event",
+    "expect": "invalid:invalid",
+    "stage": "schema"
+  },
+  {
+    "name": "evidence-double-quote",
+    "file": "learning-events/invalid/evidence-double-quote.json",
     "kind": "learning-event",
     "expect": "invalid:invalid",
     "stage": "schema"

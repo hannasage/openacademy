@@ -21,7 +21,7 @@ The log must stay small. It must hold no raw content. It must be safe to show to
 - Work is stored as a digest and a byte count. The digest is a SHA-256 hash of the work.
 - A reflection is stored in a separate place and fetched by its id. The event holds the id and the character count only.
 - A lesson is named by its module id, module version, and task id. An event never copies lesson text.
-- Free text is limited to one field, `evidence`. It holds at most 200 characters. It holds no control character, no line separator, and no bidirectional control character.
+- Free text is limited to one field, `evidence`. It holds at most 200 characters from a short allow-list: the ASCII letters and digits, the space, and these marks: `. , : ; ( ) ' _ / -`. Every other character is invalid. This keeps out control characters, hidden characters, bidirectional controls, and lone surrogates. These can hide instructions from a reader.
 - The app computes labels such as "guessing" on screen and shows the rule it used. The app never stores such a label as a fact.
 
 ## Do not capture
@@ -89,7 +89,7 @@ The app ran a check, or the student reported one.
 - `attemptId`: the attempt that was checked. It uses the attempt id rule above.
 - `status`: `passed`, `failed`, `error`, `skipped`, or `self-reported`.
 - `durationMs`: how long the check took, from 0 to 3600000.
-- `evidence`: a short note, at most 200 characters, as described above. An empty string is valid.
+- `evidence`: a short note, at most 200 characters from the allow-list above. An empty string is valid.
 - `runnerType`: the runner type from the lesson module. It is `null` for a check with no runner, such as a self-reported check.
 
 Why: the sequence of correct and incorrect results per skill is the main input for any estimate of what the student knows. Evidence: supported.

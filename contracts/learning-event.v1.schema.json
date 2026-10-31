@@ -307,8 +307,8 @@
     "evidence": {
       "type": "string",
       "maxLength": 200,
-      "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F\\u061C\\u200E\\u200F\\u2028\\u2029\\u202A-\\u202E\\u2066-\\u2069]*$",
-      "description": "A short, sanitized note of at most 200 characters. It holds no control character, line separator, or bidirectional control."
+      "pattern": "^[A-Za-z0-9 .,:;()'_/-]{0,200}$",
+      "description": "A short note of at most 200 characters. Only ASCII letters, digits, the space, and the marks . , : ; ( ) apostrophe _ / - are allowed, so no hidden or control character can enter."
     },
     "dataAttemptSubmitted": {
       "type": "object",
