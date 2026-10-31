@@ -1,0 +1,157 @@
+{
+  "schemaVersion": "1.0",
+  "id": "soccer-ml-m05",
+  "version": "1.0.0",
+  "title": "Predict goals and uncertainty",
+  "outcome": "Build a Poisson goal model and simulate scorelines and season outcomes.",
+  "blocks": [
+    {
+      "type": "text",
+      "id": "question",
+      "body": "Question: What does a forecast actually promise?"
+    },
+    {
+      "type": "text",
+      "id": "math",
+      "body": "Mathematics: Learn random variables, conditional probability, independence, expectation, variance, likelihood, and numerical integration."
+    },
+    {
+      "type": "text",
+      "id": "dataset",
+      "body": "Dataset: StatsBomb Open Data: competitions.json → matches/{competition_id}/{season_id}.json. Use scores, dates, and information available before kickoff. Build recent-form features only from earlier matches."
+    },
+    {
+      "type": "text",
+      "id": "reading",
+      "body": "Reading: Mathematics for Machine Learning chapter 6. Use simulation before formal probability notation."
+    },
+    {
+      "type": "source-link",
+      "id": "source-math",
+      "title": "Mathematics for Machine Learning",
+      "url": "https://mml-book.github.io/",
+      "note": "Use selected sections as a reference after the visual experiment. The authors provide a free PDF."
+    },
+    {
+      "type": "source-link",
+      "id": "source-isl",
+      "title": "An Introduction to Statistical Learning · Python",
+      "url": "https://www.statlearning.com/",
+      "note": "Use selected chapters and Python labs. The book PDF is free on the authors’ site."
+    },
+    {
+      "type": "text",
+      "id": "challenge",
+      "body": "Challenge: Explain why a 70% forecast can lose. Calculate conditional probability on a small match table."
+    },
+    {
+      "type": "check-reference",
+      "id": "evidence-check",
+      "checkId": "evidence"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task-1",
+      "prompt": "Estimate goal rates using training data and plot a Poisson distribution, a model for event counts.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 1 of m05. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 1 of m05. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 1 of m05. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 1 of m05. Not written yet."
+        }
+      ]
+    },
+    {
+      "id": "task-2",
+      "prompt": "Simulate scorelines and derive home/draw/away probabilities. Account for truncated probability mass.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 2 of m05. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 2 of m05. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 2 of m05. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 2 of m05. Not written yet."
+        }
+      ]
+    },
+    {
+      "id": "task-3",
+      "prompt": "Compare forecasts with the baseline. Explain when independent goal counts are a poor assumption.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 3 of m05. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 3 of m05. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 3 of m05. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 3 of m05. Not written yet."
+        }
+      ]
+    },
+    {
+      "id": "task-4",
+      "prompt": "Resample matches to estimate uncertainty. Distinguish outcome uncertainty from uncertainty in estimated performance.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 4 of m05. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 4 of m05. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 4 of m05. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 4 of m05. Not written yet."
+        }
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "id": "evidence",
+      "kind": "self-reported",
+      "description": "A goal model, a scoreline simulator, and an evaluation with uncertainty and stated assumptions."
+    }
+  ],
+  "prerequisites": [
+    "soccer-ml-m04"
+  ],
+  "estimatedMinutes": 1320,
+  "license": {
+    "id": "LicenseRef-Unspecified"
+  }
+}

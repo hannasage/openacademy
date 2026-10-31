@@ -1,0 +1,157 @@
+{
+  "schemaVersion": "1.0",
+  "id": "soccer-ml-m02",
+  "version": "1.0.0",
+  "title": "Make the mathematics visible",
+  "outcome": "Build a small interactive forecast with adjustable weights for recent form and home advantage.",
+  "blocks": [
+    {
+      "type": "text",
+      "id": "question",
+      "body": "Question: How do numbers become a model?"
+    },
+    {
+      "type": "text",
+      "id": "math",
+      "body": "Mathematics: Refresh equations, slopes, powers, exponentials, logarithms, function composition, and coordinate plots."
+    },
+    {
+      "type": "text",
+      "id": "dataset",
+      "body": "Dataset: StatsBomb Open Data: competitions.json → matches/{competition_id}/{season_id}.json. Use scores, dates, and information available before kickoff. Build recent-form features only from earlier matches."
+    },
+    {
+      "type": "text",
+      "id": "reading",
+      "body": "Reading: ISL chapters 2 and 4. Use logarithms as measurements of multiplicative change."
+    },
+    {
+      "type": "source-link",
+      "id": "source-visual",
+      "title": "3Blue1Brown · visual mathematics",
+      "url": "https://www.3blue1brown.com/",
+      "note": "Find the linear algebra and calculus lessons. Recreate one visual idea in code."
+    },
+    {
+      "type": "source-link",
+      "id": "source-isl",
+      "title": "An Introduction to Statistical Learning · Python",
+      "url": "https://www.statlearning.com/",
+      "note": "Use selected chapters and Python labs. The book PDF is free on the authors’ site."
+    },
+    {
+      "type": "text",
+      "id": "challenge",
+      "body": "Challenge: Explain why a tiny probability for the actual outcome produces a large log loss. Calculate one example."
+    },
+    {
+      "type": "check-reference",
+      "id": "evidence-check",
+      "checkId": "evidence"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task-1",
+      "prompt": "Plot a weighted score as you vary each input. Label the units and ranges.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 1 of m02. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 1 of m02. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 1 of m02. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 1 of m02. Not written yet."
+        }
+      ]
+    },
+    {
+      "id": "task-2",
+      "prompt": "Convert scores to three probabilities with softmax, a function that turns scores into normalized probabilities.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 2 of m02. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 2 of m02. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 2 of m02. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 2 of m02. Not written yet."
+        }
+      ]
+    },
+    {
+      "id": "task-3",
+      "prompt": "Plot squared error and log loss as predictions become confidently wrong. Recreate one calculation without a model library.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 3 of m02. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 3 of m02. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 3 of m02. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 3 of m02. Not written yet."
+        }
+      ]
+    },
+    {
+      "id": "task-4",
+      "prompt": "Write what each symbol means and translate the formula into a small Python function.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 4 of m02. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 4 of m02. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 4 of m02. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 4 of m02. Not written yet."
+        }
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "id": "evidence",
+      "kind": "self-reported",
+      "description": "A notebook with adjustable inputs, labeled plots, and examples of confident errors."
+    }
+  ],
+  "prerequisites": [
+    "soccer-ml-m01"
+  ],
+  "estimatedMinutes": 1320,
+  "license": {
+    "id": "LicenseRef-Unspecified"
+  }
+}

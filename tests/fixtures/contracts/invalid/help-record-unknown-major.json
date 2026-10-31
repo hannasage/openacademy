@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "2.0",
+  "moduleId": "full-module",
+  "taskId": "write-add",
+  "level": "tier-3",
+  "attemptId": null,
+  "timestamp": "2026-11-01T09:30:00Z",
+  "source": "student",
+  "hintId": 7
+}

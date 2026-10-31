@@ -1,0 +1,155 @@
+{
+  "schemaVersion": "1.0",
+  "id": "soccer-ml-m01",
+  "version": "1.0.0",
+  "title": "Start with a forecast",
+  "outcome": "Build a reproducible match table and a baseline: a simple reference prediction.",
+  "blocks": [
+    {
+      "type": "text",
+      "id": "question",
+      "body": "Question: Can a simple rule predict a match?"
+    },
+    {
+      "type": "text",
+      "id": "math",
+      "body": "Mathematics: Refresh fractions, ratios, percentages, means, variables, functions, and summation through match statistics."
+    },
+    {
+      "type": "text",
+      "id": "dataset",
+      "body": "Dataset: StatsBomb Open Data: competitions.json → matches/{competition_id}/{season_id}.json. Use scores, dates, and information available before kickoff. Build recent-form features only from earlier matches."
+    },
+    {
+      "type": "text",
+      "id": "reading",
+      "body": "Reading: ISL chapter 2. Use a small competition first. Preserve the same held-out test period throughout the project."
+    },
+    {
+      "type": "source-link",
+      "id": "source-data",
+      "title": "StatsBomb Open Data",
+      "url": "https://github.com/hudl/open-data",
+      "note": "Use the README, competition list, match files, event schema, and attribution terms. Select a historical competition with enough matches."
+    },
+    {
+      "type": "source-link",
+      "id": "source-isl",
+      "title": "An Introduction to Statistical Learning · Python",
+      "url": "https://www.statlearning.com/",
+      "note": "Use selected chapters and Python labs. The book PDF is free on the authors’ site."
+    },
+    {
+      "type": "text",
+      "id": "challenge",
+      "body": "Challenge: Recompute a three-outcome Brier score for one match. Explain why all three probabilities must sum to one."
+    },
+    {
+      "type": "check-reference",
+      "id": "evidence-check",
+      "checkId": "evidence"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task-1",
+      "prompt": "Load historical matches. Record the source, download date, license, and a small data dictionary.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 1 of m01. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 1 of m01. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 1 of m01. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 1 of m01. Not written yet."
+        }
+      ]
+    },
+    {
+      "id": "task-2",
+      "prompt": "Create chronological training, validation, and untouched test sets. Count missing and duplicate rows.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 2 of m01. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 2 of m01. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 2 of m01. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 2 of m01. Not written yet."
+        }
+      ]
+    },
+    {
+      "id": "task-3",
+      "prompt": "Predict home/draw/away using training-set frequencies. Compute accuracy and Brier score, the squared error of probabilities.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 3 of m01. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 3 of m01. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 3 of m01. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 3 of m01. Not written yet."
+        }
+      ]
+    },
+    {
+      "id": "task-4",
+      "prompt": "Explain why a post-match statistic leaks the answer into a pre-match forecast. Record your baseline and evidence.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 4 of m01. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 4 of m01. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 4 of m01. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 4 of m01. Not written yet."
+        }
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "id": "evidence",
+      "kind": "self-reported",
+      "description": "A runnable baseline, a data dictionary, split dates, and a one-page explanation of what the model knows before kickoff."
+    }
+  ],
+  "prerequisites": [],
+  "estimatedMinutes": 1320,
+  "license": {
+    "id": "LicenseRef-Unspecified"
+  }
+}

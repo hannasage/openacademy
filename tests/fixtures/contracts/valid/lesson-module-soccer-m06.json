@@ -1,0 +1,157 @@
+{
+  "schemaVersion": "1.0",
+  "id": "soccer-ml-m06",
+  "version": "1.0.0",
+  "title": "Build expected goals",
+  "outcome": "Train logistic regression to estimate expected goals: the scoring probability of a shot.",
+  "blocks": [
+    {
+      "type": "text",
+      "id": "question",
+      "body": "Question: Which shots turn into goals?"
+    },
+    {
+      "type": "text",
+      "id": "math",
+      "body": "Mathematics: Learn distance and angle geometry, sigmoid, log likelihood, regularization, and probability calibration."
+    },
+    {
+      "type": "text",
+      "id": "dataset",
+      "body": "Dataset: StatsBomb Open Data: events/{match_id}.json joined to match dates. For shots, use shot locations and outcomes. Split by whole match and date."
+    },
+    {
+      "type": "text",
+      "id": "reading",
+      "body": "Reading: ISL chapters 4 and 6. Keep vendor expected-goals estimates out of the training features."
+    },
+    {
+      "type": "source-link",
+      "id": "source-data",
+      "title": "StatsBomb Open Data",
+      "url": "https://github.com/hudl/open-data",
+      "note": "Use the README, competition list, match files, event schema, and attribution terms. Select a historical competition with enough matches."
+    },
+    {
+      "type": "source-link",
+      "id": "source-isl",
+      "title": "An Introduction to Statistical Learning · Python",
+      "url": "https://www.statlearning.com/",
+      "note": "Use selected chapters and Python labs. The book PDF is free on the authors’ site."
+    },
+    {
+      "type": "text",
+      "id": "challenge",
+      "body": "Challenge: Explain why shot outcome is a target and provider expected-goals values are excluded from your input features."
+    },
+    {
+      "type": "check-reference",
+      "id": "evidence-check",
+      "checkId": "evidence"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task-1",
+      "prompt": "Extract shots and outcomes. Compute distance and angle to goal from pitch coordinates.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 1 of m06. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 1 of m06. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 1 of m06. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 1 of m06. Not written yet."
+        }
+      ]
+    },
+    {
+      "id": "task-2",
+      "prompt": "Split by match and date so shots from one match cannot cross partitions. Fit preprocessing on training data only.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 2 of m06. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 2 of m06. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 2 of m06. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 2 of m06. Not written yet."
+        }
+      ]
+    },
+    {
+      "id": "task-3",
+      "prompt": "Implement a small logistic model and compare it with a library model. Tune regularization on validation data.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 3 of m06. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 3 of m06. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 3 of m06. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 3 of m06. Not written yet."
+        }
+      ]
+    },
+    {
+      "id": "task-4",
+      "prompt": "Compare log loss and Brier score with a constant baseline. Plot calibration, the agreement between predicted and observed frequencies.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 4 of m06. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 4 of m06. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 4 of m06. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 4 of m06. Not written yet."
+        }
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "id": "evidence",
+      "kind": "self-reported",
+      "description": "An expected-goals model with grouped chronological splits, calibration plots, and a baseline comparison."
+    }
+  ],
+  "prerequisites": [
+    "soccer-ml-m05"
+  ],
+  "estimatedMinutes": 1320,
+  "license": {
+    "id": "LicenseRef-Unspecified"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "2.0",
+  "id": "starter-bundle",
+  "version": "1.2.0",
+  "title": "A packet with several modules",
+  "modules": [
+    {
+      "ref": "urn:future:module",
+      "range": ">=1"
+    }
+  ]
+}

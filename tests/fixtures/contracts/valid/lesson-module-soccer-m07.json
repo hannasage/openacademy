@@ -1,0 +1,150 @@
+{
+  "schemaVersion": "1.0",
+  "id": "soccer-ml-m07",
+  "version": "1.0.0",
+  "title": "Run fair comparisons",
+  "outcome": "Compare trees and boosting with your linear and logistic models.",
+  "blocks": [
+    {
+      "type": "text",
+      "id": "question",
+      "body": "Question: Does complexity earn its place?"
+    },
+    {
+      "type": "text",
+      "id": "math",
+      "body": "Mathematics: Learn bias and variance, resampling, generalization, and regularization through model comparisons."
+    },
+    {
+      "type": "text",
+      "id": "dataset",
+      "body": "Dataset: StatsBomb Open Data: events/{match_id}.json joined to match dates. For shots, use shot locations and outcomes. Split by whole match and date."
+    },
+    {
+      "type": "text",
+      "id": "reading",
+      "body": "Reading: ISL chapters 5, 6, and 8. Prefer small searches with clear questions over large parameter sweeps."
+    },
+    {
+      "type": "source-link",
+      "id": "source-isl",
+      "title": "An Introduction to Statistical Learning · Python",
+      "url": "https://www.statlearning.com/",
+      "note": "Use selected chapters and Python labs. The book PDF is free on the authors’ site."
+    },
+    {
+      "type": "text",
+      "id": "challenge",
+      "body": "Challenge: Explain why selecting a model using test scores invalidates the final test. Repair a deliberately flawed evaluation."
+    },
+    {
+      "type": "check-reference",
+      "id": "evidence-check",
+      "checkId": "evidence"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task-1",
+      "prompt": "Train a decision tree and a boosted tree model on the same task and partitions.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 1 of m07. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 1 of m07. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 1 of m07. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 1 of m07. Not written yet."
+        }
+      ]
+    },
+    {
+      "id": "task-2",
+      "prompt": "Run a small declared parameter search with chronological validation folds. Keep preprocessing inside each fold.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 2 of m07. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 2 of m07. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 2 of m07. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 2 of m07. Not written yet."
+        }
+      ]
+    },
+    {
+      "id": "task-3",
+      "prompt": "Record at least three controlled experiments. Change one design choice in each experiment.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 3 of m07. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 3 of m07. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 3 of m07. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 3 of m07. Not written yet."
+        }
+      ]
+    },
+    {
+      "id": "task-4",
+      "prompt": "Compare quality, runtime, and stability. Explain an overfit model and one result that contradicts your expectation.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 4 of m07. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 4 of m07. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 4 of m07. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 4 of m07. Not written yet."
+        }
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "id": "evidence",
+      "kind": "self-reported",
+      "description": "A reproducible comparison of at least three model families and three experiments with explicit hypotheses."
+    }
+  ],
+  "prerequisites": [
+    "soccer-ml-m06"
+  ],
+  "estimatedMinutes": 1320,
+  "license": {
+    "id": "LicenseRef-Unspecified"
+  }
+}

@@ -1,0 +1,157 @@
+{
+  "schemaVersion": "1.0",
+  "id": "soccer-ml-m13",
+  "version": "1.0.0",
+  "title": "Make the work legible",
+  "outcome": "Finish two portfolio projects and assess the next six months against actual roles.",
+  "blocks": [
+    {
+      "type": "text",
+      "id": "question",
+      "body": "Question: What can you now demonstrate independently?"
+    },
+    {
+      "type": "text",
+      "id": "math",
+      "body": "Mathematics: Integrate mathematical explanations, experimental reasoning, and engineering tradeoffs."
+    },
+    {
+      "type": "text",
+      "id": "dataset",
+      "body": "Dataset: Reuse the frozen soccer datasets and splits. For reproduction, use the selected paper’s public data if feasible; otherwise label the soccer experiment as an adaptation."
+    },
+    {
+      "type": "text",
+      "id": "reading",
+      "body": "Reading: The target is a stronger ML engineering portfolio. Frontier-lab hiring is selective and is not a guaranteed outcome of 286 study hours."
+    },
+    {
+      "type": "source-link",
+      "id": "source-careers",
+      "title": "Anthropic careers",
+      "url": "https://www.anthropic.com/careers?hsLang=en",
+      "note": "Compare your evidence with a current engineering role. Requirements change. This curriculum does not guarantee a role or a credential."
+    },
+    {
+      "type": "source-link",
+      "id": "source-research",
+      "title": "Anthropic research",
+      "url": "https://www.anthropic.com/research",
+      "note": "Select a recent public article about evaluations or model behavior. Follow its paper or methods link and record limitations."
+    },
+    {
+      "type": "text",
+      "id": "challenge",
+      "body": "Challenge: Explain and modify your core model without generated code. Defend the experimental design and describe a result you do not trust."
+    },
+    {
+      "type": "check-reference",
+      "id": "evidence-check",
+      "checkId": "evidence"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task-1",
+      "prompt": "Finish a soccer prediction project with multiple models and a separate research reproduction with an ablation.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 1 of m13. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 1 of m13. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 1 of m13. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 1 of m13. Not written yet."
+        }
+      ]
+    },
+    {
+      "id": "task-2",
+      "prompt": "Give a recorded walkthrough: problem, data, loss, split, baseline, result, limitation, and next experiment.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 2 of m13. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 2 of m13. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 2 of m13. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 2 of m13. Not written yet."
+        }
+      ]
+    },
+    {
+      "id": "task-3",
+      "prompt": "Complete an independent exercise: train a simple model, explain its gradients, and diagnose a leaked feature.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 3 of m13. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 3 of m13. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 3 of m13. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 3 of m13. Not written yet."
+        }
+      ]
+    },
+    {
+      "id": "task-4",
+      "prompt": "Compare your evidence with two current engineering roles. Record gaps and select the next six-month focus.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 4 of m13. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 4 of m13. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 4 of m13. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 4 of m13. Not written yet."
+        }
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "id": "evidence",
+      "kind": "self-reported",
+      "description": "Two polished repositories or local project bundles, a technical walkthrough, and an honest skills assessment with a follow-on plan."
+    }
+  ],
+  "prerequisites": [
+    "soccer-ml-m12"
+  ],
+  "estimatedMinutes": 1320,
+  "license": {
+    "id": "LicenseRef-Unspecified"
+  }
+}

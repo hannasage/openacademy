@@ -1,0 +1,150 @@
+{
+  "schemaVersion": "1.0",
+  "id": "soccer-ml-m09",
+  "version": "1.0.0",
+  "title": "Understand attention",
+  "outcome": "Build a small sequence model and an attention calculation for soccer events.",
+  "blocks": [
+    {
+      "type": "text",
+      "id": "question",
+      "body": "Question: Can the order of events help prediction?"
+    },
+    {
+      "type": "text",
+      "id": "math",
+      "body": "Mathematics: Learn embeddings, softmax attention, positional information, and masking through matrix operations."
+    },
+    {
+      "type": "text",
+      "id": "dataset",
+      "body": "Dataset: StatsBomb events/{match_id}.json: ordered events within each match. Define the target at a fixed prediction time and exclude all later events."
+    },
+    {
+      "type": "text",
+      "id": "reading",
+      "body": "Reading: D2L attention and transformer chapters. Full transformer training is a stretch goal, not a completion requirement."
+    },
+    {
+      "type": "source-link",
+      "id": "source-d2l",
+      "title": "Dive into Deep Learning",
+      "url": "https://d2l.ai/",
+      "note": "Use the interactive book for calculus, automatic differentiation, training loops, and attention."
+    },
+    {
+      "type": "text",
+      "id": "challenge",
+      "body": "Challenge: Explain how attention weights are calculated and show a future-information leak prevented by a mask."
+    },
+    {
+      "type": "check-reference",
+      "id": "evidence-check",
+      "checkId": "evidence"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task-1",
+      "prompt": "Define a next-event task with information available at prediction time. Split by match and date.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 1 of m09. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 1 of m09. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 1 of m09. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 1 of m09. Not written yet."
+        }
+      ]
+    },
+    {
+      "id": "task-2",
+      "prompt": "Build a frequency baseline and a small recurrent or pooled-embedding baseline.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 2 of m09. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 2 of m09. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 2 of m09. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 2 of m09. Not written yet."
+        }
+      ]
+    },
+    {
+      "id": "task-3",
+      "prompt": "Implement scaled dot-product attention on a tiny sequence. Demonstrate why a future-event mask matters.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 3 of m09. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 3 of m09. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 3 of m09. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 3 of m09. Not written yet."
+        }
+      ]
+    },
+    {
+      "id": "task-4",
+      "prompt": "Train a small attention model if time permits. Otherwise evaluate the simpler sequence model and document the attention prototype.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 4 of m09. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 4 of m09. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 4 of m09. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 4 of m09. Not written yet."
+        }
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "id": "evidence",
+      "kind": "self-reported",
+      "description": "A sequence baseline, a correct attention demonstration, and a clear account of whether training improved the task."
+    }
+  ],
+  "prerequisites": [
+    "soccer-ml-m08"
+  ],
+  "estimatedMinutes": 1320,
+  "license": {
+    "id": "LicenseRef-Unspecified"
+  }
+}
