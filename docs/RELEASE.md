@@ -32,7 +32,7 @@ Retain it until you review the results.
 
 1. Export progress for each curriculum with work to retain. Each version 2 export includes its curriculum, progress, draft, and selected lesson.
 2. If saving fails, export the working copy before closing the page. Browser recovery storage can be unavailable.
-3. Stop the local server. Copy the complete data directory to a separate retained location, including `library.json`, record folders, and backup files.
+3. Stop the local server. Copy the complete data directory to a separate retained location, including `library.json`, record folders, backup files, and the `_lessons/` folder when it exists.
 4. Keep deployment configuration and secrets in a separate private backup. Never add them to Git or a release attachment.
 5. Preserve the earlier application checkout. Install the reviewed application revision in a separate checkout and retain its exact Git commit ID.
 6. Make a separate working copy of the backed-up data directory. Keep the backup untouched.
@@ -47,6 +47,131 @@ The review defaults to Save for later and offers another active curriculum.
 For an existing curriculum, select it and use Restore backup.
 Export the current record before accepting replacement.
 A version 1 progress-only backup requires its matching curriculum.
+
+## Lesson modules and the `_lessons/` folder
+
+A lesson module is one lesson with one outcome. A packet is a list of lesson modules, each with an exact version.
+Schola stores imported lessons in a new folder, `_lessons/`, inside the data directory.
+The folder appears with the first import. A data directory with no lessons has no `_lessons/` folder.
+
+```text
+<data-dir>/
+  _lessons/
+    modules/<module-id>/<version>/module.json
+    modules/<module-id>/<version>/source.json
+    packets/<packet-id>/<version>/packet.json
+    packets/<packet-id>/<version>/source.json
+    pins.json
+    help/<module-id>.json
+    map/<curriculum-id>.json
+    progress/<record-id>/<lesson-id>.json
+    snapshots/s03/<record-id>/
+    migrated.json
+```
+
+- `module.json` and `packet.json` hold the exact bytes that were imported. `source.json` holds the digest, the file name, and the import time.
+- `pins.json` says which version of each module the student uses. It has a revision number.
+- `help/` holds help records. This release stores and exports them. It does not yet add new ones.
+- `map/`, `progress/`, `snapshots/`, and `migrated.json` come from the migration described below.
+- A curriculum ID cannot start with an underscore. The folder never clashes with a curriculum folder.
+- Older builds do not read `_lessons/`. They read only `records/`, `curricula/`, and `<curriculum-id>/state.json`.
+
+How an import works:
+
+1. Choose a lesson file with Import curriculum or Restore backup. Schola sends a file with a `schemaVersion` to the lesson review. It sends a curriculum or a progress backup to the older review, which has not changed.
+2. The review is read only. It shows each lesson, its tasks and checks, its license, its price, a tutor harness if it has one, and any missing prerequisite. Choosing the file makes one preview call, which writes nothing. Cancel makes no further call.
+3. Add these lessons is the only step that writes. The server checks every file again, writes all new folders together, and writes `pins.json` last.
+4. A damaged file, an unsupported version, a file over the size limit, a packet that names a module Schola does not have, or a conflict stops the whole import. Nothing is written.
+
+A version is written once. If you import the same ID and version with the same bytes, nothing changes.
+If you import the same ID and version with different bytes, Schola refuses the file and keeps the stored one.
+
+## Version pins and updates
+
+The first version of a module becomes its pin, because nothing is replaced.
+A later version is stored but never moves the pin.
+The module list says "a newer version is available" and offers the switch.
+Schola never switches by itself.
+A switch needs two steps in the app: Review the switch, then Switch to the new version.
+Choosing Keep the current version, or closing the screen, changes nothing.
+The server also refuses a pin change that does not carry `confirm: true`.
+Send `expectedRevision` with a switch to refuse it when the lessons changed since you read them.
+
+## Migration of existing curricula
+
+Existing curricula keep working with no lesson files.
+`POST /api/lessons/migrate` runs a one-time migration when you ask for it.
+This release does not call it on its own.
+
+The migration works in this order:
+
+1. It checks every original file. If one is invalid, it writes nothing.
+2. It copies each original into `_lessons/snapshots/s03/<record-id>/` and checks the copy against its digest. The folder also holds `manifest.json`, which lists the digests.
+3. It writes `map/<curriculum-id>.json`, which gives each lesson an ID that fits the lesson rules. The ID is the curriculum ID and the lesson ID joined by a hyphen, in lowercase, with each underscore changed to a hyphen. If that ID is not valid or is already taken, Schola uses the start of the curriculum ID and eight characters of a digest instead. The table is written once and never recomputed. Task number N becomes `task-N`.
+4. It writes `progress/` files for each lesson. They are copies, and Schola rebuilds them when the record changes.
+5. It writes `migrated.json` last. A second run finds it and changes nothing.
+
+`records/<record-id>/record.json` stays the source of truth for an existing curriculum.
+The migration builds IDs only. It builds no lesson module for the existing curricula.
+If a step fails, Schola removes what that run created.
+
+### Roll back the migration
+
+The migration and the lesson import never change an original file.
+The originals are `records/<record-id>/record.json`, `<curriculum-id>/state.json`, and `curricula/*.json`.
+To go back to a build that knows nothing about lessons:
+
+1. Stop the server with Control-C.
+2. Move the whole `_lessons/` folder out of the data directory. Do not delete it. Keep it in a separate folder in case you want it later.
+3. Start the earlier build with `--data-dir` pointing at the same data directory.
+
+To put an original file back from its snapshot, first keep a copy of the live file.
+Then compare the snapshot with the digest in `manifest.json`. Copy the snapshot over the live file only when the two differ.
+Work saved after the migration lives in the live file, so a snapshot copy can lose that work.
+
+## Lesson backup: export and restore
+
+A lesson backup is a separate file with the format `schola-lesson-backup`.
+The older progress backup format has not changed.
+A lesson backup holds every stored module and packet as exact text with its digest, the pins, and the help records.
+It holds no progress. Export progress for each curriculum as before.
+
+To export, open `http://127.0.0.1:8765/api/lessons/export` in the browser and save the answer as a `.json` file.
+Schola refuses an export that would pass 5 MB.
+
+To restore, choose the file with Import curriculum. The review is titled Restore these lessons.
+Schola checks the whole file before it writes anything. It checks the format, every digest, every module and packet, and every reference.
+A restore is all or nothing.
+Restoring into an empty data directory rebuilds the same files.
+Restoring into a used data directory only adds what is missing:
+
+- A version that is already stored with the same bytes is skipped.
+- A version stored with different bytes stops the restore.
+- A pin is set only for a module that has no pin. A restore never moves a pin.
+- Help records are added after the stored ones, with no repeats.
+
+## Size limit
+
+A lesson request may be up to 5 MB. A single lesson file may be up to 5 MB. A request may hold up to 2000 files.
+A larger request gets status 413 and writes nothing.
+The other routes keep their 2 MB limit.
+
+## Lesson routes
+
+All lesson routes use the local address and the same Host and Origin checks as the other routes.
+
+| Route | Use |
+|---|---|
+| `GET /api/lessons` | List modules, their pins, their versions, and any newer version on offer |
+| `GET /api/lessons/export` | Return the lesson backup |
+| `POST /api/lessons/import/preview` | Check a file and say what an import would do. Writes nothing |
+| `POST /api/lessons/import` | Import a module or packet, or restore a lesson backup |
+| `POST /api/lessons/pins` | Move one pin. Needs `confirm: true` |
+| `POST /api/lessons/migrate` | Run the one-time migration. Send an empty object |
+
+Import and preview take `{source, filename}`. The `source` is the file text, one parsed document, or a list of documents.
+Send the text when the exact bytes matter.
+The error codes are: 422 `invalid_lesson` and `missing_module`, 409 `version_conflict`, `unsupported_version`, and `revision_conflict`, 413 `payload_too_large`, and 400 for a malformed request.
 
 ## Recovery
 
@@ -97,6 +222,7 @@ node tests/run-setup-browser.mjs
 
 `verify` checks repository permissions, types, lint, Python and Node tests, and the web build.
 Browser checks use temporary records and block external requests.
+The lesson checks run inside `verify` and `test:browser`. `tests/README.md` lists them.
 The setup suite uses fixture responses and does not grant provider permission or deploy a backend.
 The packaged connector test runs within `verify` and checks its public file boundary without deployment credentials.
 Read [Test runners](../tests/README.md) for individual checks.
@@ -123,6 +249,7 @@ Complete the journey on disposable data before using an owner's deployment.
 | Area | Required check |
 |---|---|
 | Learning | Import two curricula, keep one focus, edit both, save experiments, restart, and restore an exported backup. |
+| Lessons | Import a lesson file and cancel the review. Import it again and confirm. Restart and check the module is still there. Import a damaged file and a changed copy of a stored version. Import a newer version and check that the pin stays until you switch. Export the lesson backup and restore it into an empty data directory. |
 | Draft recovery | Keep an unfinished experiment through navigation and relaunch. Test failed saving and stale-tab recovery without losing the newer record. |
 | Setup | Review the actual destination, cancel permission, recover partial preparation, and verify discovery and backend health before accepting readiness. |
 | Publications | Publish two curricula independently. Resolve one conflict while preserving the other course and local backups. Publish focus separately. |

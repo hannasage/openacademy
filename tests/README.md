@@ -72,3 +72,38 @@ The examples cover valid records, old backups, unknown versions, invalid referen
 Account transfer tests replace the Supabase client with an in-memory stub.
 They cover canceled downloads, interrupted publication, and account changes while a request waits.
 They make no network requests and use no deployment credentials.
+
+## Lesson module checks
+
+The lesson checks run inside `npm test`, `npm run test:browser`, and `npm run verify`.
+Run one group on its own while you work.
+
+Python checks for the validator, the id map, the store, the migration, the backup, and the data that existed before lessons:
+
+```sh
+python3 -m unittest discover -s tests -p "test_lesson_*.py" -v
+python3 -m unittest discover -s tests -p "test_storage_golden.py" -v
+```
+
+The lesson routes, including the 5 MB limit and the Host and Origin checks:
+
+```sh
+python3 -m unittest -v test_server.LessonRouteTests
+```
+
+Node checks for the lesson contracts, the match between the Python and Node validators, the backup schema, and the web service and review screens:
+
+```sh
+node --test tests/lesson*.test.mjs
+```
+
+The browser check is `tests/browser/lessons.mjs`. `npm run test:browser` runs it with a separate temporary data directory.
+It blocks every external request. It imports a lesson packet and shows the review.
+It checks that Cancel leaves nothing on disk and that Add stores the files.
+It restarts the server and checks the modules are still there.
+It checks that a damaged file and a changed copy of a stored version show a message and change nothing.
+It checks that a newer version is only offered, and that the pin moves only after the second, explicit step.
+It checks that a curriculum import still uses the older review.
+
+The golden data in `tests/fixtures/storage/pre-s03/` is the data folder as it was before lessons.
+A test loads it and checks that no byte changes.
