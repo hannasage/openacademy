@@ -47,7 +47,6 @@
       "Bash(git clean *-x*)",
       "Bash(git branch -D*)",
       "Bash(git stash drop*)",
-      "Bash(gh pr merge*)",
       "Bash(gh api *merge*)",
       "mcp__claude_ai_Gmail",
       "mcp__claude_ai_Google_Calendar"

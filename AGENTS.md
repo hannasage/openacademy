@@ -29,3 +29,13 @@ Never commit `.env*`, `.vercel/`, `cloud-config.local.json`, `data/`, or user fi
 Never run database setup or access tests against production without the required approval.
 Keep management secrets on the owner's server.
 Do not remove the original recovery folder.
+
+
+## Repository factory
+
+Read FACTORY.md for the factory charter and invocation.
+Use factory-intake for intake, factory-delivery for accepted work, and factory-review for independent review.
+Use factory-handoff for research requests, article candidates, and release-health reports.
+Shared factories use their named research or articles skill.
+The factory grants no new permission to merge, publish, deploy, spend, or access another repository.
+Keep every existing repository rule and approval path.
