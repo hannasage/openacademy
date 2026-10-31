@@ -206,6 +206,35 @@ test('an attempt id valid in a help record is valid in an event, and the reverse
   assert.ok(eventIds.some((id) => !/^[0-9a-f]{8}-/.test(id)), 'some event fixtures use a non-UUID attempt id');
 });
 
+test('the app alone writes attempt, check, task finished, and module completed events', async () => {
+  const appOnly = { 'attempt-submitted': 'attempt_submitted', 'check-result-passed': 'check_result', 'task-finished-passed': 'task_finished', 'module-completed': 'module_completed' };
+  for (const [name] of Object.entries(appOnly)) {
+    const base = await readJSON(fixture(`learning-events/valid/${name}.json`));
+    assert.equal(base.source, 'app', name);
+    for (const source of ['student', 'agent', 'teacher', null]) {
+      const result = validateEvent({ ...base, source });
+      assert.equal(result.ok, false, `${name} accepted source ${source}`);
+      assert.ok(result.errors.some((found) => found.pointer === '/source'), name);
+    }
+  }
+  // The other types take any of the three sources.
+  for (const name of ['hint-requested-nudge-null-attempt', 'agent-offer-pending', 'reflection-saved', 'task-opened', 'mode-changed', 'review-result']) {
+    const base = await readJSON(fixture(`learning-events/valid/${name}.json`));
+    for (const source of ['student', 'app', 'agent']) assert.equal(validateEvent({ ...base, source }).ok, true, `${name} ${source}`);
+  }
+});
+
+test('a task id is required as a string for five types, and null for module_completed', async () => {
+  const mustHaveTask = ['attempt-submitted', 'check-result-passed', 'hint-requested-nudge-null-attempt', 'task-opened', 'task-finished-passed'];
+  for (const name of mustHaveTask) {
+    const base = await readJSON(fixture(`learning-events/valid/${name}.json`));
+    assert.equal(validateEvent({ ...base, taskId: null }).ok, false, `${name} accepted a null task`);
+    assert.equal(validateEvent({ ...base, taskId: 'other-task' }).ok, true, name);
+  }
+  const done = await readJSON(fixture('learning-events/valid/module-completed.json'));
+  assert.equal(validateEvent({ ...done, taskId: 'a-task' }).ok, false);
+});
+
 test('data objects are closed for every event type, and a raw content field is refused', async () => {
   for (const entry of eventEntries.filter((item) => item.expect === 'valid' && item.name.indexOf('envelope-') !== 0)) {
     const document = await readJSON(fixture(entry.file));

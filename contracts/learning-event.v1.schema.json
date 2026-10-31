@@ -96,6 +96,9 @@
           },
           "taskId": {
             "type": "string"
+          },
+          "source": {
+            "const": "app"
           }
         }
       }
@@ -118,6 +121,9 @@
           },
           "taskId": {
             "type": "string"
+          },
+          "source": {
+            "const": "app"
           }
         }
       }
@@ -222,6 +228,9 @@
           },
           "taskId": {
             "type": "string"
+          },
+          "source": {
+            "const": "app"
           }
         }
       }
@@ -244,6 +253,9 @@
           },
           "taskId": {
             "type": "null"
+          },
+          "source": {
+            "const": "app"
           }
         }
       }

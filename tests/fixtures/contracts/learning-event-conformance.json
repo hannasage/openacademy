@@ -573,6 +573,69 @@
     "stage": "schema"
   },
   {
+    "name": "source-student-on-attempt-submitted",
+    "file": "learning-events/invalid/source-student-on-attempt-submitted.json",
+    "kind": "learning-event",
+    "expect": "invalid:invalid",
+    "stage": "schema"
+  },
+  {
+    "name": "source-agent-on-check-result",
+    "file": "learning-events/invalid/source-agent-on-check-result.json",
+    "kind": "learning-event",
+    "expect": "invalid:invalid",
+    "stage": "schema"
+  },
+  {
+    "name": "source-student-on-self-reported-check",
+    "file": "learning-events/invalid/source-student-on-self-reported-check.json",
+    "kind": "learning-event",
+    "expect": "invalid:invalid",
+    "stage": "schema"
+  },
+  {
+    "name": "source-student-on-task-finished",
+    "file": "learning-events/invalid/source-student-on-task-finished.json",
+    "kind": "learning-event",
+    "expect": "invalid:invalid",
+    "stage": "schema"
+  },
+  {
+    "name": "source-agent-on-module-completed",
+    "file": "learning-events/invalid/source-agent-on-module-completed.json",
+    "kind": "learning-event",
+    "expect": "invalid:invalid",
+    "stage": "schema"
+  },
+  {
+    "name": "null-task-on-attempt-submitted",
+    "file": "learning-events/invalid/null-task-on-attempt-submitted.json",
+    "kind": "learning-event",
+    "expect": "invalid:invalid",
+    "stage": "schema"
+  },
+  {
+    "name": "null-task-on-check-result",
+    "file": "learning-events/invalid/null-task-on-check-result.json",
+    "kind": "learning-event",
+    "expect": "invalid:invalid",
+    "stage": "schema"
+  },
+  {
+    "name": "null-task-on-hint-requested",
+    "file": "learning-events/invalid/null-task-on-hint-requested.json",
+    "kind": "learning-event",
+    "expect": "invalid:invalid",
+    "stage": "schema"
+  },
+  {
+    "name": "null-task-on-task-finished",
+    "file": "learning-events/invalid/null-task-on-task-finished.json",
+    "kind": "learning-event",
+    "expect": "invalid:invalid",
+    "stage": "schema"
+  },
+  {
     "name": "bad-artifact-digest",
     "file": "learning-events/invalid/bad-artifact-digest.json",
     "kind": "learning-event",

@@ -50,7 +50,7 @@ Every event is one JSON object with these fields. All are required. No other fie
 - `sessionId` is a lowercase UUID. It groups the events of one sitting.
 - `moduleId` and `moduleVersion` name the lesson module. They use the lesson contract rules for ids and for strict semantic versions.
 - `taskId` is a task id or `null`. The rules below say which types need it.
-- `source` is `student`, `app`, or `agent`. It names who caused the event.
+- `source` is `student`, `app`, or `agent`. It names who caused the event. The app alone writes `attempt_submitted`, `check_result`, `task_finished`, and `module_completed`, so those four types must have the source `app`. This holds even for a self-reported check, because the app records the report.
 - `skills` is a list of at most eight skill ids, with no repeats. An empty list is valid. A skill id starts with a lowercase letter and then holds up to 39 lowercase letters, digits, or hyphens. A later schema version will let a module tag its tasks and checks with skills. Until then the writer supplies the list.
 - `type` is one of the ten types below. Any other value is invalid.
 - `data` is an object. Its shape depends on `type`, and each shape is closed.

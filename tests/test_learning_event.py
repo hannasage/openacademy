@@ -264,6 +264,27 @@ class EventRuleTests(unittest.TestCase):
                 self.assertEqual(as_event, as_record)
         self.assertTrue(le.validate_event({**hint, 'data': {**hint['data'], 'attemptId': 'attempt-3'}})['ok'])
 
+    def test_the_app_alone_writes_four_event_types(self):
+        for name in ('attempt-submitted', 'check-result-passed', 'task-finished-passed', 'module-completed'):
+            base = good(name)
+            self.assertEqual(base['source'], 'app', name)
+            for source in ('student', 'agent', 'teacher', None):
+                with self.subTest(name=name, source=source):
+                    result = le.validate_event({**base, 'source': source})
+                    self.assertFalse(result['ok'])
+                    self.assertIn('/source', pointers(result))
+        for name in ('hint-requested-nudge-null-attempt', 'agent-offer-pending', 'reflection-saved', 'task-opened', 'mode-changed', 'review-result'):
+            for source in ('student', 'app', 'agent'):
+                with self.subTest(name=name, source=source):
+                    self.assertTrue(le.validate_event({**good(name), 'source': source})['ok'])
+
+    def test_a_task_id_is_required_for_five_types_and_null_for_module_completed(self):
+        for name in ('attempt-submitted', 'check-result-passed', 'hint-requested-nudge-null-attempt', 'task-opened', 'task-finished-passed'):
+            with self.subTest(name=name):
+                self.assertFalse(le.validate_event({**good(name), 'taskId': None})['ok'])
+                self.assertTrue(le.validate_event({**good(name), 'taskId': 'other-task'})['ok'])
+        self.assertFalse(le.validate_event({**good('module-completed'), 'taskId': 'a-task'})['ok'])
+
     def test_the_day_must_exist(self):
         base = good('task-opened')
         self.assertTrue(le.validate_event({**base, 'time': '2028-02-29T10:00:00Z'})['ok'])
