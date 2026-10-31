@@ -6,6 +6,8 @@ from pathlib import Path
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import parse_qs, urlsplit
 from local_store import LocalStore, StoreError, finite_json, strict_keys, validate_origin
+import lesson_routes
+from lesson_store import LessonStore
 
 ROOT = Path(__file__).resolve().parent
 import re
@@ -183,15 +185,18 @@ class Handler(BaseHTTPRequestHandler):
     def not_found(self):
         return self.respond(404, {"error": "Not found.", "code": "not_found", "retryable": False})
 
-    def body(self):
+    def lessons(self):
+        return LessonStore(self.server.data_dir)
+
+    def body(self, limit=2_000_000):
         if self.headers.get("Content-Type", "").split(";", 1)[0].strip() != "application/json":
             raise StoreError("Expected JSON.", "unsupported_media_type", 415)
         try:
             size = int(self.headers.get("Content-Length", "0"))
         except ValueError:
             raise StoreError("Invalid content length.", "invalid_request") from None
-        if not 0 < size <= 2_000_000:
-            raise StoreError("Backup must be smaller than 2 MB.", "payload_too_large", 413)
+        if not 0 < size <= limit:
+            raise StoreError("Backup must be smaller than 2 MB." if limit == 2_000_000 else "Lesson files must be smaller than 5 MB.", "payload_too_large", 413)
         try:
             result = json.loads(self.rfile.read(size), parse_constant=lambda value: (_ for _ in ()).throw(ValueError(value)))
         except (ValueError, UnicodeError):
@@ -204,6 +209,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.forbidden()
         path = urlsplit(self.path).path
         try:
+            if path in lesson_routes.GET_ROUTES:
+                return self.respond(*lesson_routes.handle_get(self.lessons(), path))
             if path == "/api/recovery":
                 return self.respond(200, self.store().recovery_options())
             if path == "/api/cloud-config":
@@ -256,10 +263,14 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         if not self.allowed():
             return self.forbidden()
-        if urlsplit(self.path).path not in ("/api/import", "/api/import/preview", "/api/recovery"):
+        route = urlsplit(self.path).path
+        lesson = route in lesson_routes.POST_ROUTES
+        if not lesson and route not in ("/api/import", "/api/import/preview", "/api/recovery"):
             return self.not_found()
         try:
-            payload = self.body()
+            payload = self.body(lesson_routes.BODY_LIMIT if lesson else 2_000_000)
+            if lesson:
+                return self.respond(*lesson_routes.handle_post(self.lessons(), route, payload, self.store() if route.endswith("/migrate") else None))
             if urlsplit(self.path).path == "/api/recovery":
                 strict_keys(payload, ["recordId", "damagedDigest"], "request")
                 return self.respond(200, self.store().recover_record(payload["recordId"], payload["damagedDigest"]))

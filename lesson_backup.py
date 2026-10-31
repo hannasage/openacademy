@@ -36,7 +36,7 @@ import re
 
 import lesson_contract
 from lesson_store import (
-    LessonStoreError, PINS_VERSION, _VERSION, _dump, _no_repeats, _reject_constant, source_record, version_key,
+    LessonStoreError, PINS_VERSION, module_facts, _VERSION, _dump, _no_repeats, _reject_constant, source_record, version_key,
 )
 from local_store import MAX_REVISION
 
@@ -304,20 +304,39 @@ def plan_restore(lessons, source):
 
 def _summary(lessons, plan):
     new = {(item['kind'], item['id'], item['version']) for item in plan['fresh']}
-    entries = []
+    current = lessons.pins()['pins']
+    stored_ids = set(lessons.module_ids())
+    incoming_ids = {identifier for (kind, identifier, _) in plan['texts'] if kind == 'module'}
+    known = stored_ids | incoming_ids
+    entries, modules = [], []
     for (kind, identifier, version), parsed in sorted(plan['texts'].items(), key=lambda kv: (kv[0][0], kv[0][1], version_key(kv[0][2]))):
-        entries.append({'kind': kind, 'id': identifier, 'version': version, 'title': parsed['title'],
-                        'status': 'new' if (kind, identifier, version) in new else 'already-stored'})
-    return {'importable': True, 'kind': 'backup', 'files': entries, 'problems': [], 'counts': plan['counts'],
-            'pinsToSet': sorted((plan['pins'] or {}).get('pins', {}).keys() - lessons.pins()['pins'].keys()),
+        status = 'new' if (kind, identifier, version) in new else 'already-stored'
+        entry = {'kind': kind, 'id': identifier, 'version': version, 'title': parsed['title'], 'status': status}
+        if kind == 'module':
+            pinned = current.get(identifier) or (plan['pins'] or {}).get('pins', {}).get(identifier)
+            entry.update(module_facts(parsed))
+            entry['missingPrerequisites'] = [p for p in parsed['prerequisites'] if p not in known]
+            entry['pinnedVersion'] = pinned
+            entry['newerVersionAvailable'] = version if pinned is not None and version_key(version) > version_key(pinned) else None
+            entry['state'] = 'present' if status == 'already-stored' else 'new'
+            modules.append(entry)
+        entries.append(entry)
+    return {'importable': True, 'kind': 'backup', 'files': entries, 'modules': modules, 'conflicts': [], 'problems': [],
+            'counts': plan['counts'],
+            'pinsToSet': sorted((plan['pins'] or {}).get('pins', {}).keys() - current.keys()),
             'helpFilesToWrite': len(plan['help_files'])}
+
+
+def conflicts_of(problems):
+    return [{'id': p['file'].split('@')[0], 'version': p['file'].split('@')[1]}
+            for p in problems if p['code'] == 'version_conflict' and '@' in p.get('file', '')]
 
 
 def preview_restore(lessons, source):
     """What a restore would do. Writes nothing at all."""
     plan = plan_restore(lessons, source)
     if plan['problems']:
-        return {'importable': False, 'kind': 'backup', 'files': [], 'problems': plan['problems']}
+        return {'importable': False, 'kind': 'backup', 'files': [], 'modules': [], 'conflicts': conflicts_of(plan['problems']), 'problems': plan['problems']}
     return _summary(lessons, plan)
 
 
@@ -330,5 +349,6 @@ def restore_backup(lessons, source):
     summary = _summary(lessons, plan)
     if plan['fresh'] or plan['help_files'] or plan['pins'] is not None:
         lessons.write_new(plan['fresh'], extra_files=plan['help_files'], pins=plan['pins'])
-    summary['modules'] = lessons.list_modules()
+    summary['imported'] = [{k: item[k] for k in ('kind', 'id', 'version', 'title')} for item in plan['fresh']]
+    summary['revision'] = lessons.pins()['revision']
     return summary

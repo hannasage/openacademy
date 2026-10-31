@@ -75,6 +75,13 @@ def version_key(version):
     return tuple(int(part) for part in version.split('.'))
 
 
+def module_facts(document):
+    """The counts and flags a review screen shows for one lesson module document."""
+    return {'taskCount': len(document['tasks']), 'checkCount': len(document['checks']), 'harness': 'harness' in document,
+            'license': copy.deepcopy(document.get('license')), 'price': copy.deepcopy(document.get('price')),
+            'prerequisites': list(document['prerequisites'])}
+
+
 def _dump(value):
     return (json.dumps(value, indent=2, sort_keys=True, allow_nan=False) + '\n').encode()
 
@@ -340,12 +347,12 @@ class LessonStore:
             digest = _digest(data)
             if key in seen:
                 if seen[key]['sha256'] != digest:
-                    problems.append({'file': name, 'index': index, 'code': 'version_conflict', 'status': 409, 'reason': 'conflict',
+                    problems.append({'file': name, 'index': index, 'id': document['id'], 'version': document['version'], 'code': 'version_conflict', 'status': 409, 'reason': 'conflict',
                                      'errors': [{'pointer': '', 'message': 'Two files carry the same id and version with different content.'}]})
                 continue
             stored = self._stored_state(kind, document['id'], document['version'], data)
             if stored == 'different':
-                problems.append({'file': name, 'index': index, 'code': 'version_conflict', 'status': 409, 'reason': 'conflict',
+                problems.append({'file': name, 'index': index, 'id': document['id'], 'version': document['version'], 'code': 'version_conflict', 'status': 409, 'reason': 'conflict',
                                  'errors': [{'pointer': '', 'message': 'This id and version are already stored with different content.'}]})
                 continue
             item = {'index': index, 'name': name, 'kind': kind, 'id': document['id'], 'version': document['version'],
@@ -390,16 +397,22 @@ class LessonStore:
                 continue
             for position, ref in enumerate(item['document']['modules']):
                 if (ref['id'], ref['version']) not in incoming and not self._has_module(ref['id'], ref['version']):
-                    problems.append({'file': item['name'], 'index': item['index'], 'code': 'missing_module', 'status': 400, 'reason': 'invalid',
+                    problems.append({'file': item['name'], 'index': item['index'], 'code': 'missing_module', 'status': 422, 'reason': 'invalid',
                                      'errors': [{'pointer': f'/modules/{position}', 'message': 'The packet names a module version that is not in this import or in the store.'}]})
         return problems
 
     def preview_import(self, files):
-        """What an import would do. Reads and checks; writes nothing at all."""
+        """What an import would do. Reads and checks; writes nothing at all.
+
+        `files` lists every checked file. `modules` repeats the module entries
+        in the form a review screen reads, with a `state` of `new`, `present`
+        or `conflict`. `conflicts` names each id and version that clashes.
+        """
         plan = self.plan_import(files)
         pins = self.pins()
         pinned = dict(pins['pins'])
-        entries = []
+        known = set(self.module_ids()) | {i['id'] for i in plan['items'] if i['kind'] == 'module'}
+        entries, modules, packet_title = [], [], None
         for item in plan['items']:
             entry = {k: item[k] for k in _SHOWN}
             if item['kind'] == 'module':
@@ -412,10 +425,21 @@ class LessonStore:
                 else:
                     entry['pin'] = 'kept'
                 entry['pinnedVersion'] = current
+                entry.update(module_facts(item['document']))
+                entry['missingPrerequisites'] = [p for p in item['document']['prerequisites'] if p not in known]
+                entry['newerVersionAvailable'] = item['version'] if entry['pin'] == 'newer-than-pin' else None
+                entry['state'] = 'present' if item['status'] == 'already-stored' else 'new'
+                modules.append(entry)
             else:
                 entry['modules'] = copy.deepcopy(item['document']['modules'])
+                packet_title = packet_title or item['title']
             entries.append(entry)
-        return {'importable': not plan['problems'], 'files': entries, 'problems': plan['problems']}
+        conflicts = [{'id': p['id'], 'version': p['version']} for p in plan['problems'] if p['code'] == 'version_conflict' and 'id' in p]
+        result = {'importable': not plan['problems'], 'kind': 'packet' if packet_title else 'module',
+                  'files': entries, 'modules': modules, 'conflicts': conflicts, 'problems': plan['problems']}
+        if packet_title:
+            result['packetTitle'] = packet_title
+        return result
 
     def import_files(self, files):
         """Store every file or none. Returns the same shape as a preview, with the new module list."""
@@ -448,7 +472,8 @@ class LessonStore:
         if fresh or pin_change:
             document = {'version': PINS_VERSION, 'revision': pins['revision'] + 1, 'pins': new_pins} if pin_change else None
             self.write_new(fresh, pins=document)
-        return {'imported': [{k: item[k] for k in _SHOWN} for item in plan['items']], 'modules': self.list_modules()}
+        listing = self.list_modules()
+        return {'imported': [{k: item[k] for k in _SHOWN} for item in plan['items']], 'revision': listing['revision'], 'modules': listing['modules']}
 
     def write_new(self, fresh, extra_files=(), pins=None):
         """Place new version folders, then extra files, then the pin file, all or nothing.
