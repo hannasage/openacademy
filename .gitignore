@@ -24,3 +24,7 @@ playwright-report/
 /.agents/skills/factory-*/
 /.claude/skills/factory-*/
 /.claude/agents/factory-*.md
+
+# Private factory setup stays out of the public repository.
+/.bowerloom/
+/FACTORY.md
