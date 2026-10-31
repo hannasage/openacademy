@@ -97,6 +97,24 @@ Every object is closed. The `runner` descriptor of a check is closed too, but it
 
 The module contract does not hold executable code in a check. A check holds a `description` and, for an automated check, a `runner` descriptor. A runner descriptor is data only. The validator never executes it. Nothing may use it to grant permissions. A runner reads the descriptor and decides what to do. The `interactive-code` block holds starter text for the student to edit. It is data. No reader may run it or any runner field unless the reader first shows the student what will run and the student agrees.
 
+### Built-in check runners
+
+The local app runs a small set of check types itself. They run no creator code. A runner descriptor names one of them in `type` and adds the fields below. The rules for all of them:
+
+- Every path is relative to the student's workspace folder. It uses `/` between parts. It may not be absolute, hold `..`, a backslash, a drive letter, a NUL byte, or any control character, or be longer than 1,024 bytes. A part may hold at most 255 bytes, and a path at most 32 parts.
+- A symbolic link that leaves the workspace is never followed. A link that stays inside is allowed.
+- A runner never opens a device, a named pipe, or a socket. It reads at most 1,000,000 bytes of a file. A larger file gives an `error` result.
+- A field that the type does not list is an `error`, not a hint to ignore.
+- An unknown `type` gives the status `skipped`, never `passed`. The student then reports the result by hand.
+
+The types:
+
+- `file-exists`: `path` (required), `kind` (`file`, `directory`, or `any`, default `file`), `nonEmpty` (boolean, files only).
+- `text-match`: `path` (required), and exactly one of `text` or `pattern`. `text` is a literal substring. `pattern` is a regular expression of at most 200 characters, run in a separate process that is stopped after two seconds. `ignoreCase` (boolean) and `minCount` (integer from 1 to 1,000, default 1) are optional.
+- `json-valid`: `path` (required), `topLevel` (`any`, `object`, or `array`, default `any`), and `requiredKeys` (a list of top-level key names).
+
+A run returns a `status` of `passed`, `failed`, `error`, or `skipped`, a small flat `evidence` object, and a short `log`. The evidence holds counts and names. It never holds the content of a student file.
+
 ### Help records and the full answer
 
 Every hint request makes one help record. The `attemptId` field is always present. It may be `null` only for the levels `nudge` and `question`. The levels `partial-example` and `full-answer` need the id of a logged attempt. This is how the contract keeps the full answer behind a logged attempt. The `source` is `student` or `agent`. The `timestamp` follows RFC 3339.

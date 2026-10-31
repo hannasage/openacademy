@@ -109,5 +109,13 @@ It checks that a curriculum import still uses the older review.
 `tests/lessons-dialog.test.mjs` runs the import dialog against a fake document and a fake server.
 It covers Cancel and Escape, a failed list after an import, a failed pin switch, and a reload that fails after a failed switch.
 
+Check runner checks cover the built-in checks and the rules that keep them inside the student's workspace:
+
+```sh
+python3 -m unittest -v tests.test_check_runner
+```
+
+The tests build their own folders under a temporary directory. They cover `..` paths, absolute paths, NUL bytes, long paths, links that leave the folder, a link swapped in after the path check, named pipes, sockets, device files, files over the size cap, and a pattern that would run forever.
+
 The golden data in `tests/fixtures/storage/pre-s03/` is the data folder as it was before lessons.
 A test loads it and checks that no byte changes.
