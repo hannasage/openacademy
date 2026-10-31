@@ -58,6 +58,9 @@ class Limits:
     max_evidence_items: int = 20
     max_log_lines: int = 20
     max_log_chars: int = 300
+    git_timeout: float = 10.0
+    git_output_bytes: int = 1_000_000
+    git_max_scan: int = 500
 
     def replace(self, **changes):
         return dataclasses.replace(self, **changes)
@@ -177,7 +180,7 @@ def take_fields(runner, spec):
     return found
 
 
-def _bad_descriptor(error):
+def bad_descriptor(error):
     return result('error', {'reason': 'invalid_descriptor'}, [str(error)])
 
 
@@ -308,7 +311,7 @@ class BuiltinAdapter:
         try:
             return handler(runner, workspace, limits)
         except DescriptorError as error:
-            return _bad_descriptor(error)
+            return bad_descriptor(error)
 
     # file-exists: path, kind (file, directory, any), nonEmpty
     def file_exists(self, runner, workspace, limits):
@@ -419,6 +422,8 @@ def default_registry():
     if _DEFAULT is None:
         registry = Registry()
         registry.register(BuiltinAdapter())
+        import check_git  # imported here because check_git imports this module
+        registry.register(check_git.GitAdapter())
         _DEFAULT = registry
     return _DEFAULT
 

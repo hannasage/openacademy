@@ -117,6 +117,14 @@ python3 -m unittest -v tests.test_check_runner
 
 The tests build their own folders under a temporary directory. They cover `..` paths, absolute paths, NUL bytes, long paths, links that leave the folder, a link swapped in after the path check, named pipes, sockets, device files, files over the size cap, and a pattern that would run forever.
 
+The git commit check, against repositories built at test time that try to run programs:
+
+```sh
+python3 -m unittest -v tests.test_check_git
+```
+
+Each hostile repository names a marker script in its config, in its hooks, and in an included file. A control step first runs a git command that is known to run the script, so an empty marker folder means something. The tests skip when git is not installed.
+
 The check routes, the token, the workspace setting, and consent:
 
 ```sh

@@ -113,6 +113,8 @@ The types:
 - `text-match`: `path` (required), and exactly one of `text` or `pattern`. `text` is a literal substring. `pattern` is a regular expression of at most 200 characters, run in a separate process that is stopped after two seconds. `ignoreCase` (boolean) and `minCount` (integer from 1 to 1,000, default 1) are optional.
 - `json-valid`: `path` (required), `topLevel` (`any`, `object`, or `array`, default `any`), and `requiredKeys` (a list of top-level key names).
 
+- `git-commit-exists`: `minCommits` (integer from 1 to 1,000, default 1), `messageContains` (a literal text of 1 to 500 characters), and `ignoreCase` (boolean). Without `messageContains`, the check counts the commits reachable from `HEAD`. With it, the check counts the commits among the newest 500 whose message holds the text. The workspace must be a git repository that the current user owns. Its `.git` entry must be a real folder, or a file that points at a folder inside the workspace.
+
 A run returns a `status` of `passed`, `failed`, `error`, or `skipped`, a small flat `evidence` object, and a short `log`. The evidence holds counts and names. It never holds the content of a student file.
 
 ### Help records and the full answer

@@ -250,6 +250,33 @@ The consent screen is `web/screens/check-consent.js`. It shows the runtime, the 
 
 Error codes: 403 `invalid_token`, `consent_required`, and `forbidden_origin`, 400 `invalid_workspace`, `confirmation_required`, `consent_not_needed`, and `invalid_request`, 409 `workspace_required` and `hash_mismatch`, 404 `not_found`, 413 `payload_too_large`, 429 `busy`, and 500 `internal_error` or `corrupt_file`.
 
+### The git commit check
+
+The `git-commit-exists` check runs git on the student's repository. A repository can name programs in its own config, so Schola treats it as untrusted.
+
+- Git runs from an argument list, never through a shell, with the workspace as its working folder and a clean environment. No `GIT_*` variable of the server reaches it. System and user config are switched off.
+- Schola checks the `.git` entry first. It must be a real folder, or a file that points at a folder inside the workspace. A link, a file that points outside, a borrowed object store, or a git entry that is a link or a pipe is refused. Schola then names the folder with `--git-dir`, so git never walks up to a parent repository.
+- A fixed list of `-c` overrides switches off the settings that name a program: file system monitor, hooks path, SSH command, pager, editor, ask-pass program, alternate refs command, attributes and ignore files, external diff, credential helper, signature program, pack hook, and automatic housekeeping.
+- Only `rev-parse`, `rev-list`, and `cat-file --batch` run. Each run has a time limit of 10 seconds and an output limit of 1 MB. Past either limit, Schola kills git and every process it started.
+- Schola checks that the current user owns the repository. Git skips its own ownership check when it is given `--git-dir`, so Schola repeats it. Schola never passes `safe.directory`.
+
+What the tests proved, on git 2.39.5 (Apple build) on macOS. Each hostile repository was built at test time. A control step first showed that a dangerous command runs the marker program.
+
+- With a repository whose config names a file system monitor, hooks, an SSH command, a pager, an editor, an external diff, a text converter, a credential helper, a signature program, a pack hook, and an included file that sets more of them, the three commands run none of them. This holds with the overrides and also without them. The three commands work on commits and refs, and the test shows that no program ran.
+- The overrides do stop `status`, `diff`, `commit`, `stash`, and `ls-remote` from running the file system monitor, the hooks, the external diff, and the SSH command. The overrides stay as a second layer, in case a later git reads more.
+- A pager starts only on a terminal. Schola gives git a pipe, `--no-pager`, and `core.pager=cat`.
+- Hooks in the repository's own `hooks` folder and in a configured hooks path did not run.
+- The `.git` link, the gitfile that points outside, the borrowed object store, and a git entry that is a pipe are refused before git starts.
+- Git and a child of git that hang are killed with their process group. Output past the limit is cut off.
+
+What the tests did not prove:
+
+- A text converter or a clean or smudge filter is named by a `.gitattributes` rule, so no fixed override can switch it off. `log -p` still ran a text converter with every override set. Schola stays safe only because it never runs a command that makes a patch or checks out files. A test guards the list of commands and flags.
+- Other git versions. A newer git may read more settings. Other operating systems. Windows was not tested.
+- A repository on a network or a special file system.
+- Objects that a repository reads through `GIT_ALTERNATE_OBJECT_DIRECTORIES` or a replace ref. Schola clears the variable and passes `--no-replace-objects`, but did not build a test for every route.
+- Whether git's own ownership check and Schola's agree on every system. Schola's check compares the owner of the workspace and of the git folder with the current user.
+
 ### What the token and the consent protect
 
 They protect the student from hostile lesson content, and from a page on another site. They do not protect the student from a hostile program on the same computer. That program can read the token from the session route and call the consent route with any headers it likes. It already has the student's permissions. Nothing in this design can tell a click from a program.
