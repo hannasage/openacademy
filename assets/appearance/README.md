@@ -1,6 +1,6 @@
 # Appearance assets
 
-The SVG files come from the approved Schola appearance component, Figma node `40:317` in file `dHJwW62Wb4nxGvDIuQn7EE`.
+The SVG files come from the approved Schola appearance component.
 The bundled CSS embeds the original SVG bytes and preserves their natural dimensions.
 
 Syne and IBM Plex Sans come from the local Projection UI documentation font package.
