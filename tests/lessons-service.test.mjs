@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {readFile, readdir} from 'node:fs/promises';
 import {createLessonService, LessonServiceError} from '../web/services/lessons.js';
-import {classifyLessonFile, looksLikeLessonText} from '../web/screens/module-import-dialog.js';
+import {classifyLessonFile, classifyLessonText, looksLikeLessonText} from '../web/screens/module-import-dialog.js';
 import {
   buildImportReview, updateOffers, createImportReviewController, createPinSwitchController, renderImportReview, renderModuleList,
 } from '../web/screens/module-import.js';
@@ -107,12 +107,76 @@ test('server errors and network failures surface visible messages', async () => 
     const service = createLessonService(async () => json({error: 'Server detail.', code: serverCode, retryable: false}, status));
     await assert.rejects(service.importLessons(source), error => error instanceof LessonServiceError && error.status === status && error.code === code && pattern.test(error.message) && error.detail === 'Server detail.', serverCode);
   }
-  for (const [status, code] of [[409, 'conflict'], [413, 'too_large'], [422, 'invalid']]) {
-    await assert.rejects(createLessonService(async () => json({error: 'x'}, status)).importLessons(source), error => error.code === code, `status ${status} without a code`);
+  // A status alone never stands in for a code. Only a 413 with no code at all reads as too large.
+  for (const status of [409, 422, 400, 500]) {
+    await assert.rejects(createLessonService(async () => json({error: 'x'}, status)).importLessons(source),
+      error => error.code === 'request_failed' && !/already exists|not a valid/i.test(error.message), `status ${status} without a code`);
   }
+  await assert.rejects(createLessonService(async () => json({error: 'x'}, 413)).importLessons(source), error => error.code === 'too_large');
   await assert.rejects(createLessonService(async () => new Response('<html>too big</html>', {status: 413})).importLessons(source), error => error.code === 'too_large' && error.detail === '');
   await assert.rejects(createLessonService(async () => { throw new TypeError('Failed to fetch'); }).listLessons(), error => error.code === 'network_error' && /did not answer/.test(error.message));
   await assert.rejects(createLessonService(async () => new Response('<html>ok</html>')).listLessons(), error => error.code === 'invalid_response');
+});
+
+test('every code the lesson routes can answer with has its own words', async () => {
+  const table = {
+    invalid_lesson: [422, 'invalid', /not a valid lesson/i], missing_module: [422, 'missing_module', /module/i],
+    version_conflict: [409, 'conflict', /different content/i], unsupported_version: [409, 'unsupported_version', /newer lesson format/i],
+    revision_conflict: [409, 'revision_conflict', /changed/i], revision_limit: [409, 'revision_limit', /most changes/i],
+    payload_too_large: [413, 'too_large', /too large/i], store_full: [413, 'store_full', /library is full/i],
+    confirmation_required: [400, 'confirmation_required', /confirm/i], expected_revision_required: [422, 'expected_revision_required', /revision/i],
+    identity_collision: [409, 'identity_collision', /same name/i], not_migrated: [409, 'not_migrated', /not prepared/i],
+    rollback_incomplete: [500, 'rollback_incomplete', /could not fully undo/i], partial_restore: [500, 'partial_restore', /stopped part way/i],
+    newer_than_snapshot: [409, 'newer_than_snapshot', /saved after the migration/i], corrupt_file: [500, 'corrupt_file', /damaged/i],
+    unsafe_path: [500, 'unsafe_path', /unsafe path/i], not_found: [404, 'not_found', /could not find/i],
+    storage_unavailable: [500, 'storage_unavailable', /data folder/i], request_timeout: [408, 'request_timeout', /too long/i],
+    internal_error: [500, 'internal_error', /unexpected problem/i], forbidden_origin: [403, 'forbidden_origin', /own local address/i],
+  };
+  for (const [serverCode, [status, code, pattern]] of Object.entries(table)) {
+    const failure = await createLessonService(async () => json({error: 'Detail.', code: serverCode, retryable: false}, status)).importLessons(source).catch(error => error);
+    assert.ok(failure instanceof LessonServiceError, serverCode);
+    assert.equal(failure.code, code, serverCode);
+    assert.equal(failure.serverCode, serverCode);
+    assert.match(failure.message, pattern, serverCode);
+  }
+});
+
+test('a code the web side does not know shows a neutral message with that code', async () => {
+  for (const status of [409, 422, 500]) {
+    const failure = await createLessonService(async () => json({error: 'Odd.', code: 'brand_new_problem'}, status)).importLessons(source).catch(error => error);
+    assert.equal(failure.code, 'request_failed');
+    assert.match(failure.message, /could not finish this request \(code: brand_new_problem\)/);
+    assert.doesNotMatch(failure.message, /already exists|not a valid|too large/i);
+  }
+  const hostile = await createLessonService(async () => json({error: 'x', code: '<img src=x onerror=alert(1)>'}, 409)).importLessons(source).catch(error => error);
+  assert.doesNotMatch(hostile.message, /img/);
+  assert.equal(hostile.serverCode, '');
+  const plain = await createLessonService(async () => json({error: 'x', code: 'invalid_request'}, 400)).importLessons(source).catch(error => error);
+  assert.equal(plain.message, 'The local server could not finish this request.');
+});
+
+test('a request over 5,000,000 bytes is refused on the client with both limits and no call', async () => {
+  const {calls, transport} = recorder(() => json(preview));
+  const service = createLessonService(transport);
+  const big = 'x'.repeat(5_000_001);
+  for (const call of [() => service.previewImport(big, 'a.json'), () => service.importLessons(big), () => service.previewRestore(big), () => service.restoreBackup(big)]) {
+    await assert.rejects(call(), error => error instanceof LessonServiceError && error.code === 'too_large' && /5 MB/.test(error.message) && /2 MB/.test(error.message));
+  }
+  // The size is counted in bytes of the whole body. Escapes and four-byte characters count in full.
+  const quotes = '"'.repeat(2_550_000) + 'a'.repeat(100_000);
+  await assert.rejects(service.previewImport(quotes), error => error.code === 'too_large', 'each quote becomes two bytes');
+  await assert.rejects(service.previewImport('\u{1F600}'.repeat(1_300_000)), error => error.code === 'too_large', 'four bytes each');
+  assert.equal(calls.length, 0);
+  await service.previewImport('x'.repeat(4_900_000));
+  assert.equal(calls.length, 1);
+});
+
+test('an answer without a module list is not a preview or a listing', async () => {
+  await assert.rejects(createLessonService(async () => json({importable: true})).previewImport(source), error => error.code === 'invalid_response');
+  await assert.rejects(createLessonService(async () => json({importable: true})).previewRestore('x'), error => error.code === 'invalid_response');
+  await assert.rejects(createLessonService(async () => json({revision: 1})).listLessons(), error => error.code === 'invalid_response');
+  await assert.rejects(createLessonService(async () => json({revision: 1, modules: 'none'})).listLessons(), error => error.code === 'invalid_response');
+  await assert.rejects(createLessonService(async () => json([])).listLessons(), error => error.code === 'invalid_response');
 });
 
 test('migrate posts an empty object and returns the server status', async () => {
@@ -175,6 +239,10 @@ test('a same-id different-bytes conflict is flagged and blocks the confirm step'
   assert.match(model.conflicts[0], /intro/);
   assert.match(model.conflicts[0], /will not replace/i);
   assert.match(model.summary, /nothing was changed/i);
+  assert.deepEqual(model.problems, [], 'a conflict is listed once, under its own heading');
+  const mixedProblems = buildImportReview({...conflictPreview, problems: [...conflictPreview.problems, ...damagedPreview.problems]});
+  assert.equal(mixedProblems.conflicts.length, 1);
+  assert.equal(mixedProblems.problems.length, 1, 'a different problem is still listed');
   assert.equal(buildImportReview({...preview, conflicts: [{id: 'intro', version: '1.0.0'}]}).canConfirm, false);
   assert.equal(buildImportReview({modules: [{...module1, state: 'conflict'}]}).items[0].state, 'conflict');
 });
@@ -452,7 +520,11 @@ test('a chosen file goes to the lesson review only when it is a lesson file', as
   const read = async name => JSON.parse(await readFile(new URL(name, folder), 'utf8'));
   assert.equal(classifyLessonFile(await read('lesson-module-minimal.json')), 'lesson');
   assert.equal(classifyLessonFile(await read('packet-one-module.json')), 'lesson');
-  assert.equal(classifyLessonFile([await read('packet-one-module.json'), await read('lesson-module-minimal.json')]), 'lesson');
+  assert.equal(classifyLessonFile([await read('packet-one-module.json'), await read('lesson-module-minimal.json')]), null, 'a list in one file is not a lesson file, because its parts have no exact bytes of their own');
+  assert.equal(classifyLessonText(await readFile(new URL('lesson-module-minimal.json', folder), 'utf8')), 'lesson');
+  assert.equal(classifyLessonText('{"schemaVersion": "1.0", "id": "a", "ti'), 'lesson', 'a damaged lesson file still goes to the server for a plain explanation');
+  assert.equal(classifyLessonText('{"id": "my-course", "tit'), null);
+  assert.equal(classifyLessonText('{"format": "schola-lesson-backup", "schemaVersion": "1.0"}'), 'backup');
   assert.equal(classifyLessonFile({format: 'schola-lesson-backup', version: 1}), 'backup');
   assert.equal(classifyLessonFile({schemaVersion: '9.0', id: 'x'}), 'lesson', 'an unknown major version still goes to the server, which explains the refusal');
   // Every curriculum, progress backup, and record example keeps the older review.

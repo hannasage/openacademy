@@ -84,7 +84,9 @@ export function buildImportReview(preview, {restore = false} = {}) {
   });
   const conflicts = [...new Set([...conflictKeys, ...items.filter(item => item.state === 'conflict').map(item => `${item.id}@${item.version}`)])]
     .map(key => `Lesson "${key.split('@')[0]}" version ${key.split('@')[1] || ''} already exists with different content. Schola will not replace it.`);
-  const problems = problemLines(preview?.problems).filter(line => !conflicts.length || !/already stored with different content/.test(line));
+  // A version conflict already shows under its own heading. Do not list it twice.
+  const problems = problemLines((Array.isArray(preview?.problems) ? preview.problems : []).filter(problem =>
+    !(isObject(problem) && problem.code === 'version_conflict' && conflictKeys.has(`${text(problem.id)}@${text(problem.version)}`))));
   const blocked = preview?.importable === false || conflicts.length > 0 || problems.length > 0;
   const fresh = items.filter(item => item.state === 'new').length;
   const somethingNew = fresh > 0 || files.some(file => file.status === 'new')

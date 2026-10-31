@@ -78,7 +78,8 @@ The folder appears with the first import. A data directory with no lessons has n
 
 How an import works:
 
-1. Choose a lesson file with Import curriculum or Restore backup. Schola sends a file with a `schemaVersion` to the lesson review. It sends a curriculum or a progress backup to the older review, which has not changed.
+1. Choose one or more lesson files with Import curriculum, or one lesson backup with Import curriculum or Restore backup. Choose a packet and its modules together in one selection. A file with a `schemaVersion` goes to the lesson review. A curriculum or a progress backup goes to the older review, which has not changed. Several files work only when all of them are lesson files. A file that holds a list of lessons is not a lesson file, because Schola must keep the exact bytes of each file.
+   Schola decodes each file as strict UTF-8. A file that is not valid UTF-8 is refused with a message, and Schola makes no call. It sends the text of each file as it is, so the server sees the same bytes and rejects a repeated key. Before it sends a request, Schola checks that the whole request is under 5,000,000 bytes. A larger request is refused on the page with a message that names both limits. Quotes and backslashes in a file count double in a request, so a file near 4.5 MB can still be too large to send.
 2. The review is read only. It shows each lesson, its tasks and checks, its license, its price, a tutor harness if it has one, and any missing prerequisite. Choosing the file makes one preview call, which writes nothing. Cancel makes no further call.
 3. Add these lessons is the only step that writes. The server checks every file again, writes all new folders together, and writes `pins.json` last.
 4. A damaged file, an unsupported version, a file over the size limit, a packet that names a module Schola does not have, or a conflict stops the whole import. Nothing is written.
@@ -208,8 +209,7 @@ All lesson routes use the local address and the same Host and Origin checks as t
 | `POST /api/lessons/pins` | Move one pin. Needs `confirm: true` |
 | `POST /api/lessons/migrate` | Run the one-time migration. Send an empty object |
 
-Import and preview take `{source, filename}`. The `source` is the file text, a list of file texts, or one parsed document.
-Send the text when the exact bytes matter.
+Import and preview take `{source, filename}`. The `source` is the file text, a list of file texts, or one parsed document. The app always sends text. Send text whenever the exact bytes matter, because a parsed document is stored as the server writes it back out.
 The error codes are: 422 `invalid_lesson`, `missing_module`, and `expected_revision_required`, 409 `version_conflict`, `unsupported_version`, `revision_conflict`, and `revision_limit`, 413 `payload_too_large` and `store_full`, 408 `request_timeout`, 400 for a malformed request, and 500 `internal_error` for a fault in stored data.
 A 500 `internal_error` answer carries no path and no trace. The details go to the server console only.
 

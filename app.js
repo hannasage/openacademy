@@ -5,7 +5,7 @@ import {projectPublication} from './web/publication.js';
 import {journalList,evidenceMarkup} from './web/screens/journal.js';
 import {prepareImport,reviewImport} from './web/screens/import-review.js';
 import {createLessonService} from './web/services/lessons.js';
-import {classifyLessonFile,looksLikeLessonText,openModuleImport} from './web/screens/module-import-dialog.js';
+import {classifyLessonFile,classifyLessonText,looksLikeLessonText,openModuleImport} from './web/screens/module-import-dialog.js';
 import {lessonMarkup} from './web/screens/lesson.js';
 import {screens} from './web/screens/model.js';
 import {shell} from './web/shell/bridge.js';
@@ -236,25 +236,38 @@ $('#retry').onclick=async()=>{
  try{clearJournal();await loadCourse(record.recordId,true);}catch(error){notice(message(error)+' Your current working copy is still available for export. Retry loading the saved version.',true);}
 };
 let importAttempt=0;
-/** Lesson modules, lesson packets, and lesson backups get their own read-only review. Curriculum and progress files never come here. @param {unknown} source @param {'lesson'|'backup'|null} kind @param {string} filename */
+/** Lesson modules, lesson packets, and lesson backups get their own read-only review. Curriculum and progress files never come here. The source is the exact text of each file. @param {LessonSource} source @param {'lesson'|'backup'|null} kind @param {string} filename */
 function reviewLessons(source,kind,filename){
  openModuleImport(/** @type {HTMLDialogElement} */($('#import-review')),{service:lessons,source,filename,restore:kind==='backup',onFinish:imported=>{if(imported)notice('Lessons added. Your curricula and progress did not change.');}});
 }
 /** @param {HTMLInputElement} field @param {boolean} restore */
 async function previewFile(field,restore){
- const file=field.files?.[0];if(!file)return;
+ const chosen=[...(field.files??[])];const file=chosen[0];if(!file)return;
  const attempt=++importAttempt,epoch=viewEpoch,targetId=record?.recordId;
  const guard=()=>{requireEpoch(epoch);if(attempt!==importAttempt)throw Error('A newer file was selected. Review that file instead.');if(accountInvalidated||record?.recordId!==targetId)throw Error('The selected record changed. Choose the file again.');};
  try{
-  if(file.size>5000000)throw Error('The file is too large. Curriculum and backup files must be under 2 MB. Lesson files must be under 5 MB.');
-  const fileText=await file.text();guard();
+  /** @type {string[]} */ const texts=[];
+  for(const item of chosen){
+   if(item.size>5000000)throw Error('The file is too large. Curriculum and backup files must be under 2 MB. Lesson files must be under 5 MB.');
+   // Strict decoding: a file that is not valid UTF-8 is refused. Nothing is repaired or guessed.
+   try{texts.push(new TextDecoder('utf-8',{fatal:true}).decode(await item.arrayBuffer()));}
+   catch{throw Error(`${item.name} is not valid UTF-8 text. Nothing was changed.`);}
+   guard();
+  }
+  if(chosen.length>1){
+   chosen.forEach((item,index)=>{
+    if(classifyLessonText(texts[index])!=='lesson')throw Error(`${item.name} is not a lesson module or packet. Choose one curriculum or backup file at a time. Several files work only when all of them are lesson files.`);
+   });
+   reviewLessons(texts,'lesson',file.name);return;
+  }
+  const fileText=texts[0];
   /** @type {any} */ let input;
   try{input=JSON.parse(fileText);}catch(parseError){
    if(looksLikeLessonText(fileText)){reviewLessons(fileText,null,file.name);return;}
    throw file.size>2000000?Error('The file must be smaller than 2 MB.'):parseError;
   }
   const lessonKind=classifyLessonFile(input);
-  if(lessonKind){reviewLessons(Array.isArray(input)||lessonKind==='backup'?input:fileText,lessonKind,file.name);return;}
+  if(lessonKind){reviewLessons(fileText,lessonKind,file.name);return;}
   if(file.size>2000000)throw Error('The file must be smaller than 2 MB.');
   let source=prepareImport(input,restore?record:undefined);
   if(restore&&source.format!=='touchline-record')source={...structuredClone(record),curriculum:source.curriculum,state:source.state,draft:{experiment:null}};

@@ -7,6 +7,8 @@ const BACKUP_FORMAT = 'schola-lesson-backup';
 /**
  * Decides where a chosen file goes. A lesson module or packet carries a `schemaVersion`.
  * A lesson backup carries its own format name. Everything else keeps the older import path.
+ * A file that holds a list of lessons is not a lesson file. Choose the lesson files themselves,
+ * so that the server sees the exact bytes of each one.
  * @param {unknown} value a parsed file
  * @returns {'lesson' | 'backup' | null}
  */
@@ -15,8 +17,17 @@ export function classifyLessonFile(value) {
     if (value.format === BACKUP_FORMAT) return 'backup';
     return typeof value.schemaVersion === 'string' ? 'lesson' : null;
   }
-  if (Array.isArray(value) && value.length > 0 && value.every(item => isObject(item) && typeof item.schemaVersion === 'string')) return 'lesson';
   return null;
+}
+
+/**
+ * Classifies the text of a file. Text that does not parse but looks like a lesson file goes to the server, which explains the damage.
+ * @param {string} fileText
+ * @returns {'lesson' | 'backup' | null}
+ */
+export function classifyLessonText(fileText) {
+  try { return classifyLessonFile(JSON.parse(fileText)); }
+  catch { return looksLikeLessonText(fileText) ? 'lesson' : null; }
 }
 
 /**
@@ -30,7 +41,7 @@ export const looksLikeLessonText = fileText => /"schemaVersion"|schola-lesson-ba
  * It shows a read-only review first. Only the Add button imports. Cancel and Escape never call the server.
  * After an import it lists the modules and offers newer versions. A switch needs a second explicit step.
  * @param {HTMLDialogElement} dialog
- * @param {{service: LessonService, source: unknown, filename: string, restore?: boolean, onFinish?: (imported: boolean) => void}} options
+ * @param {{service: LessonService, source: LessonSource, filename: string, restore?: boolean, onFinish?: (imported: boolean) => void}} options
  * @returns {() => void} a function that closes the dialog
  */
 export function openModuleImport(dialog, {service, source, filename, restore = false, onFinish}) {
@@ -45,7 +56,7 @@ export function openModuleImport(dialog, {service, source, filename, restore = f
   body.id = 'lesson-import';
   dialog.replaceChildren(heading, body);
 
-  const controller = createImportReviewController({service, source: /** @type {LessonSource} */(source), filename, restore});
+  const controller = createImportReviewController({service, source, filename, restore});
   /** @type {LessonListing | null} */ let listing = null;
   /** @type {LessonMessage | null} */ let listMessage = null;
   /** @type {Map<string, ReturnType<typeof createPinSwitchController>>} */ const switches = new Map();
@@ -112,7 +123,16 @@ export function openModuleImport(dialog, {service, source, filename, restore = f
       switches.delete(moduleId);
     } else {
       // The lessons may have changed under this screen. Read them again so a retry uses the current revision.
-      try { listing = await service.listLessons(); } catch { /* The failure above stays on screen. */ }
+      try {
+        listing = await service.listLessons();
+        listMessage = null;
+      } catch (problem) {
+        const failure = step.getState().message?.text || '';
+        const reload = problem instanceof Error ? problem.message : '';
+        listMessage = {kind: 'error', text: 'The switch failed, and Schola could not reload your lessons. Close this screen and open your lessons again before you try another switch.',
+          ...(failure || reload ? {detail: [failure, reload].filter(Boolean).join(' ')} : {})};
+        switches.clear();
+      }
     }
     draw();
   };

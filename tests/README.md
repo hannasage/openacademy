@@ -103,7 +103,11 @@ It checks that Cancel leaves nothing on disk and that Add stores the files.
 It restarts the server and checks the modules are still there.
 It checks that a damaged file and a changed copy of a stored version show a message and change nothing.
 It checks that a newer version is only offered, and that the pin moves only after the second, explicit step.
+It checks that a file that is not valid UTF-8 is refused, that a mix of lesson and other files is refused, and that a file near 4.5 MB whose request would pass 5,000,000 bytes is refused on the page with no call.
 It checks that a curriculum import still uses the older review.
+
+`tests/lessons-dialog.test.mjs` runs the import dialog against a fake document and a fake server.
+It covers Cancel and Escape, a failed list after an import, a failed pin switch, and a reload that fails after a failed switch.
 
 The golden data in `tests/fixtures/storage/pre-s03/` is the data folder as it was before lessons.
 A test loads it and checks that no byte changes.

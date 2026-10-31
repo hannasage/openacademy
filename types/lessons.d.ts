@@ -109,11 +109,14 @@ interface PinSwitchRequest {
   expectedRevision: number;
 }
 
-type LessonBackupFile = Record<string, unknown>;
+type LessonBackupFile = Record<string, unknown> | string;
 
 type LessonErrorCode =
   | 'conflict' | 'too_large' | 'invalid' | 'missing_module' | 'unsupported_version' | 'revision_conflict'
-  | 'network_error' | 'invalid_response' | 'confirmation_required' | 'expected_revision_required' | 'request_failed';
+  | 'network_error' | 'invalid_response' | 'confirmation_required' | 'expected_revision_required' | 'request_failed'
+  | 'revision_limit' | 'store_full' | 'identity_collision' | 'not_migrated' | 'rollback_incomplete' | 'partial_restore'
+  | 'newer_than_snapshot' | 'corrupt_file' | 'unsafe_path' | 'not_found' | 'storage_unavailable' | 'request_timeout'
+  | 'internal_error' | 'forbidden_origin';
 
 type LessonPhase =
   | 'idle' | 'previewing' | 'reviewing' | 'importing' | 'done' | 'failed' | 'cancelled';

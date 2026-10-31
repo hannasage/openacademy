@@ -5,7 +5,9 @@ import {join} from 'node:path';
 
 const fixtures = new URL('../fixtures/contracts/', import.meta.url);
 const fixture = (folder, name) => readFile(new URL(`${folder}/${name}`, fixtures), 'utf8');
-const upload = (page, name, text) => page.locator('#curriculum-file').setInputFiles({name, mimeType: 'application/json', buffer: Buffer.from(text)});
+const upload = (page, name, text) => page.locator('#curriculum-file').setInputFiles({name, mimeType: 'application/json', buffer: Buffer.isBuffer(text) ? text : Buffer.from(text)});
+const uploadMany = (page, files) => page.locator('#curriculum-file').setInputFiles(files.map(([name, text]) => ({name, mimeType: 'application/json', buffer: Buffer.from(text)})));
+const notice = page => page.locator('#notice').textContent();
 const blocked = page => page.waitForFunction(() => document.querySelector('#lesson-import')?.textContent.includes('Schola cannot add this file'));
 const dialogText = page => page.locator('#import-review').innerText();
 const get = async (server, path) => (await fetch(`${server.url}${path}`)).json();
@@ -45,9 +47,9 @@ export async function verifyLessonImport({page, server}) {
   const curriculaBefore = await get(server, '/api/library');
   assert.equal(await treeHash(lessonsFolder), null, 'a new data folder holds no lessons');
 
-  // A packet and its module in one file: review, then Cancel. Nothing may reach the disk.
-  const bundle = JSON.stringify([JSON.parse(packet), JSON.parse(module1)]);
-  await upload(page, 'bundle.json', bundle);
+  // A packet and its module as two files: review, then Cancel. Nothing may reach the disk.
+  const bundle = [['packet.json', packet], ['module.json', module1]];
+  await uploadMany(page, bundle);
   await page.locator('#lesson-import').getByRole('button', {name: 'Add these lessons'}).waitFor();
   let review = await dialogText(page);
   assert.match(review, /Add the lesson set "A packet with one module"/);
@@ -62,7 +64,7 @@ export async function verifyLessonImport({page, server}) {
   assert.deepEqual((await get(server, '/api/lessons')).modules, []);
 
   // The same file again, this time confirmed.
-  await upload(page, 'bundle.json', bundle);
+  await uploadMany(page, bundle);
   await page.locator('#lesson-import').getByRole('button', {name: 'Add these lessons'}).click();
   await page.locator('#lesson-list').waitFor();
   assert.match(await dialogText(page), /Added 1 lesson/);
@@ -107,6 +109,34 @@ export async function verifyLessonImport({page, server}) {
   await page.locator('#lesson-import').getByRole('button', {name: 'Cancel'}).click();
   await page.waitForFunction(() => !document.querySelector('#import-review').open);
   assert.equal(await treeHash(lessonsFolder), afterImport, 'a conflict changed nothing');
+
+  // A file that is not valid UTF-8 is refused before any call. A mix of lesson and other files is refused too.
+  const calls = writes.length;
+  const brokenBytes = Buffer.concat([Buffer.from(module1.replace('A minimal lesson module', 'A minimal ')), Buffer.from([0xff, 0xfe]), Buffer.from(' lesson module')]);
+  await upload(page, 'broken.json', brokenBytes);
+  await page.waitForFunction(() => document.querySelector('#notice').textContent.includes('not valid UTF-8'));
+  assert.equal(await page.locator('#import-review').isVisible(), false);
+  await upload(page, 'bytes.json', Buffer.from([0x7b, 0x22, 0xff, 0x22, 0x7d]));
+  await page.waitForFunction(() => document.querySelector('#notice').textContent.includes('bytes.json is not valid UTF-8'));
+  await uploadMany(page, [['module.json', module1], ['course.json', JSON.stringify({id: 'x', title: 'x'})]]);
+  await page.waitForFunction(() => document.querySelector('#notice').textContent.includes('Several files work only when all of them are lesson files'));
+  assert.equal(await page.locator('#import-review').isVisible(), false);
+  assert.equal(writes.length, calls, 'none of these made a lesson call');
+  assert.equal(await treeHash(lessonsFolder), afterImport);
+
+  // A file under 5 MB whose request body passes 5,000,000 bytes (every quote doubles twice) is refused on the page, before any call.
+  const huge = JSON.stringify({schemaVersion: '1.0', id: 'huge-module', version: '1.0.0', title: 'Huge', filler: '"'.repeat(300_000) + 'a'.repeat(3_900_000)});
+  assert.ok(Buffer.byteLength(huge) > 4_400_000 && Buffer.byteLength(huge) < 5_000_000, 'the file itself is about 4.5 MB');
+  await upload(page, 'huge.json', huge);
+  await page.waitForFunction(() => document.querySelector('#lesson-import')?.textContent.includes('too large to send'));
+  review = await dialogText(page);
+  assert.match(review, /5 MB/);
+  assert.match(review, /2 MB/);
+  assert.equal(writes.length, calls, 'the page sent nothing');
+  await page.locator('#lesson-import').getByRole('button', {name: 'Close'}).click();
+  await page.waitForFunction(() => !document.querySelector('#import-review').open);
+  assert.equal(await treeHash(lessonsFolder), afterImport);
+  assert.equal(await notice(page).then(Boolean), true);
 
   // A newer version is stored and only offered. The pin moves after a second, explicit step.
   const newer = JSON.parse(module1);

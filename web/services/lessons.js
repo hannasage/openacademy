@@ -8,8 +8,12 @@ const ROUTES = {
 };
 const DETAIL_LIMIT = 300;
 const GENERIC_TEXT = 'The local server could not finish this request.';
+/** The biggest request body the web side sends. The server allows 5,242,880 bytes. This leaves a margin. */
+export const MAX_REQUEST_BYTES = 5_000_000;
+const TOO_LARGE_TEXT = 'This is too large to send. Lesson files and lesson backups may be up to 5 MB. Curriculum and progress files may be up to 2 MB. Nothing was changed.';
 /**
- * The server names every failure with a `code`. The web side reads the code first and the status second.
+ * Every code the lesson routes can answer with. The web side reads the code first.
+ * A code that is not listed here gets a neutral message that shows the code. No status ever stands in for a code.
  * @type {Record<string, {code: LessonErrorCode, text: string}>}
  */
 const CODE_TEXT = {
@@ -18,16 +22,26 @@ const CODE_TEXT = {
   version_conflict: {code: 'conflict', text: 'This lesson version already exists with different content. Schola will not replace it. Nothing was changed.'},
   unsupported_version: {code: 'unsupported_version', text: 'This file uses a newer lesson format than this version of Schola supports. Nothing was changed.'},
   revision_conflict: {code: 'revision_conflict', text: 'Your lessons changed since you opened this screen. Reload your lessons and try again.'},
-  payload_too_large: {code: 'too_large', text: 'This file is too large. The limit is 5 MB.'},
+  revision_limit: {code: 'revision_limit', text: 'Your lessons have reached the most changes Schola can record. Nothing was changed.'},
+  payload_too_large: {code: 'too_large', text: 'This file is too large. Lesson files and lesson backups may be up to 5 MB. Nothing was changed.'},
+  store_full: {code: 'store_full', text: 'Your lesson library is full. Schola keeps it small enough to back up. Nothing was changed.'},
   confirmation_required: {code: 'confirmation_required', text: 'Confirm the switch before Schola changes the version you use.'},
   expected_revision_required: {code: 'expected_revision_required', text: 'Reload your lessons before you switch. Schola needs their current revision.'},
+  identity_collision: {code: 'identity_collision', text: 'Two of your existing lessons would get the same name. Schola stopped. Nothing was changed.'},
+  not_migrated: {code: 'not_migrated', text: 'Your existing curricula are not prepared for lessons yet. Nothing was changed.'},
+  rollback_incomplete: {code: 'rollback_incomplete', text: 'A save failed and Schola could not fully undo it. Check your lessons before you try again.'},
+  partial_restore: {code: 'partial_restore', text: 'A restore stopped part way. Check your files before you try again.'},
+  newer_than_snapshot: {code: 'newer_than_snapshot', text: 'Some records hold work saved after the migration. Schola did not replace them.'},
+  corrupt_file: {code: 'corrupt_file', text: 'A saved lesson file is damaged. Schola kept it as it was. Nothing was changed.'},
+  unsafe_path: {code: 'unsafe_path', text: 'Schola found an unsafe path in your data folder and stopped. Nothing was changed.'},
+  not_found: {code: 'not_found', text: 'Schola could not find that lesson or version.'},
+  storage_unavailable: {code: 'storage_unavailable', text: 'Schola cannot reach its data folder. Check that the folder is writable, then try again.'},
+  request_timeout: {code: 'request_timeout', text: 'The request took too long to arrive. Try again.'},
+  internal_error: {code: 'internal_error', text: 'Schola hit an unexpected problem. Check your lessons before you try again.'},
+  forbidden_origin: {code: 'forbidden_origin', text: 'Open Schola from its own local address.'},
 };
-/** @type {Record<number, {code: LessonErrorCode, text: string}>} */
-const STATUS_TEXT = {
-  409: CODE_TEXT.version_conflict,
-  413: CODE_TEXT.payload_too_large,
-  422: CODE_TEXT.invalid_lesson,
-};
+/** The codes that mean the request itself was wrong. They need no special words. */
+const PLAIN_REQUEST_CODES = new Set(['invalid_request', 'invalid_json', 'unsupported_media_type']);
 
 /** Server text is untrusted. Strip control and invisible characters, then cap the length. @param {unknown} value */
 function cleanDetail(value) {
@@ -37,13 +51,14 @@ function cleanDetail(value) {
 
 /** A failed lesson request. The message is fixed text; the server's words stay in `detail`. */
 export class LessonServiceError extends Error {
-  /** @param {number} status @param {LessonErrorCode} code @param {string} message @param {string} [detail] */
-  constructor(status, code, message, detail = '') {
+  /** @param {number} status @param {LessonErrorCode} code @param {string} message @param {string} [detail] @param {string} [serverCode] */
+  constructor(status, code, message, detail = '', serverCode = '') {
     super(message);
     this.name = 'LessonServiceError';
     this.status = status;
     this.code = code;
     this.detail = detail;
+    this.serverCode = serverCode;
   }
 }
 
@@ -61,7 +76,12 @@ export function createLessonService(transport = globalThis.fetch.bind(globalThis
   async function request(path, {method = 'GET', body} = {}) {
     /** @type {RequestInit} */
     const init = {method, credentials: 'omit'};
-    if (body !== undefined) { init.headers = {'Content-Type': 'application/json'}; init.body = JSON.stringify(body); }
+    if (body !== undefined) {
+      const text = JSON.stringify(body);
+      // Check the whole request before it leaves. The server would refuse it, and the student should learn that at once.
+      if (new TextEncoder().encode(text).length > MAX_REQUEST_BYTES) throw new LessonServiceError(0, 'too_large', TOO_LARGE_TEXT);
+      init.headers = {'Content-Type': 'application/json'}; init.body = text;
+    }
     let response;
     try { response = await transport(path, init); }
     catch { throw new LessonServiceError(0, 'network_error', 'The local server did not answer. Check your lessons before you try again.'); }
@@ -69,9 +89,15 @@ export function createLessonService(transport = globalThis.fetch.bind(globalThis
     try { value = await response.json(); } catch { value = undefined; }
     if (!response.ok) {
       const detail = cleanDetail(isObject(value) ? value.error : '');
-      const named = isObject(value) && typeof value.code === 'string' && Object.hasOwn(CODE_TEXT, value.code) ? CODE_TEXT[value.code] : undefined;
-      const known = named || STATUS_TEXT[response.status] || {code: /** @type {LessonErrorCode} */('request_failed'), text: GENERIC_TEXT};
-      throw new LessonServiceError(response.status, known.code, known.text, detail);
+      const serverCode = isObject(value) && typeof value.code === 'string' && /^[a-z][a-z_]{0,39}$/.test(value.code) ? value.code : '';
+      /** @type {{code: LessonErrorCode, text: string}} */
+      let known;
+      if (serverCode && Object.hasOwn(CODE_TEXT, serverCode)) known = CODE_TEXT[serverCode];
+      else if (serverCode && PLAIN_REQUEST_CODES.has(serverCode)) known = {code: 'request_failed', text: GENERIC_TEXT};
+      else if (serverCode) known = {code: 'request_failed', text: `The local server could not finish this request (code: ${serverCode}).`};
+      else if (response.status === 413) known = CODE_TEXT.payload_too_large;
+      else known = {code: 'request_failed', text: GENERIC_TEXT};
+      throw new LessonServiceError(response.status, known.code, known.text, detail, serverCode);
     }
     if (!isObject(value)) throw new LessonServiceError(response.status, 'invalid_response', 'The local server sent an answer Schola could not read. Check your lessons before you try again.');
     return value;
