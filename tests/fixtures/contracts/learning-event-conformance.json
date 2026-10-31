@@ -7,6 +7,27 @@
     "stage": "none"
   },
   {
+    "name": "attempt-id-uuid-form",
+    "file": "learning-events/valid/attempt-id-uuid-form.json",
+    "kind": "learning-event",
+    "expect": "valid",
+    "stage": "none"
+  },
+  {
+    "name": "attempt-id-letters-digits-underscore-hyphen",
+    "file": "learning-events/valid/attempt-id-letters-digits-underscore-hyphen.json",
+    "kind": "learning-event",
+    "expect": "valid",
+    "stage": "none"
+  },
+  {
+    "name": "attempt-id-64-characters",
+    "file": "learning-events/valid/attempt-id-64-characters.json",
+    "kind": "learning-event",
+    "expect": "valid",
+    "stage": "none"
+  },
+  {
     "name": "check-result-passed",
     "file": "learning-events/valid/check-result-passed.json",
     "kind": "learning-event",
@@ -400,6 +421,34 @@
   {
     "name": "task-on-module-completed",
     "file": "learning-events/invalid/task-on-module-completed.json",
+    "kind": "learning-event",
+    "expect": "invalid:invalid",
+    "stage": "schema"
+  },
+  {
+    "name": "attempt-id-with-space",
+    "file": "learning-events/invalid/attempt-id-with-space.json",
+    "kind": "learning-event",
+    "expect": "invalid:invalid",
+    "stage": "schema"
+  },
+  {
+    "name": "attempt-id-65-characters",
+    "file": "learning-events/invalid/attempt-id-65-characters.json",
+    "kind": "learning-event",
+    "expect": "invalid:invalid",
+    "stage": "schema"
+  },
+  {
+    "name": "attempt-id-empty",
+    "file": "learning-events/invalid/attempt-id-empty.json",
+    "kind": "learning-event",
+    "expect": "invalid:invalid",
+    "stage": "schema"
+  },
+  {
+    "name": "hint-attempt-id-with-dot",
+    "file": "learning-events/invalid/hint-attempt-id-with-dot.json",
     "kind": "learning-event",
     "expect": "invalid:invalid",
     "stage": "schema"

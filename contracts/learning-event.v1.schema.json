@@ -314,7 +314,7 @@
       "type": "object",
       "properties": {
         "attemptId": {
-          "$ref": "#/$defs/uuid"
+          "$ref": "urn:schola:contract:lesson-common:v1#/$defs/attemptId"
         },
         "artifactDigest": {
           "$ref": "#/$defs/sha256"
@@ -339,7 +339,7 @@
           "$ref": "urn:schola:contract:lesson-common:v1#/$defs/localId"
         },
         "attemptId": {
-          "$ref": "#/$defs/uuid"
+          "$ref": "urn:schola:contract:lesson-common:v1#/$defs/attemptId"
         },
         "status": {
           "enum": [
@@ -388,7 +388,7 @@
         "attemptId": {
           "oneOf": [
             {
-              "$ref": "#/$defs/uuid"
+              "$ref": "urn:schola:contract:lesson-common:v1#/$defs/attemptId"
             },
             {
               "type": "null"

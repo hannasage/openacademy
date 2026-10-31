@@ -251,6 +251,19 @@ class EventRuleTests(unittest.TestCase):
                 with self.subTest(field=field, value=value):
                     self.assertEqual(le.validate_event({**base, 'data': {**base['data'], field: value}})['ok'], ok)
 
+    def test_an_attempt_id_valid_in_a_help_record_is_valid_in_an_event_and_the_reverse(self):
+        import lesson_contract as lc
+        record = json.loads((FIXTURES / 'valid' / 'help-record-partial-example-student.json').read_text(encoding='utf-8'))
+        hint = good('hint-requested-partial-example')
+        ids = ['a', 'A', '0', 'try_2-b', 'a' * 64, 'a' * 65, '', 'has space', 'a.b', 'a/b', 'a\n', '\u00e9',
+               'a1b2c3d4-0000-4000-8000-000000000001', 'A1B2C3D4-0000-4000-8000-000000000001', '-', '_']
+        for attempt_id in ids:
+            with self.subTest(attempt_id=attempt_id):
+                as_record = lc.validate_lesson_contract('help-record', {**record, 'attemptId': attempt_id})['ok']
+                as_event = le.validate_event({**hint, 'data': {**hint['data'], 'attemptId': attempt_id}})['ok']
+                self.assertEqual(as_event, as_record)
+        self.assertTrue(le.validate_event({**hint, 'data': {**hint['data'], 'attemptId': 'attempt-3'}})['ok'])
+
     def test_the_day_must_exist(self):
         base = good('task-opened')
         self.assertTrue(le.validate_event({**base, 'time': '2028-02-29T10:00:00Z'})['ok'])

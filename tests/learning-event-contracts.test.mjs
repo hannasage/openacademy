@@ -7,6 +7,7 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import Ajv2020 from 'ajv/dist/2020.js';
+import { validateLessonContract } from '../contracts/validate.mjs';
 import {
   EVENT_TYPES,
   MAX_BYTES,
@@ -176,6 +177,32 @@ test('a hint at the partial example or full answer level needs an attempt, as in
     assert.ok(result.errors.some((error) => error.pointer === '/data/attemptId'), JSON.stringify(result.errors));
     assert.equal(validateEvent(withHint(level, base.data.attemptId)).ok, true, level);
   }
+});
+
+test('an attempt id valid in a help record is valid in an event, and the reverse', async () => {
+  const record = await readJSON(fixture('valid/help-record-partial-example-student.json'));
+  const hint = await readJSON(fixture('learning-events/valid/hint-requested-partial-example.json'));
+  const asRecord = (id) => validateLessonContract('help-record', { ...record, attemptId: id }).ok;
+  const asEvent = (id) => validateEvent({ ...hint, data: { ...hint.data, attemptId: id } }).ok;
+  const ids = [
+    'a', 'A', '0', 'try_2-b', 'a'.repeat(64), 'a'.repeat(65), '', 'has space', 'a.b', 'a/b', 'a\n', '\u00e9', 'a1b2c3d4-0000-4000-8000-000000000001',
+    'A1B2C3D4-0000-4000-8000-000000000001', '-', '_',
+  ];
+  for (const id of ids) assert.equal(asEvent(id), asRecord(id), JSON.stringify(id));
+  // Ids that real fixtures use on each side are valid on the other side.
+  const recordIds = [];
+  for (const file of ['valid/help-record-full-answer-agent.json', 'valid/help-record-partial-example-student.json']) {
+    recordIds.push((await readJSON(fixture(file))).attemptId);
+  }
+  const eventIds = [];
+  for (const entry of eventEntries.filter((item) => item.expect === 'valid')) {
+    const data = (await readJSON(fixture(entry.file))).data;
+    if (typeof data.attemptId === 'string') eventIds.push(data.attemptId);
+  }
+  assert.ok(recordIds.length > 0 && eventIds.length > 5);
+  for (const id of recordIds) assert.equal(asEvent(id), true, `help record id ${id} in an event`);
+  for (const id of eventIds) assert.equal(asRecord(id), true, `event id ${id} in a help record`);
+  assert.ok(eventIds.some((id) => !/^[0-9a-f]{8}-/.test(id)), 'some event fixtures use a non-UUID attempt id');
 });
 
 test('data objects are closed for every event type, and a raw content field is refused', async () => {

@@ -65,7 +65,7 @@ The `taskId` rules:
 
 Each type lists its `data` fields, why it exists, and its evidence level. The levels mean:
 
-- Validated: research supports this signal.
+- Supported: research supports this signal.
 - Plausible: research points the same way, but no study tested this exact use.
 - Speculative: the signal is a reasonable guess. It has little or no support yet.
 
@@ -75,31 +75,31 @@ Each integer field has a fixed range. A value outside the range is invalid.
 
 The student submitted work for a task.
 
-- `attemptId`: a lowercase UUID.
+- `attemptId`: an attempt id. It follows the lesson contract rule, so it holds 1 to 64 characters. Each is a letter, a digit, `_`, or `-`. The same id is valid in a help record.
 - `artifactDigest`: the SHA-256 of the work, as 64 lowercase hex characters. The work itself is never stored.
 - `artifactBytes`: the size of the work in bytes, from 0 to 104857600.
 
-Why: it counts tries and ties help requests and check results to a specific piece of work. Evidence: validated.
+Why: it counts tries and ties help requests and check results to a specific piece of work. Evidence: supported.
 
 ### `check_result`
 
 The app ran a check, or the student reported one.
 
 - `checkId`: the check id from the lesson module.
-- `attemptId`: the attempt that was checked.
+- `attemptId`: the attempt that was checked. It uses the attempt id rule above.
 - `status`: `passed`, `failed`, `error`, `skipped`, or `self-reported`.
 - `durationMs`: how long the check took, from 0 to 3600000.
 - `evidence`: a short note, at most 200 characters, as described above. An empty string is valid.
 - `runnerType`: the runner type from the lesson module. It is `null` for a check with no runner, such as a self-reported check.
 
-Why: the sequence of correct and incorrect results per skill is the main input for any estimate of what the student knows. Evidence: validated.
+Why: the sequence of correct and incorrect results per skill is the main input for any estimate of what the student knows. Evidence: supported.
 
 ### `hint_requested`
 
 The student asked for a hint, or accepted an offer of one.
 
 - `level`: `nudge`, `question`, `partial-example`, or `full-answer`.
-- `attemptId`: a UUID or `null`. It is `null` only for `nudge` and `question`. It is a UUID for `partial-example` and `full-answer`. This matches the help record rule in the lesson contract.
+- `attemptId`: an attempt id or `null`. It is `null` only for `nudge` and `question`. It is an attempt id for `partial-example` and `full-answer`. This matches the help record rule in the lesson contract.
 - `origin`: `student` or `agent-offer-accepted`.
 
 Why: it records help use, and the pause after help is a useful signal. A request for a full answer is not a fault, and the log never labels it as one. Evidence: plausible.
@@ -192,7 +192,7 @@ A log is a text file in JSON Lines form.
 - A blank line is not allowed.
 - An event id appears once. A repeated id is invalid on its later line.
 
-A reader validates the file line by line. It reports each line with its own number and its own error pointers. A damaged line never changes any file. A reader does not repair, drop, or rewrite a line. It reports the problem and leaves the choice to the caller.
+A reader works through the file line by line. It reports each line with its own number and its own error pointers. A damaged line never changes any file. A reader does not repair, drop, or rewrite a line. It reports the problem and leaves the choice to the caller.
 
 ### A truncated final line
 
@@ -276,7 +276,7 @@ Another implementation, for example a Rust service, proves conformance in these 
 2. For each `learning-event` entry, read the file as text. Do not change it.
 3. Refuse text over 4096 bytes before parsing. Then parse the text as JSON. A parse failure is the result `invalid`.
 4. Read `schemaVersion`. If the digits before its first dot are not 1, the result is `unsupported_version`.
-5. Validate the document against the event schema. A failure is `invalid`.
+5. Test the document against the event schema. A failure is `invalid`.
 6. Run the rules beyond the schema. A failure is `invalid`.
 7. Compare the result with `expect`.
 8. For each `learning-event-log` entry, split the text on `\n`. Run steps 3 to 6 on each line. Then apply the truncated tail rule and the repeated id rule. Compare `ok`, `truncatedTail`, and the invalid lines with the entry.
