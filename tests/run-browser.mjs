@@ -11,6 +11,7 @@ import {verifyPublications} from './browser/publications.mjs';
 
 import {verifyLearningScreens,verifyRecoveredStartup,verifyStatusWriterConflict,verifyEditsDuringStatusSave} from './browser/learning-screens.mjs';
 import {verifyJournalImport} from './browser/journal-import.mjs';
+import {verifyLessonImport} from './browser/lessons.mjs';
 import {verifyShell,verifyStartupRecovery} from './browser/shell.mjs';
 
 const server = await createIsolatedServer();
@@ -41,6 +42,15 @@ try {
     publicationsPage.on('pageerror',error=>errors.push(error.message));
     await verifyPublications({page:publicationsPage,server:publicationsServer});
   } finally {await publicationsContext.close();await publicationsServer.close();}
+  const lessonsServer=await createIsolatedServer();
+  const lessonsContext=await browser.newContext({serviceWorkers:'block'});
+  try {
+    const lessonRequests=await isolateContext(lessonsContext,lessonsServer.url);
+    const lessonsPage=await lessonsContext.newPage();
+    lessonsPage.on('pageerror',error=>errors.push(error.message));
+    await verifyLessonImport({page:lessonsPage,server:lessonsServer});
+    assert.deepEqual(lessonRequests,[],'lesson import reaches no external address');
+  } finally {await lessonsContext.close();await lessonsServer.close();}
   await verifyLearningScreens({page,server});
   await verifyRecoveredStartup({page,server});
   await verifyStatusWriterConflict({page,server});

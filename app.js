@@ -4,10 +4,13 @@ import {accounts} from './web/services/accounts.js';
 import {projectPublication} from './web/publication.js';
 import {journalList,evidenceMarkup} from './web/screens/journal.js';
 import {prepareImport,reviewImport} from './web/screens/import-review.js';
+import {createLessonService} from './web/services/lessons.js';
+import {classifyLessonFile,looksLikeLessonText,openModuleImport} from './web/screens/module-import-dialog.js';
 import {lessonMarkup} from './web/screens/lesson.js';
 import {screens} from './web/screens/model.js';
 import {shell} from './web/shell/bridge.js';
 const learning = createLearningService();
+const lessons = createLessonService();
 /** @type {Curriculum} */ let course;
 /** @type {LearningState} */ let state;
 /** @type {LocalRecord} */ let record;
@@ -233,14 +236,26 @@ $('#retry').onclick=async()=>{
  try{clearJournal();await loadCourse(record.recordId,true);}catch(error){notice(message(error)+' Your current working copy is still available for export. Retry loading the saved version.',true);}
 };
 let importAttempt=0;
+/** Lesson modules, lesson packets, and lesson backups get their own read-only review. Curriculum and progress files never come here. @param {unknown} source @param {'lesson'|'backup'|null} kind @param {string} filename */
+function reviewLessons(source,kind,filename){
+ openModuleImport(/** @type {HTMLDialogElement} */($('#import-review')),{service:lessons,source,filename,restore:kind==='backup',onFinish:imported=>{if(imported)notice('Lessons added. Your curricula and progress did not change.');}});
+}
 /** @param {HTMLInputElement} field @param {boolean} restore */
 async function previewFile(field,restore){
  const file=field.files?.[0];if(!file)return;
  const attempt=++importAttempt,epoch=viewEpoch,targetId=record?.recordId;
  const guard=()=>{requireEpoch(epoch);if(attempt!==importAttempt)throw Error('A newer file was selected. Review that file instead.');if(accountInvalidated||record?.recordId!==targetId)throw Error('The selected record changed. Choose the file again.');};
  try{
+  if(file.size>5000000)throw Error('The file is too large. Curriculum and backup files must be under 2 MB. Lesson files must be under 5 MB.');
+  const fileText=await file.text();guard();
+  /** @type {any} */ let input;
+  try{input=JSON.parse(fileText);}catch(parseError){
+   if(looksLikeLessonText(fileText)){reviewLessons(fileText,null,file.name);return;}
+   throw file.size>2000000?Error('The file must be smaller than 2 MB.'):parseError;
+  }
+  const lessonKind=classifyLessonFile(input);
+  if(lessonKind){reviewLessons(Array.isArray(input)||lessonKind==='backup'?input:fileText,lessonKind,file.name);return;}
   if(file.size>2000000)throw Error('The file must be smaller than 2 MB.');
-  const input=JSON.parse(await file.text());guard();
   let source=prepareImport(input,restore?record:undefined);
   if(restore&&source.format!=='touchline-record')source={...structuredClone(record),curriculum:source.curriculum,state:source.state,draft:{experiment:null}};
   if(restore&&source.curriculum.id!==course.id)throw Error('Switch to the matching curriculum before restoring this backup.');

@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import {readFile, readdir} from 'node:fs/promises';
 import {createLessonService, LessonServiceError} from '../web/services/lessons.js';
+import {classifyLessonFile, looksLikeLessonText} from '../web/screens/module-import-dialog.js';
 import {
-  buildImportReview, updateOffers, createImportReviewController, createPinSwitchController, renderImportReview,
+  buildImportReview, updateOffers, createImportReviewController, createPinSwitchController, renderImportReview, renderModuleList,
 } from '../web/screens/module-import.js';
 
 const json = (value, status = 200) => new Response(JSON.stringify(value), {status});
@@ -12,9 +14,20 @@ function recorder(answer) {
   const transport = async (url, options = {}) => { calls.push({url, options}); return answer(url, options); };
   return {calls, transport};
 }
-const module1 = {id: 'intro', version: '1.0.0', title: 'Intro', state: 'new', taskCount: 3, checkCount: 2, harness: true, license: {id: 'CC-BY-4.0'}, price: {amount: 1999, currency: 'USD'}, prerequisites: ['basics']};
-const preview = {kind: 'module', modules: [module1], conflicts: []};
+const sha = 'a'.repeat(64);
+/** One module entry the way the real preview route writes it. */
+const module1 = {
+  index: 0, name: 'intro.json', kind: 'module', id: 'intro', version: '1.0.0', title: 'Intro', sha256: sha, size: 1200, status: 'new',
+  taskCount: 3, checkCount: 2, harness: true, license: {id: 'CC-BY-4.0'}, price: {amount: 1999, currency: 'USD'}, prerequisites: ['basics'],
+  missingPrerequisites: ['basics'], pin: 'will-pin', pinnedVersion: null, newerVersionAvailable: null, state: 'new',
+};
+const preview = {importable: true, kind: 'module', files: [module1], modules: [module1], conflicts: [], problems: []};
 const source = {schemaVersion: '1.0', id: 'intro', version: '1.0.0'};
+const conflictPreview = {importable: false, kind: 'module', files: [], modules: [], conflicts: [{id: 'intro', version: '1.0.0'}],
+  problems: [{file: 'intro.json', index: 0, id: 'intro', version: '1.0.0', code: 'version_conflict', status: 409, reason: 'conflict', errors: [{pointer: '', message: 'This id and version are already stored with different content.'}]}]};
+const damagedPreview = {importable: false, kind: 'module', files: [], modules: [], conflicts: [],
+  problems: [{file: 'broken.json', index: 0, code: 'invalid_lesson', status: 422, reason: 'invalid', errors: [{pointer: '', message: 'The file is not valid JSON.'}]}]};
+const importResult = {imported: [{...module1, data: undefined}], revision: 1, modules: [{id: 'intro', title: 'Intro', pinnedVersion: '1.0.0', versions: ['1.0.0'], newerVersionAvailable: null}]};
 
 test('preview makes only the preview call and sends no credentials', async () => {
   const {calls, transport} = recorder(() => json(preview));
@@ -35,10 +48,13 @@ test('every service call stays on the local lesson routes', async () => {
   await service.previewImport(source); await service.importLessons(source); await service.listLessons();
   await service.switchPin('intro', '1.1.0', {confirm: true}); await service.exportLessons();
   await service.previewRestore({format: 'schola-lesson-backup'}); await service.restoreBackup({format: 'schola-lesson-backup'});
+  await service.migrate();
   assert.deepEqual(calls.map(call => call.url), [
     '/api/lessons/import/preview', '/api/lessons/import', '/api/lessons', '/api/lessons/pins',
-    '/api/lessons/export', '/api/lessons/import/preview', '/api/lessons/import',
+    '/api/lessons/export', '/api/lessons/import/preview', '/api/lessons/import', '/api/lessons/migrate',
   ]);
+  assert.equal(calls.at(-1).options.method, 'POST');
+  assert.deepEqual(JSON.parse(calls.at(-1).options.body), {});
   for (const call of calls) {
     assert.match(call.url, /^\/api\/lessons(\/|$)/);
     assert.equal(call.options.credentials, 'omit');
@@ -59,19 +75,52 @@ test('a pin switch without an explicit confirm makes no call', async () => {
   assert.deepEqual(JSON.parse(calls[0].options.body), {moduleId: 'intro', version: '1.1.0', confirm: true, expectedRevision: 4});
 });
 
+test('the source may be text, an object, or a list, and goes to the server as given', async () => {
+  const {calls, transport} = recorder(() => json(preview));
+  const service = createLessonService(transport);
+  const text = '{"schemaVersion": "1.0", "id": "intro"}\n';
+  await service.previewImport(text, 'a.json');
+  await service.previewImport(source, 'a.json');
+  await service.previewImport([text, source], 'bundle.json');
+  await service.previewImport(source);
+  assert.deepEqual(calls.map(call => JSON.parse(call.options.body)), [
+    {source: text, filename: 'a.json'}, {source, filename: 'a.json'}, {source: [text, source], filename: 'bundle.json'}, {source},
+  ]);
+});
+
 test('server errors and network failures surface visible messages', async () => {
   const cases = [
-    [409, 'conflict', /different content|already/i],
-    [413, 'too_large', /too large/i],
-    [422, 'invalid', /not a valid/i],
+    [422, 'invalid_lesson', 'invalid', /not a valid lesson/i],
+    [422, 'missing_module', 'missing_module', /lesson set.*module.*not in/i],
+    [409, 'version_conflict', 'conflict', /different content/i],
+    [409, 'unsupported_version', 'unsupported_version', /newer.*version|not supported/i],
+    [409, 'revision_conflict', 'revision_conflict', /changed|reload/i],
+    [413, 'payload_too_large', 'too_large', /too large/i],
+    [400, 'invalid_request', 'request_failed', /could not finish/i],
   ];
-  for (const [status, code, pattern] of cases) {
-    const service = createLessonService(async () => json({error: 'Server detail.'}, status));
-    await assert.rejects(service.importLessons(source), error => error instanceof LessonServiceError && error.status === status && error.code === code && pattern.test(error.message) && error.detail === 'Server detail.');
+  for (const [status, serverCode, code, pattern] of cases) {
+    const service = createLessonService(async () => json({error: 'Server detail.', code: serverCode, retryable: false}, status));
+    await assert.rejects(service.importLessons(source), error => error instanceof LessonServiceError && error.status === status && error.code === code && pattern.test(error.message) && error.detail === 'Server detail.', serverCode);
+  }
+  for (const [status, code] of [[409, 'conflict'], [413, 'too_large'], [422, 'invalid']]) {
+    await assert.rejects(createLessonService(async () => json({error: 'x'}, status)).importLessons(source), error => error.code === code, `status ${status} without a code`);
   }
   await assert.rejects(createLessonService(async () => new Response('<html>too big</html>', {status: 413})).importLessons(source), error => error.code === 'too_large' && error.detail === '');
   await assert.rejects(createLessonService(async () => { throw new TypeError('Failed to fetch'); }).listLessons(), error => error.code === 'network_error' && /did not answer/.test(error.message));
   await assert.rejects(createLessonService(async () => new Response('<html>ok</html>')).listLessons(), error => error.code === 'invalid_response');
+});
+
+test('migrate posts an empty object and returns the server status', async () => {
+  const {calls, transport} = recorder(() => json({status: 'migrated', records: 1, snapshots: 1, files: 14}));
+  const result = await createLessonService(transport).migrate();
+  assert.deepEqual(result, {status: 'migrated', records: 1, snapshots: 1, files: 14});
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].url, '/api/lessons/migrate');
+  assert.equal(calls[0].options.method, 'POST');
+  assert.equal(calls[0].options.credentials, 'omit');
+  assert.deepEqual(JSON.parse(calls[0].options.body), {});
+  const again = await createLessonService(async () => json({status: 'already-migrated'})).migrate();
+  assert.equal(again.status, 'already-migrated');
 });
 
 test('server text is cleaned and capped before it becomes a detail', async () => {
@@ -81,7 +130,9 @@ test('server text is cleaned and capped before it becomes a detail', async () =>
 });
 
 test('the review lists what an import would add, read only', () => {
-  const model = buildImportReview({kind: 'packet', packetTitle: 'Starter', modules: [module1, {id: 'next', version: '2.0.0', title: 'Next', state: 'present'}], knownModuleIds: []}, {filename: 'pack.json'});
+  const next = {...module1, index: 1, id: 'next', version: '2.0.0', title: 'Next', state: 'present', status: 'already-stored', prerequisites: [], missingPrerequisites: [], pin: 'kept', pinnedVersion: '2.0.0'};
+  const model = buildImportReview({importable: true, kind: 'packet', packetTitle: 'Starter', files: [{kind: 'packet', id: 'starter', version: '1.0.0', title: 'Starter', status: 'new'}, module1, next], modules: [module1, next], conflicts: [], problems: []}, {filename: 'pack.json'});
+  assert.match(model.heading, /Starter/);
   assert.equal(model.items.length, 2);
   const [first, second] = model.items;
   assert.equal(first.title, 'Intro');
@@ -92,6 +143,8 @@ test('the review lists what an import would add, read only', () => {
   assert.match(first.harness, /includes a tutor harness/i);
   assert.ok(first.warnings.some(text => /basics/.test(text)), 'a missing prerequisite is a warning');
   assert.match(second.stateText, /already/i);
+  assert.match(first.pinText, /would use this version/i);
+  assert.match(second.pinText, /keep using version 2\.0\.0/i);
   assert.equal(model.canConfirm, true);
   assert.equal(buildImportReview({modules: [{id: 'a', version: '1.0.0', title: 'A', state: 'present'}]}).canConfirm, false);
   assert.match(buildImportReview({modules: [{id: 'a', version: '1.0.0', title: 'A'}]}).items[0].price, /no price/i);
@@ -99,22 +152,55 @@ test('the review lists what an import would add, read only', () => {
   assert.match(buildImportReview({modules: [{id: 'a', version: '1.0.0', title: 'A'}]}).items[0].harness, /no tutor harness/i);
 });
 
-test('a prerequisite already in the library or the same import is not a warning', () => {
-  const model = buildImportReview({modules: [module1, {id: 'basics', version: '1.0.0', title: 'Basics'}], knownModuleIds: []});
-  assert.deepEqual(model.items[0].warnings, []);
-  const known = buildImportReview({modules: [module1], knownModuleIds: ['basics']});
-  assert.deepEqual(known.items[0].warnings, []);
-  const server = buildImportReview({modules: [{...module1, missingPrerequisites: ['other']}]});
-  assert.ok(server.items[0].warnings.some(text => /other/.test(text)));
+test('the server decides which prerequisites are missing', () => {
+  const none = buildImportReview({modules: [{...module1, missingPrerequisites: []}]});
+  assert.deepEqual(none.items[0].warnings, []);
+  const one = buildImportReview({modules: [module1]});
+  assert.equal(one.items[0].warnings.length, 1);
+  assert.match(one.items[0].warnings[0], /"basics"/);
+  const bare = {...module1}; delete bare.missingPrerequisites;
+  assert.ok(buildImportReview({modules: [bare]}).items[0].warnings.some(text => /basics/.test(text)), 'an older answer falls back to the import itself');
+  assert.deepEqual(buildImportReview({modules: [bare, {id: 'basics', version: '1.0.0', title: 'Basics'}]}).items[0].warnings, []);
 });
 
 test('a same-id different-bytes conflict is flagged and blocks the confirm step', () => {
-  const model = buildImportReview({modules: [{...module1, state: 'conflict'}], conflicts: [{id: 'intro', version: '1.0.0'}]});
+  const model = buildImportReview(conflictPreview);
   assert.equal(model.canConfirm, false);
-  assert.equal(model.items[0].state, 'conflict');
+  assert.deepEqual(model.items, []);
   assert.match(model.conflicts[0], /intro/);
   assert.match(model.conflicts[0], /will not replace/i);
-  assert.equal(buildImportReview({modules: [module1], conflicts: [{id: 'intro', version: '1.0.0'}]}).canConfirm, false);
+  assert.match(model.summary, /nothing was changed/i);
+  assert.equal(buildImportReview({...preview, conflicts: [{id: 'intro', version: '1.0.0'}]}).canConfirm, false);
+  assert.equal(buildImportReview({modules: [{...module1, state: 'conflict'}]}).items[0].state, 'conflict');
+});
+
+test('a damaged or invalid file lists the server problems and blocks the confirm step', () => {
+  const model = buildImportReview(damagedPreview);
+  assert.equal(model.canConfirm, false);
+  assert.equal(model.problems.length, 1);
+  assert.match(model.problems[0], /broken\.json/);
+  assert.match(model.problems[0], /not valid JSON/);
+  assert.match(model.summary, /nothing was changed/i);
+  const mixed = buildImportReview({...preview, importable: false, problems: damagedPreview.problems});
+  assert.equal(mixed.canConfirm, false, 'a preview that says importable false never confirms');
+  const hostile = buildImportReview({...damagedPreview, problems: [{file: '\u202Ea\n.json', errors: [{message: 'x'.repeat(900)}]}]});
+  assert.ok(hostile.problems[0].length < 500 && !/[\p{Cc}\p{Cf}]/u.test(hostile.problems[0]));
+});
+
+test('a packet whose modules are already stored can still be confirmed', () => {
+  const stored = {...module1, state: 'present', status: 'already-stored', pin: 'kept', pinnedVersion: '1.0.0'};
+  const model = buildImportReview({importable: true, kind: 'packet', packetTitle: 'Set', files: [{kind: 'packet', id: 'set', version: '1.0.0', title: 'Set', status: 'new'}, stored], modules: [stored], conflicts: [], problems: []});
+  assert.equal(model.canConfirm, true);
+  const nothing = buildImportReview({importable: true, kind: 'module', files: [stored], modules: [stored], conflicts: [], problems: []});
+  assert.equal(nothing.canConfirm, false);
+});
+
+test('a newer version in the preview becomes an offer and nothing else', () => {
+  const newer = {...module1, version: '1.1.0', state: 'new', pin: 'newer-than-pin', pinnedVersion: '1.0.0', newerVersionAvailable: '1.1.0'};
+  const model = buildImportReview({importable: true, kind: 'module', files: [newer], modules: [newer], conflicts: [], problems: []});
+  assert.match(model.items[0].pinText, /keep using version 1\.0\.0/i);
+  assert.equal(model.items[0].offer.toVersion, '1.1.0');
+  assert.match(model.items[0].offer.text, /nothing changes unless you choose/i);
 });
 
 test('Cancel makes zero calls, before and after the preview', async () => {
@@ -150,7 +236,7 @@ test('a preview that returns after Cancel is ignored', async () => {
 });
 
 test('import happens only after an explicit confirm', async () => {
-  const {calls, transport} = recorder(url => json(url.endsWith('/preview') ? preview : {imported: [{id: 'intro', version: '1.0.0'}], revision: 2}));
+  const {calls, transport} = recorder(url => json(url.endsWith('/preview') ? preview : importResult));
   const controller = createImportReviewController({service: createLessonService(transport), source, filename: 'a.json'});
   assert.equal(controller.getState().phase, 'idle');
   await controller.start();
@@ -161,7 +247,20 @@ test('import happens only after an explicit confirm', async () => {
   const state = controller.getState();
   assert.equal(state.phase, 'done');
   assert.equal(state.message.kind, 'success');
-  assert.match(state.message.text, /1 lesson/);
+  assert.match(state.message.text, /Added 1 lesson/);
+  assert.equal(state.result.revision, 1);
+  assert.equal(state.result.modules[0].id, 'intro');
+});
+
+test('the added count skips files that were already stored and counts a lone packet', async () => {
+  const stored = {...module1, status: 'already-stored'};
+  const packet = {kind: 'packet', id: 'set', version: '1.0.0', title: 'Set', status: 'new'};
+  for (const [imported, pattern] of [[[stored, module1], /Added 1 lesson\./], [[packet, stored], /Added the lesson set/], [[packet, module1, {...module1, id: 'two'}], /Added 2 lessons/]]) {
+    const {transport} = recorder(url => json(url.endsWith('/preview') ? preview : {imported, revision: 3, modules: []}));
+    const controller = createImportReviewController({service: createLessonService(transport), source, filename: 'a.json'});
+    await controller.start(); await controller.confirm();
+    assert.match(controller.getState().message.text, pattern);
+  }
 });
 
 test('confirm before the preview, or over a conflict, makes no import call', async () => {
@@ -170,7 +269,7 @@ test('confirm before the preview, or over a conflict, makes no import call', asy
   assert.equal(await idle.confirm(), false);
   assert.equal(early.calls.length, 0);
 
-  const conflict = recorder(() => json({modules: [{...module1, state: 'conflict'}], conflicts: [{id: 'intro', version: '1.0.0'}]}));
+  const conflict = recorder(() => json(conflictPreview));
   const blocked = createImportReviewController({service: createLessonService(conflict.transport), source, filename: 'a.json'});
   await blocked.start();
   assert.equal(await blocked.confirm(), false);
@@ -179,8 +278,8 @@ test('confirm before the preview, or over a conflict, makes no import call', asy
 });
 
 test('a failed import never claims success and shows the server problem', async () => {
-  for (const [status, pattern] of [[409, /different content|already/i], [413, /too large/i], [422, /not a valid/i]]) {
-    const {transport} = recorder(url => url.endsWith('/preview') ? json(preview) : json({error: 'Nope.'}, status));
+  for (const [status, serverCode, pattern] of [[409, 'version_conflict', /different content/i], [413, 'payload_too_large', /too large/i], [422, 'invalid_lesson', /not a valid/i], [422, 'missing_module', /module/i]]) {
+    const {transport} = recorder(url => url.endsWith('/preview') ? json(preview) : json({error: 'Nope.', code: serverCode}, status));
     const controller = createImportReviewController({service: createLessonService(transport), source, filename: 'a.json'});
     await controller.start(); await controller.confirm();
     const state = controller.getState();
@@ -197,7 +296,7 @@ test('a failed import never claims success and shows the server problem', async 
 });
 
 test('a failed preview shows the problem and offers no confirm step', async () => {
-  const {transport} = recorder(() => json({error: 'Bad file.'}, 422));
+  const {transport} = recorder(() => json({error: 'Bad file.', code: 'invalid_lesson'}, 422));
   const controller = createImportReviewController({service: createLessonService(transport), source, filename: 'a.json'});
   await controller.start();
   assert.equal(controller.getState().phase, 'failed');
@@ -244,11 +343,12 @@ test('a pin switch needs two explicit steps and Cancel makes zero calls', async 
   assert.equal(calls[0].url, '/api/lessons/pins');
   assert.deepEqual(JSON.parse(calls[0].options.body), {moduleId: 'intro', version: '1.1.0', confirm: true, expectedRevision: 3});
   assert.equal(again.getState().phase, 'done');
+  assert.equal(again.getState().listing.revision, 4, 'the new listing is kept for the screen');
 });
 
 test('a failed pin switch never claims success', async () => {
   const offer = {moduleId: 'intro', title: 'Intro', fromVersion: '1.0.0', toVersion: '1.1.0', text: ''};
-  const controller = createPinSwitchController({service: createLessonService(async () => json({error: 'Revision moved.'}, 409)), offer});
+  const controller = createPinSwitchController({service: createLessonService(async () => json({error: 'Revision moved.', code: 'revision_conflict'}, 409)), offer});
   controller.review(); await controller.confirm();
   assert.equal(controller.getState().phase, 'failed');
   assert.equal(controller.getState().message.kind, 'error');
@@ -282,7 +382,7 @@ test('hostile server text renders as text and never as markup', async () => {
 });
 
 test('the rendered review wires Cancel and Confirm to the controller and shows errors', async () => {
-  const {calls, transport} = recorder(url => url.endsWith('/preview') ? json(preview) : json({error: 'No.'}, 413));
+  const {calls, transport} = recorder(url => url.endsWith('/preview') ? json(preview) : json({error: 'No.', code: 'payload_too_large'}, 413));
   const controller = createImportReviewController({service: createLessonService(transport), source, filename: 'a.json'});
   await controller.start();
   const container = fakeDocument();
@@ -292,6 +392,7 @@ test('the rendered review wires Cancel and Confirm to the controller and shows e
   walk(container, node => { if (node.tag === 'button') buttons.push(node); });
   const labels = buttons.map(button => button.textContent);
   assert.ok(labels.includes('Add these lessons'));
+  assert.ok(container.textContent.includes('Schola would use this version'));
   assert.ok(labels.includes('Cancel'));
   await buttons.find(button => button.textContent === 'Add these lessons').listeners.click();
   assert.match(container.textContent, /too large/i);
@@ -308,4 +409,52 @@ test('the rendered review wires Cancel and Confirm to the controller and shows e
   cancel[0].listeners.click();
   assert.equal(calls.length, callsBefore);
   assert.equal(fresh.getState().phase, 'cancelled');
+});
+
+test('the module list offers a newer version in two steps and never switches on its own', () => {
+  const listing = {revision: 3, modules: [
+    {id: 'intro', title: '<b>Intro</b>', versions: ['1.0.0', '1.1.0'], pinnedVersion: '1.0.0', newerVersionAvailable: '1.1.0'},
+    {id: 'other', title: 'Other', versions: ['1.0.0'], pinnedVersion: '1.0.0', newerVersionAvailable: null},
+  ]};
+  const offer = updateOffers(listing)[0];
+  const clicks = [];
+  const actions = {onReview: id => clicks.push(['review', id]), onConfirm: id => clicks.push(['confirm', id]), onDecline: id => clicks.push(['decline', id]), onClose: () => clicks.push(['close'])};
+  const labels = container => { const found = []; walk(container, node => { if (node.tag === 'button') found.push(node); }); return found; };
+
+  const offered = fakeDocument();
+  renderModuleList(offered, {listing, switches: {}, message: {kind: 'success', text: 'Added 1 lesson.'}}, actions);
+  assert.ok(offered.textContent.includes('<b>Intro</b>'), 'the title is text');
+  assert.match(offered.textContent, /Added 1 lesson/);
+  assert.match(offered.textContent, /Nothing changes unless you choose to switch/);
+  assert.deepEqual(labels(offered).map(button => button.textContent), ['Review the switch', 'Close']);
+  walk(offered, node => assert.ok(!/^(b|img|script|iframe|a)$/.test(node.tag)));
+  labels(offered)[0].listeners.click();
+  assert.deepEqual(clicks, [['review', 'intro']]);
+
+  const confirming = fakeDocument();
+  renderModuleList(confirming, {listing, switches: {intro: {phase: 'confirming', offer, message: {kind: 'info', text: 'Switch "Intro" from version 1.0.0 to version 1.1.0? You can switch back later.'}}}, message: null}, actions);
+  assert.deepEqual(labels(confirming).map(button => button.textContent), ['Switch to version 1.1.0', 'Keep version 1.0.0', 'Close']);
+  labels(confirming)[1].listeners.click(); labels(confirming)[0].listeners.click();
+  assert.deepEqual(clicks.slice(1), [['decline', 'intro'], ['confirm', 'intro']]);
+
+  const empty = fakeDocument();
+  renderModuleList(empty, {listing: {revision: 0, modules: []}, switches: {}, message: null}, actions);
+  assert.match(empty.textContent, /no imported lessons/i);
+});
+
+test('a chosen file goes to the lesson review only when it is a lesson file', async () => {
+  const folder = new URL('./fixtures/contracts/valid/', import.meta.url);
+  const read = async name => JSON.parse(await readFile(new URL(name, folder), 'utf8'));
+  assert.equal(classifyLessonFile(await read('lesson-module-minimal.json')), 'lesson');
+  assert.equal(classifyLessonFile(await read('packet-one-module.json')), 'lesson');
+  assert.equal(classifyLessonFile([await read('packet-one-module.json'), await read('lesson-module-minimal.json')]), 'lesson');
+  assert.equal(classifyLessonFile({format: 'schola-lesson-backup', version: 1}), 'backup');
+  assert.equal(classifyLessonFile({schemaVersion: '9.0', id: 'x'}), 'lesson', 'an unknown major version still goes to the server, which explains the refusal');
+  // Every curriculum, progress backup, and record example keeps the older review.
+  for (const name of (await readdir(folder)).filter(entry => entry.endsWith('.json') && !/^(lesson-module|packet|help-record)/.test(entry))) {
+    assert.equal(classifyLessonFile(await read(name)), null, name);
+  }
+  for (const value of [null, 5, 'text', [], [1], [{schemaVersion: '1.0'}, {}], {schemaVersion: 1}]) assert.equal(classifyLessonFile(value), null);
+  assert.equal(looksLikeLessonText('{"schemaVersion": "1.0", "id": "a", "ti'), true);
+  assert.equal(looksLikeLessonText('{"id": "my-course", "title": "A curricul'), false);
 });
