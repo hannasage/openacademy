@@ -213,12 +213,57 @@ Import and preview take `{source, filename}`. The `source` is the file text, a l
 The error codes are: 422 `invalid_lesson`, `missing_module`, and `expected_revision_required`, 409 `version_conflict`, `unsupported_version`, `revision_conflict`, and `revision_limit`, 413 `payload_too_large` and `store_full`, 408 `request_timeout`, 400 for a malformed request, and 500 `internal_error` for a fault in stored data.
 A 500 `internal_error` answer carries no path and no trace. The details go to the server console only.
 
+## Local checks
+
+A lesson check can run on the student's computer. The check runner has two tiers.
+
+- Tier 1 checks are built in: `file-exists`, `text-match`, and `json-valid`. They run no creator code. The field names are in [Contracts](../contracts/README.md#built-in-check-runners). A check type the app cannot run is skipped, and the student reports the result by hand.
+- Tier 2 checks run a script written by the lesson author. They run only after the student sees the script and agrees.
+
+The check routes use the local address and the same Host and Origin checks as the other routes. A request body may be up to 64 KB.
+
+| Route | Use |
+|---|---|
+| `GET /api/checks/session` | Return the token for this launch of the server |
+| `GET /api/checks/workspace` | Say which folder checks read, and whether it is still usable |
+| `POST /api/checks/workspace` | Set that folder. Send `{path}` |
+| `POST /api/checks/inspect` | Say what a check would run, with its hash. Send `{moduleId, version, checkId}` |
+| `POST /api/checks/consent` | Record the student's agreement to one script. Send `{moduleId, version, checkId, confirm: true, shownHash}` |
+| `POST /api/checks/run` | Run one check. Send `{moduleId, version, checkId, consentId?}` |
+
+Every route after the first needs the token in the `X-Schola-Check-Token` header. The server makes the token when it starts and compares it in constant time. The first route gives the token only to a request that passes the Host and Origin checks and that no browser marks as cross-site.
+
+### The workspace folder
+
+The workspace is the one folder that checks read. It is saved in `_lessons/check-workspace.json` in the data folder. The path must exist, be a folder, and be resolved with its real path. Schola refuses the top of the disk, the home folder, any folder that holds the home folder, the data folder, any folder inside the data folder, and any folder that holds the data folder. It checks again each time it runs a check.
+
+### Consent
+
+- A consent record is tied to the module, the version, the check, the SHA-256 hash of everything that would run, and the real path of the workspace. The hash covers the runner fields, the runtime, the arguments, the time limit, and the script bytes. If any of these change, the old consent no longer applies.
+- Only `POST /api/checks/consent` creates a consent. It needs `confirm: true` and a `shownHash` equal to the hash the server computes now. The run route has no field and no header that can grant consent. A run request with an unknown field is refused.
+- Consent lives in memory. It ends when the server stops.
+- A built-in check needs no consent.
+- A run for a script without a valid consent answers 403 `consent_required`, and no process starts.
+- One check runs at a time. A second run request while one is going answers 429 `busy`.
+
+The consent screen is `web/screens/check-consent.js`. It shows the runtime, the arguments, the time limit, the folder, the hash, and the script. It says that this is consent, not a sandbox. Cancel and Escape make no call. No other screen opens it yet.
+
+Error codes: 403 `invalid_token`, `consent_required`, and `forbidden_origin`, 400 `invalid_workspace`, `confirmation_required`, `consent_not_needed`, and `invalid_request`, 409 `workspace_required` and `hash_mismatch`, 404 `not_found`, 413 `payload_too_large`, 429 `busy`, and 500 `internal_error` or `corrupt_file`.
+
+### What the token and the consent protect
+
+They protect the student from hostile lesson content, and from a page on another site. They do not protect the student from a hostile program on the same computer. That program can read the token from the session route and call the consent route with any headers it likes. It already has the student's permissions. Nothing in this design can tell a click from a program.
+
+The tutor surface, when it exists, must not offer the consent route to an agent. An agent can run a check, but an agent cannot agree for the student.
+
 ## Known limits
 
 These are deliberate choices for this release, not oversights.
 
 - The server supports macOS and Linux. Windows is untested. Schola does not reject Windows reserved names such as `con` or `nul` as lesson IDs.
-- The lesson routes check the Host header, and the Origin header when a browser sends one. A request with no Origin header is accepted. A later step adds a per-launch token for the tutor surface.
+- The lesson routes check the Host header, and the Origin header when a browser sends one. A request with no Origin header is accepted. The check routes add a per-launch token.
+- Consent is not isolation. A script that a student agrees to run can still read the student's files and use the network. The token and the consent protect against lesson content, not against another program on the same computer.
+- The server handles one request at a time. While a check runs, other requests wait. The busy answer protects a future server that handles requests at the same time.
 - The pin file is read, changed, and written without a lock file. Do not run two writers at once. Stop the server before you run the command line.
 - The module list reads each stored module on every request. It does not cache.
 

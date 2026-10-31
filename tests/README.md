@@ -117,5 +117,14 @@ python3 -m unittest -v tests.test_check_runner
 
 The tests build their own folders under a temporary directory. They cover `..` paths, absolute paths, NUL bytes, long paths, links that leave the folder, a link swapped in after the path check, named pipes, sockets, device files, files over the size cap, and a pattern that would run forever.
 
+The check routes, the token, the workspace setting, and consent:
+
+```sh
+python3 -m unittest -v tests.test_check_routes
+node --test tests/check-consent.test.mjs
+```
+
+The route tests start a server that handles requests at the same time, so they can check the busy answer. They cover a missing and a wrong token, a foreign Host and Origin, unsafe workspace folders, consent bound to a hash and a folder, and a run request that tries to grant consent. The Node test runs the check service and the consent screen against a fake server and a fake document. It checks that Cancel makes no call and that server text is shown as text only.
+
 The golden data in `tests/fixtures/storage/pre-s03/` is the data folder as it was before lessons.
 A test loads it and checks that no byte changes.
