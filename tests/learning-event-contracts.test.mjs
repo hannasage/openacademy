@@ -256,6 +256,30 @@ test('data objects are closed for every event type, and a raw content field is r
   }
 });
 
+test('the evidence fixtures cover one character from every hidden or control range', async () => {
+  const required = [
+    ['tag character', 0xe0041], ['zero-width space', 0x200b], ['left-to-right mark', 0x200e], ['right-to-left mark', 0x200f],
+    ['arabic letter mark', 0x61c], ['first isolate', 0x2066], ['last isolate', 0x2069], ['delete', 0x7f], ['next line', 0x85],
+    ['last C1 control', 0x9f], ['right-to-left override', 0x202e], ['line separator', 0x2028], ['start of heading', 0x01], ['lone surrogate', 0xd800],
+  ];
+  const evidence = [];
+  for (const entry of eventEntries.filter((item) => item.expect !== 'valid' && item.stage === 'schema')) {
+    const text = (await readText(fixture(entry.file)));
+    evidence.push(text);
+  }
+  const bag = evidence.join('');
+  for (const [label, code] of required) {
+    const found = code === 0xd800 ? bag.includes('\\ud800') : bag.includes(String.fromCodePoint(code)) || bag.includes(`\\u${code.toString(16).padStart(4, '0')}`);
+    assert.equal(found, true, `no invalid fixture holds a ${label}`);
+  }
+  // Each of those characters alone makes an otherwise valid check_result invalid.
+  const base = await readJSON(fixture('learning-events/valid/check-result-passed.json'));
+  for (const [label, code] of required) {
+    const char = code === 0xd800 ? '\ud800' : String.fromCodePoint(code);
+    assert.equal(validateEvent({ ...base, data: { ...base.data, evidence: `a${char}b` } }).ok, false, label);
+  }
+});
+
 test('integer bounds hold at the edge', async () => {
   const load = (name) => readJSON(fixture(`learning-events/valid/${name}.json`));
   const table = [

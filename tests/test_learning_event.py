@@ -237,6 +237,21 @@ class EventRuleTests(unittest.TestCase):
                     outside[field] = 'x'
                     self.assertFalse(le.validate_event(outside)['ok'])
 
+    def test_one_character_from_every_hidden_or_control_range_is_refused_in_evidence(self):
+        base = good('check-result-passed')
+        for label, code in (('tag character', 0xE0041), ('zero-width space', 0x200B), ('left-to-right mark', 0x200E),
+                            ('right-to-left mark', 0x200F), ('arabic letter mark', 0x61C), ('first isolate', 0x2066),
+                            ('last isolate', 0x2069), ('delete', 0x7F), ('next line', 0x85), ('last C1 control', 0x9F),
+                            ('right-to-left override', 0x202E), ('line separator', 0x2028), ('start of heading', 0x01),
+                            ('lone surrogate', 0xD800)):
+            with self.subTest(label=label):
+                document = copy.deepcopy(base)
+                document['data']['evidence'] = f'a{chr(code)}b'
+                self.assertFalse(le.validate_event(document)['ok'])
+        document = copy.deepcopy(base)
+        document['data']['evidence'] = "Line 4: expected (a, b) got 'c'; see x_y/z-1."
+        self.assertTrue(le.validate_event(document)['ok'])
+
     def test_integer_bounds_hold_at_the_edge(self):
         table = [
             ('attempt-submitted', 'artifactBytes', 0, 104857600),

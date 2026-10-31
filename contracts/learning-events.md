@@ -1,7 +1,5 @@
 # Learning events
 
-A link to this page from `contracts/README.md` will be added later.
-
 This page defines the learning event contract, `learning-event.v1`. It also defines the log file format that holds the events. The schema is `contracts/learning-event.v1.schema.json`. The Node validator is `contracts/validate-events.mjs`. The Python validator is `learning_event.py`.
 
 ## Purpose
@@ -11,17 +9,18 @@ The learning event log is a short record of what a student did in a lesson. Two 
 - The student hub shows the student their own progress and their own use of help.
 - A model that offers help to the student reads a summary of recent events.
 
-The log must stay small. It must hold no raw content. It must be safe to show to a model. The schema enforces these rules, so a writer cannot break them by mistake.
+The log must stay small. It must hold no raw content. It must be safe to show to a model. The schema enforces the limits that a schema can enforce: closed objects, fixed patterns, bounded numbers, and a short allow-list for the one free text field. A schema cannot judge what a piece of text means. The limits below say what the schema proves and what the writer must still do.
 
 ## Privacy rules
 
 - The log is local. It stays on the student's machine unless the student chooses to export it.
 - The student owns the log. The student can read every event the app writes.
-- An event never holds raw content. It holds no code, no terminal output, no lesson text, and no free writing from the student.
+- The schema has no field for code, terminal output, lesson text, or free writing from the student. Every object is closed, so an event with any such field is invalid.
 - Work is stored as a digest and a byte count. The digest is a SHA-256 hash of the work.
 - A reflection is stored in a separate place and fetched by its id. The event holds the id and the character count only.
-- A lesson is named by its module id, module version, and task id. An event never copies lesson text.
+- A lesson is named by its module id, module version, and task id. A writer never copies lesson text into an event.
 - Free text is limited to one field, `evidence`. It holds at most 200 characters from a short allow-list: the ASCII letters and digits, the space, and these marks: `. , : ; ( ) ' _ / -`. Every other character is invalid. This keeps out control characters, hidden characters, bidirectional controls, and lone surrogates. These can hide instructions from a reader.
+- The schema cannot tell a name, an email address, or a file path from a label. Ids, skill labels, and `evidence` follow patterns, and a short name or a path such as `src/app.js` can still fit them. The writer must keep names, email addresses, and paths out of every id and out of `evidence`. A test cannot prove that the writer does so.
 - The app computes labels such as "guessing" on screen and shows the rule it used. The app never stores such a label as a fact.
 
 ## Do not capture
@@ -203,7 +202,7 @@ A writer that finds a truncated tail starts its next event on a new line.
 
 ## Validators
 
-Both validators give the same results. Node uses camel case names and Python uses snake case names.
+Both validators follow the same rules. The parity test runs both on every fixture and compares the verdict, the reason, the set of error pointers, and the number of errors. It does not compare the wording of error messages, which can differ. Node uses camel case names and Python uses snake case names.
 
 - `validateEvent(document)` and `validate_event(document)` check one parsed event.
 - `validateEventText(text)` and `validate_event_text(text)` parse one line of JSON, then check it.
@@ -239,7 +238,7 @@ A JSON object must not repeat a key. This holds at any depth. It also holds for 
 
 ### Changing the contract
 
-The schema is closed on purpose. An event with a field that the schema does not list is invalid. This holds when `schemaVersion` names a newer minor version such as `1.1`. A fixture covers this case. A minor number never makes a reader accept unknown fields. A new field or a new event type changes the schema file and raises the minor number. A reader that has the older schema rejects the newer event. This keeps raw content out of the log. An incompatible change raises the major number.
+The schema is closed on purpose. An event with a field that the schema does not list is invalid. The `schemaVersion` of such an event can be `1.1`, and it is still invalid. A fixture covers this case. A minor number never makes a reader accept unknown fields. A new field or a new event type changes the schema file and raises the minor number. A reader that has the older schema rejects the newer event. This keeps raw content out of the log. An incompatible change raises the major number.
 
 ## Text from students and creators is untrusted
 
