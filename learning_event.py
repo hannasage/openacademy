@@ -316,10 +316,14 @@ def validate_log_text(text):
         if is_tail and stage == 'parse':
             truncated_tail = True
             result = _truncated()
-        elif result['ok']:
+        elif isinstance(document, dict) and isinstance(document.get('eventId'), str) and result.get('reason') != 'unsupported_version':
+            # Every parsed line counts, valid or not. A line of an unsupported version does not, because
+            # its fields mean something else to this reader.
             event_id = document['eventId']
             if event_id in seen:
-                result = _invalid([_error('/eventId', 'Each event id must be unique in a log. This one is repeated.')])
+                errors = [] if result['ok'] else result['errors']
+                if len(errors) <= MAX_ERRORS:
+                    result = _invalid(errors + [_error('/eventId', 'Each event id must be unique in a log. This one is repeated.')])
             seen.add(event_id)
         lines.append(_line_result(number, result))
     return {'ok': all(line['ok'] for line in lines), 'lines': lines, 'truncatedTail': truncated_tail}

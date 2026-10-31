@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { copyFile, mkdtemp, readFile, readdir, rm, stat, utimes, writeFile } from 'node:fs/promises';
+import { chmod, copyFile, mkdtemp, readFile, readdir, rm, stat, truncate, utimes, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -532,6 +532,51 @@ test('a log reports a repeated event id on the later line', async () => {
   assert.deepEqual(result.lines[1].errors.map((error) => error.pointer), ['/eventId']);
 });
 
+test('a repeated event id is reported next to the other errors, and an invalid first line still counts', async () => {
+  const one = await readJSON(fixture('learning-events/valid/task-opened.json'));
+  const other = await readJSON(fixture('learning-events/valid/task-finished-passed.json'));
+  const text = (...documents) => `${documents.map((item) => JSON.stringify(item)).join('\n')}\n`;
+  // The repeat is on an invalid line: the repeat error joins the schema error.
+  const second = validateLogText(text(one, { ...one, extra: 1 })).lines[1];
+  assert.equal(second.ok, false);
+  assert.equal(second.reason, 'invalid');
+  assert.deepEqual(second.errors.map((found) => found.pointer).sort(), ['', '/eventId']);
+  // The first line is invalid, and a later valid line that repeats its id is still reported.
+  const result = validateLogText(text({ ...one, extra: 1 }, one));
+  assert.deepEqual(result.lines.map((line) => line.ok), [false, false]);
+  assert.deepEqual(result.lines[1].errors.map((found) => found.pointer), ['/eventId']);
+  // A line with an unsupported version reports only the version, and does not take part.
+  const newer = validateLogText(text({ ...one, schemaVersion: '2.0' }, one, { ...one, schemaVersion: '2.0' }));
+  assert.deepEqual(newer.lines.map((line) => line.reason ?? 'ok'), ['unsupported_version', 'ok', 'unsupported_version']);
+  assert.deepEqual(newer.lines[2].errors.map((found) => found.pointer), ['/schemaVersion']);
+  // An id that is not a UUID still counts as a repeat, and distinct ids do not.
+  const odd = validateLogText(text({ ...one, eventId: 'x' }, { ...one, eventId: 'x' }, { ...other, eventId: 'y' }));
+  assert.deepEqual(odd.lines.map((line) => line.errors.map((found) => found.pointer).join()), ['/eventId', '/eventId,/eventId', '/eventId']);
+  assert.equal(validateLogText(text(one, other)).ok, true);
+});
+
+test('a file over the size cap is refused after a size check and is never read', async (context) => {
+  if (process.getuid?.() === 0) {
+    context.skip('a root user can read any file');
+    return;
+  }
+  const folder = await mkdtemp(path.join(tmpdir(), 'schola-event-noread-'));
+  try {
+    const big = path.join(folder, 'big.jsonl');
+    await writeFile(big, '');
+    await truncate(big, MAX_BYTES + 1);
+    await chmod(big, 0o000);
+    assert.equal((await validateLogFile(big)).reason, 'too_large', 'a read would have given unreadable');
+    const exact = path.join(folder, 'exact.jsonl');
+    await writeFile(exact, '');
+    await truncate(exact, MAX_BYTES);
+    await chmod(exact, 0o000);
+    assert.equal((await validateLogFile(exact)).reason, 'unreadable', 'a file at the cap is read, so the denied read shows');
+  } finally {
+    await rm(folder, { recursive: true, force: true });
+  }
+});
+
 test('the validators never change a fixture file', async () => {
   const stamp = async () => Promise.all(manifest.map(async (entry) => {
     const url = fixture(entry.file);
@@ -578,6 +623,78 @@ test('an unreadable, oversized, or non-UTF-8 log file is refused as a whole', as
     assert.equal((await validateLogFile(big)).reason, 'too_large');
   } finally {
     await rm(folder, { recursive: true, force: true });
+  }
+});
+
+const SCHEMA_URL = new URL('contracts/learning-event.v1.schema.json', root);
+const dataDefOf = (schema) => {
+  const byType = {};
+  for (const rule of schema.allOf) {
+    const name = rule.then.properties.data.$ref.split('/').pop();
+    byType[rule.if.properties.type.const] = { name, def: schema.$defs[name] };
+  }
+  return byType;
+};
+
+test('deleting any required field, in the envelope or in any data shape, makes an event invalid', async () => {
+  const schema = await readJSON(SCHEMA_URL);
+  // Find every required list outside an if clause, so a new shape cannot slip past this test.
+  const lists = [];
+  const walk = (node, where) => {
+    if (Array.isArray(node)) node.forEach((item, index) => walk(item, `${where}/${index}`));
+    else if (node && typeof node === 'object') {
+      if (Array.isArray(node.required) && !where.includes('/if')) lists.push(where);
+      for (const [key, child] of Object.entries(node)) if (key !== 'enum' && key !== 'const') walk(child, `${where}/${key}`);
+    }
+  };
+  walk(schema, '');
+  const byType = dataDefOf(schema);
+  const expected = ['', ...Object.values(byType).filter(({ def }) => def.required).map(({ name }) => `/$defs/${name}`)];
+  assert.deepEqual([...lists].sort(), expected.sort());
+  assert.deepEqual(Object.keys(byType).sort(), [...EVENT_TYPES].sort());
+  assert.deepEqual([...schema.required].sort(), Object.keys(schema.properties).sort(), 'every envelope field is required');
+  const covered = new Set();
+  for (const entry of eventEntries.filter((item) => item.expect === 'valid')) {
+    const document = await readJSON(fixture(entry.file));
+    for (const key of schema.required) {
+      const copy = structuredClone(document);
+      delete copy[key];
+      assert.equal(validateEvent(copy).ok, false, `${entry.name} stayed valid without ${key}`);
+    }
+    for (const key of byType[document.type].def.required ?? []) {
+      const copy = structuredClone(document);
+      delete copy.data[key];
+      assert.equal(validateEvent(copy).ok, false, `${entry.name} stayed valid without data.${key}`);
+      covered.add(`${document.type}.${key}`);
+    }
+  }
+  for (const [type, { def }] of Object.entries(byType)) {
+    for (const key of def.required ?? []) assert.ok(covered.has(`${type}.${key}`), `no valid fixture covers ${type}.${key}`);
+    assert.deepEqual([...(def.required ?? [])].sort(), Object.keys(def.properties ?? {}).sort(), `${type}: every data field is required`);
+  }
+});
+
+test('the enum sets are pinned and match the guide', async () => {
+  const schema = await readJSON(SCHEMA_URL);
+  const guide = await readText(new URL('contracts/learning-events.md', root));
+  const levels = ['nudge', 'question', 'partial-example', 'full-answer'];
+  const pins = [
+    ['source', schema.properties.source.enum, ['student', 'app', 'agent'], '- `source` is '],
+    ['check status', schema.$defs.dataCheckResult.properties.status.enum, ['passed', 'failed', 'error', 'skipped', 'self-reported'], '- `status`: '],
+    ['offeredLevel', schema.$defs.dataAgentOffer.properties.offeredLevel.enum, [...levels, 'recall-question', 'review-suggestion'], '- `offeredLevel`: ', ['recall-question', 'review-suggestion']],
+    ['offer outcome', schema.$defs.dataAgentOffer.properties.outcome.enum, ['pending', 'accepted', 'dismissed', 'ignored'], '- `outcome`: `pending`'],
+    ['review outcome', schema.$defs.dataReviewResult.properties.outcome.enum, ['correct', 'incorrect'], '- `outcome`: `correct`'],
+    ['mode from', schema.$defs.dataModeChanged.properties.from.enum, ['coach', 'pair', 'show-me'], '- `from` and `to`: '],
+    ['mode to', schema.$defs.dataModeChanged.properties.to.enum, ['coach', 'pair', 'show-me'], '- `from` and `to`: '],
+    ['task result', schema.$defs.dataTaskFinished.properties.result.enum, ['passed', 'abandoned', 'skipped'], '- `result`: '],
+    ['hint origin', schema.$defs.dataHintRequested.properties.origin.enum, ['student', 'agent-offer-accepted'], '- `origin`: '],
+  ];
+  for (const [label, actual, expected, prefix, docTokens] of pins) {
+    assert.deepEqual([...actual].sort(), [...expected].sort(), `${label} enum changed`);
+    const line = guide.split('\n').find((item) => item.startsWith(prefix));
+    assert.ok(line, `${label}: the guide has no line starting ${prefix}`);
+    const listed = [...line.replace(/^- `[^`]+`( and `[^`]+`)?(:| is) /, '').split('. ')[0].matchAll(/`([^`]+)`/g)].map((match) => match[1]);
+    assert.deepEqual(listed.sort(), [...(docTokens ?? expected)].sort(), `${label}: the guide and the schema disagree`);
   }
 });
 

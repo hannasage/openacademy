@@ -310,6 +310,22 @@ test('the two validators agree on a log of valid events with repeated ids and mi
 
 // Both validators refuse an object that repeats a key, at any depth and however the key is written.
 // JSON.parse alone keeps the last value, so the Node validator scans the text for repeats first.
+test('the two validators agree on repeated event ids across valid, invalid, and newer-version lines', async () => {
+  const one = await fixtureDocument('valid/task-opened.json');
+  const other = await fixtureDocument('valid/task-finished-passed.json');
+  const text = (...documents) => `${documents.map((item) => JSON.stringify(item)).join('\n')}\n`;
+  const cases = [
+    ['repeat on an invalid line', text(one, { ...one, extra: 1 })],
+    ['invalid first line', text({ ...one, extra: 1 }, one)],
+    ['newer version lines', text({ ...one, schemaVersion: '2.0' }, one, { ...one, schemaVersion: '2.0' })],
+    ['ids that are not UUIDs', text({ ...one, eventId: 'x' }, { ...one, eventId: 'x' }, { ...other, eventId: 'y' })],
+    ['id that is not a string', text({ ...one, eventId: 5 }, { ...one, eventId: 5 })],
+    ['three repeats', text(one, one, one)],
+  ];
+  const results = runJobs(cases.map(([, value]) => ({ op: 'log', text: value })));
+  cases.forEach(([label, value], index) => assertSameLog(results[index], validateLogText(value), label));
+});
+
 test('a repeated object key is refused by both validators in the same way', async () => {
   const opened = JSON.stringify(await fixtureDocument('valid/task-opened.json'));
   const texts = [

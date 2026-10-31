@@ -262,8 +262,13 @@ export function validateLogText(text) {
     if (isTail && stage === 'parse') {
       truncatedTail = true;
       result = truncated();
-    } else if (result.ok) {
-      if (seen.has(document.eventId)) result = invalid([error('/eventId', 'Each event id must be unique in a log. This one is repeated.')]);
+    } else if (isObject(document) && typeof document.eventId === 'string' && result.reason !== 'unsupported_version') {
+      // Every parsed line counts, valid or not. A line of an unsupported version does not, because
+      // its fields mean something else to this reader.
+      if (seen.has(document.eventId)) {
+        const errors = result.ok ? [] : result.errors;
+        if (errors.length <= MAX_ERRORS) result = invalid([...errors, error('/eventId', 'Each event id must be unique in a log. This one is repeated.')]);
+      }
       seen.add(document.eventId);
     }
     lines.push(lineResult(line, result));

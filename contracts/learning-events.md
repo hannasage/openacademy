@@ -231,7 +231,7 @@ A schema cannot state these rules. The validators check them after the schema pa
 
 - The day in `time` must exist.
 - An `agent_offer` event must not name its own `eventId` as its `triggerEventId`.
-- An event id must not repeat in a log.
+- An event id must not repeat in a log. Every line that parses counts for this rule, valid or not. A repeat adds an `/eventId` error next to any other error on the later line. A line with an unsupported major version does not count, because its fields can mean something else.
 
 ### Repeated keys
 
@@ -239,7 +239,7 @@ A JSON object must not repeat a key. This holds at any depth. It also holds for 
 
 ### Changing the contract
 
-The schema is closed on purpose. A new field or a new event type changes the schema file and raises the minor number. A reader that has the older schema rejects the newer event. This keeps raw content out of the log. An incompatible change raises the major number.
+The schema is closed on purpose. An event with a field that the schema does not list is invalid. This holds when `schemaVersion` names a newer minor version such as `1.1`. A fixture covers this case. A minor number never makes a reader accept unknown fields. A new field or a new event type changes the schema file and raises the minor number. A reader that has the older schema rejects the newer event. This keeps raw content out of the log. An incompatible change raises the major number.
 
 ## Text from students and creators is untrusted
 

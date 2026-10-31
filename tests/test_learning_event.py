@@ -8,6 +8,7 @@ import copy
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import tempfile
 import unittest
@@ -424,6 +425,121 @@ class TextAndLogTests(unittest.TestCase):
         big.write_bytes(b' ' * (le.MAX_BYTES + 1))
         self.assertEqual(le.validate_log_file(big)['reason'], 'too_large')
         self.assertEqual(sorted(os.listdir(folder)), ['big.jsonl', 'broken.jsonl'])
+
+
+def schema():
+    return json.loads((ROOT / 'contracts' / 'learning-event.v1.schema.json').read_text(encoding='utf-8'))
+
+
+def data_defs_by_type(document):
+    found = {}
+    for rule in document['allOf']:
+        name = rule['then']['properties']['data']['$ref'].split('/')[-1]
+        found[rule['if']['properties']['type']['const']] = (name, document['$defs'][name])
+    return found
+
+
+class PinnedRuleTests(unittest.TestCase):
+    def test_deleting_any_required_field_makes_an_event_invalid(self):
+        document = schema()
+        by_type = data_defs_by_type(document)
+        lists = []
+
+        def walk(node, where):
+            if isinstance(node, list):
+                for index, item in enumerate(node):
+                    walk(item, f'{where}/{index}')
+            elif isinstance(node, dict):
+                if isinstance(node.get('required'), list) and '/if' not in where:
+                    lists.append(where)
+                for key, child in node.items():
+                    if key not in ('enum', 'const'):
+                        walk(child, f'{where}/{key}')
+
+        walk(document, '')
+        expected = [''] + [f'/$defs/{name}' for name, definition in by_type.values() if 'required' in definition]
+        self.assertEqual(sorted(lists), sorted(expected))
+        self.assertEqual(sorted(by_type), sorted(le.EVENT_TYPES))
+        self.assertEqual(sorted(document['required']), sorted(document['properties']))
+        covered = set()
+        for entry in load_manifest():
+            if entry['kind'] != 'learning-event' or entry['expect'] != 'valid':
+                continue
+            event = json.loads((FIXTURES / entry['file']).read_text(encoding='utf-8'))
+            for key in document['required']:
+                with self.subTest(case=entry['name'], missing=key):
+                    broken = copy.deepcopy(event)
+                    del broken[key]
+                    self.assertFalse(le.validate_event(broken)['ok'])
+            for key in by_type[event['type']][1].get('required', []):
+                with self.subTest(case=entry['name'], missing=f'data.{key}'):
+                    broken = copy.deepcopy(event)
+                    del broken['data'][key]
+                    self.assertFalse(le.validate_event(broken)['ok'])
+                    covered.add((event['type'], key))
+        for event_type, (name, definition) in by_type.items():
+            for key in definition.get('required', []):
+                self.assertIn((event_type, key), covered)
+            self.assertEqual(sorted(definition.get('required', [])), sorted(definition.get('properties', {})), event_type)
+
+    def test_the_enum_sets_are_pinned_and_match_the_guide(self):
+        document = schema()
+        guide = (ROOT / 'contracts' / 'learning-events.md').read_text(encoding='utf-8').split('\n')
+        defs = document['$defs']
+        levels = ['nudge', 'question', 'partial-example', 'full-answer']
+        pins = [
+            ('source', document['properties']['source']['enum'], ['student', 'app', 'agent'], '- `source` is ', None),
+            ('check status', defs['dataCheckResult']['properties']['status']['enum'], ['passed', 'failed', 'error', 'skipped', 'self-reported'], '- `status`: ', None),
+            ('offeredLevel', defs['dataAgentOffer']['properties']['offeredLevel']['enum'], levels + ['recall-question', 'review-suggestion'], '- `offeredLevel`: ', ['recall-question', 'review-suggestion']),
+            ('offer outcome', defs['dataAgentOffer']['properties']['outcome']['enum'], ['pending', 'accepted', 'dismissed', 'ignored'], '- `outcome`: `pending`', None),
+            ('review outcome', defs['dataReviewResult']['properties']['outcome']['enum'], ['correct', 'incorrect'], '- `outcome`: `correct`', None),
+            ('mode from', defs['dataModeChanged']['properties']['from']['enum'], ['coach', 'pair', 'show-me'], '- `from` and `to`: ', None),
+            ('mode to', defs['dataModeChanged']['properties']['to']['enum'], ['coach', 'pair', 'show-me'], '- `from` and `to`: ', None),
+            ('task result', defs['dataTaskFinished']['properties']['result']['enum'], ['passed', 'abandoned', 'skipped'], '- `result`: ', None),
+            ('hint origin', defs['dataHintRequested']['properties']['origin']['enum'], ['student', 'agent-offer-accepted'], '- `origin`: ', None),
+        ]
+        for label, actual, expected, prefix, doc_tokens in pins:
+            with self.subTest(label=label):
+                self.assertEqual(sorted(actual), sorted(expected))
+                line = next((item for item in guide if item.startswith(prefix)), None)
+                self.assertIsNotNone(line, prefix)
+                body = re.sub(r'^- `[^`]+`( and `[^`]+`)?(:| is) ', '', line).split('. ')[0]
+                self.assertEqual(sorted(re.findall(r'`([^`]+)`', body)), sorted(doc_tokens or expected))
+
+    def test_a_repeated_event_id_is_reported_next_to_the_other_errors(self):
+        one = good('task-opened')
+        other = good('task-finished-passed')
+
+        def text(*documents):
+            return ''.join(json.dumps(item) + '\n' for item in documents)
+
+        second = le.validate_log_text(text(one, {**one, 'extra': 1}))['lines'][1]
+        self.assertEqual((second['ok'], second['reason']), (False, 'invalid'))
+        self.assertEqual(sorted(error['pointer'] for error in second['errors']), ['', '/eventId'])
+        result = le.validate_log_text(text({**one, 'extra': 1}, one))
+        self.assertEqual([line['ok'] for line in result['lines']], [False, False])
+        self.assertEqual(pointers(result['lines'][1]), ['/eventId'])
+        newer = le.validate_log_text(text({**one, 'schemaVersion': '2.0'}, one, {**one, 'schemaVersion': '2.0'}))
+        self.assertEqual([line.get('reason', 'ok') for line in newer['lines']], ['unsupported_version', 'ok', 'unsupported_version'])
+        self.assertEqual(pointers(newer['lines'][2]), ['/schemaVersion'])
+        odd = le.validate_log_text(text({**one, 'eventId': 'x'}, {**one, 'eventId': 'x'}, {**other, 'eventId': 'y'}))
+        self.assertEqual([','.join(error['pointer'] for error in line['errors']) for line in odd['lines']], ['/eventId', '/eventId,/eventId', '/eventId'])
+        self.assertTrue(le.validate_log_text(text(one, other))['ok'])
+
+    @unittest.skipIf(hasattr(os, 'getuid') and os.getuid() == 0, 'a root user can read any file')
+    def test_a_file_over_the_size_cap_is_never_read(self):
+        folder = Path(tempfile.mkdtemp(prefix='schola-event-noread-'))
+        self.addCleanup(shutil.rmtree, folder, True)
+        big = folder / 'big.jsonl'
+        big.write_bytes(b'')
+        os.truncate(big, le.MAX_BYTES + 1)
+        big.chmod(0)
+        self.assertEqual(le.validate_log_file(big)['reason'], 'too_large')
+        exact = folder / 'exact.jsonl'
+        exact.write_bytes(b'')
+        os.truncate(exact, le.MAX_BYTES)
+        exact.chmod(0)
+        self.assertEqual(le.validate_log_file(exact)['reason'], 'unreadable')
 
 
 class SchemaTests(unittest.TestCase):

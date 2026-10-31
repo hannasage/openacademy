@@ -482,6 +482,13 @@
     "stage": "semantic"
   },
   {
+    "name": "newer-minor-version-with-a-new-field",
+    "file": "learning-events/invalid/newer-minor-version-with-a-new-field.json",
+    "kind": "learning-event",
+    "expect": "invalid:invalid",
+    "stage": "schema"
+  },
+  {
     "name": "unsupported-major-version",
     "file": "learning-events/invalid/unsupported-major-version.json",
     "kind": "learning-event",
