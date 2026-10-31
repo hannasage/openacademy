@@ -40,6 +40,8 @@ SUPPORTED_SCHEMA_MAJORS = lc.SUPPORTED_SCHEMA_MAJORS
 MAX_BYTES = lc.MAX_BYTES
 # The largest single line, in bytes, not counting the newline.
 MAX_LINE_BYTES = 4096
+# The most lines a log can hold. A valid event is over 300 bytes, so 5 MB holds far fewer.
+MAX_LINES = 50000
 MAX_ERRORS = lc.MAX_ERRORS
 EVENT_SCHEMA_ID = 'urn:schola:contract:learning-event:v1'
 EVENT_TYPES = (
@@ -217,42 +219,98 @@ def _line_result(number, result):
     return {'line': number, 'ok': False, 'reason': result['reason'], 'errors': result['errors']}
 
 
+def _decode_line(chunk):
+    """Decode the bytes of one line. Returns (text, status). The status is `ok`, `cut`, or `bad`.
+
+    `cut` means the only fault is a character left incomplete at the very end.
+    """
+    try:
+        return chunk.decode('utf-8'), 'ok'
+    except UnicodeDecodeError as error:
+        if error.reason == 'unexpected end of data' and error.end == len(chunk):
+            return None, 'cut'
+        return None, 'bad'
+
+
+def _log_parts(source):
+    """Split a log into lines at the newline character only.
+
+    Returns (parts, tail_has_newline). Each part is (text, byte_length, status), where text is None
+    when the line is not valid UTF-8. Bytes are decoded one line at a time.
+    """
+    if isinstance(source, str):
+        pieces = source.split('\n')
+        tail_has_newline = pieces[-1] == ''
+        if tail_has_newline:
+            pieces.pop()
+        return [(piece, None, 'ok') for piece in pieces], tail_has_newline
+    pieces = source.split(b'\n')
+    tail_has_newline = pieces[-1] == b''
+    if tail_has_newline:
+        pieces.pop()
+    parts = []
+    for chunk in pieces:
+        if len(chunk) > MAX_LINE_BYTES:
+            parts.append(('', len(chunk), 'ok'))
+            continue
+        text, status = _decode_line(chunk)
+        parts.append((text, len(chunk), status))
+    return parts, tail_has_newline
+
+
+def _line_count(source):
+    newlines = source.count('\n' if isinstance(source, str) else b'\n')
+    if not source or source[-1:] in ('\n', b'\n'):
+        return newlines
+    return newlines + 1
+
+
 def validate_log_text(text):
     """Validate JSON Lines text, one event per line. Text over MAX_BYTES is refused before parsing.
 
-    Lines end at the newline character only. A final line with no newline that
-    is not complete JSON is reported as `truncated_tail`. A repeated event id
-    is reported on the later line.
+    Lines end at the newline character only. Bytes are decoded one line at a time, so a
+    line that is not UTF-8 damages that line only. A final line with no newline that is not
+    complete JSON, or that ends inside a character, is reported as `truncated_tail`. A repeated
+    event id is reported on the later line. A log of more than MAX_LINES lines is refused as a whole.
     """
-    if isinstance(text, (bytes, bytearray)):
+    if isinstance(text, bytearray):
+        text = bytes(text)
+    if isinstance(text, bytes):
         if len(text) > MAX_BYTES:
             return _too_large_log()
-        try:
-            text = bytes(text).decode('utf-8')
-        except UnicodeError:
-            return _whole_log_failure('invalid', 'The text is not valid UTF-8.')
-    if not isinstance(text, str):
+    elif not isinstance(text, str):
         return _whole_log_failure('invalid', 'The text must be a string.')
-    if _byte_length(text) > MAX_BYTES:
+    elif _byte_length(text) > MAX_BYTES:
         return _too_large_log()
-    parts = text.split('\n')
-    # Text that ends with a newline leaves one empty piece at the end. It is not a line.
-    tail_has_newline = parts[-1] == ''
-    if tail_has_newline:
-        parts.pop()
+    if _line_count(text) > MAX_LINES:
+        return _whole_log_failure('too_large', 'The log has more than 50000 lines.')
+    parts, tail_has_newline = _log_parts(text)
     lines = []
     truncated_tail = False
     seen = set()
-    for index, part in enumerate(parts):
+    for index, (part, size, status) in enumerate(parts):
         number = index + 1
         is_tail = index == len(parts) - 1 and not tail_has_newline
-        if _byte_length(part) > MAX_LINE_BYTES:
+        if size is None:
+            size = _byte_length(part)
+        if size > MAX_LINE_BYTES:
             lines.append(_line_result(number, _too_large_line()))
+            continue
+        if status == 'cut' and is_tail:
+            truncated_tail = True
+            lines.append(_line_result(number, _truncated()))
+            continue
+        if status != 'ok':
+            lines.append(_line_result(number, _invalid([_error('', 'The line is not valid UTF-8.')])))
+            continue
+        if part == '':
+            # A blank line is a fast path: it needs no parse.
+            lines.append(_line_result(number, _invalid([_error('', 'The text is not complete, valid JSON.')])))
             continue
         result, stage, document = _run_text(part)
         if is_tail and stage == 'parse':
             truncated_tail = True
-            result = {'ok': False, 'reason': 'truncated_tail', 'errors': [_error('', 'The last line is cut short. It has no newline and is not complete JSON.')]}
+            result = _truncated()
         elif result['ok']:
             event_id = document['eventId']
             if event_id in seen:
@@ -260,6 +318,10 @@ def validate_log_text(text):
             seen.add(event_id)
         lines.append(_line_result(number, result))
     return {'ok': all(line['ok'] for line in lines), 'lines': lines, 'truncatedTail': truncated_tail}
+
+
+def _truncated():
+    return {'ok': False, 'reason': 'truncated_tail', 'errors': [_error('', 'The last line is cut short. It has no newline and is not complete JSON.')]}
 
 
 def validate_log_file(path):

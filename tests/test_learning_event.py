@@ -313,13 +313,45 @@ class TextAndLogTests(unittest.TestCase):
         self.assertNotEqual(le.validate_log_text(' ' * le.MAX_BYTES).get('reason'), 'too_large')
         self.assertEqual(le.validate_log_text('é' * (le.MAX_BYTES // 2 + 1))['reason'], 'too_large')
 
-    def test_a_log_that_is_not_text_or_not_utf_8_is_refused_as_a_whole(self):
+    def test_a_log_that_is_not_text_or_bytes_is_refused_as_a_whole(self):
         for value in (None, 5, {}):
             result = le.validate_log_text(value)
             self.assertEqual((result['ok'], result['reason'], result['lines']), (False, 'invalid', []))
-        result = le.validate_log_text(b'{\xff}\n')
-        self.assertEqual(result['reason'], 'invalid')
-        self.assertIn('UTF-8', result['errors'][0]['message'])
+
+    def test_bytes_are_decoded_one_line_at_a_time(self):
+        first, second = read('valid/log-multi-line.jsonl').split('\n')[:2]
+        data = first.encode() + b'\n{\xff}\n' + second.encode() + b'\n'
+        result = le.validate_log_text(data)
+        self.assertNotIn('reason', result)
+        self.assertEqual([line['ok'] for line in result['lines']], [True, False, True])
+        self.assertEqual(result['lines'][1]['reason'], 'invalid')
+        self.assertIn('UTF-8', result['lines'][1]['errors'][0]['message'])
+        self.assertFalse(result['truncatedTail'])
+
+    def test_a_multibyte_character_cut_at_the_end_is_a_truncated_tail(self):
+        first = read('valid/log-multi-line.jsonl').split('\n')[0].encode()
+        for tail in ('{"note":"é'.encode()[:-1], '{"note":"€'.encode()[:-1], '{"note":"\U0001F600'.encode()[:-2]):
+            with self.subTest(tail=tail):
+                result = le.validate_log_text(first + b'\n' + tail)
+                self.assertNotIn('reason', result)
+                self.assertTrue(result['truncatedTail'])
+                self.assertEqual([line['ok'] for line in result['lines']], [True, False])
+                self.assertEqual(result['lines'][1]['reason'], 'truncated_tail')
+        for tail in (b'{\xff{', b'{\xff', b'{\xc3('):
+            with self.subTest(tail=tail):
+                result = le.validate_log_text(first + b'\n' + tail)
+                self.assertFalse(result['truncatedTail'])
+                self.assertEqual(result['lines'][1]['reason'], 'invalid')
+
+    def test_a_log_with_too_many_lines_is_refused_as_a_whole(self):
+        self.assertEqual(le.MAX_LINES, 50000)
+        for over in ('\n' * (le.MAX_LINES + 1), b'\n' * (le.MAX_LINES + 1), '\n' * le.MAX_LINES + '{'):
+            result = le.validate_log_text(over)
+            self.assertEqual((result['ok'], result['reason'], result['lines']), (False, 'too_large', []))
+        edge = le.validate_log_text('\n' * le.MAX_LINES)
+        self.assertNotIn('reason', edge)
+        self.assertEqual(len(edge['lines']), le.MAX_LINES)
+        self.assertTrue(all(not line['ok'] and line['reason'] == 'invalid' for line in edge['lines']))
 
     def test_a_log_splits_on_the_newline_character_only(self):
         result = le.validate_log_text(f'{self.ONE} {self.ONE}\n')
@@ -363,7 +395,9 @@ class TextAndLogTests(unittest.TestCase):
         self.assertNotIn(str(folder), json.dumps(missing))
         broken = folder / 'broken.jsonl'
         broken.write_bytes(b'{\xff\n')
-        self.assertEqual(le.validate_log_file(broken)['reason'], 'invalid')
+        damaged = le.validate_log_file(broken)
+        self.assertNotIn('reason', damaged)
+        self.assertEqual(damaged['lines'][0]['reason'], 'invalid')
         big = folder / 'big.jsonl'
         big.write_bytes(b' ' * (le.MAX_BYTES + 1))
         self.assertEqual(le.validate_log_file(big)['reason'], 'too_large')

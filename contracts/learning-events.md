@@ -185,9 +185,10 @@ A log is a text file in JSON Lines form.
 
 - Each line is one event, written as one JSON object.
 - A line ends with the newline character `\n`. A reader splits on that character only. It does not split on any other line separator.
-- The file is UTF-8 with no byte order mark.
+- The file is UTF-8 with no byte order mark. A reader decodes one line at a time. A line that is not UTF-8 is a damaged line. It does not spoil the other lines.
 - A line is at most 4096 bytes, not counting the newline.
 - The whole file is at most 5 MB (5 * 1024 * 1024 bytes).
+- The file has at most 50000 lines. A valid event takes over 300 bytes, so a valid 5 MB file holds far fewer. The line cap stops a file of blank lines from costing a reader too much work.
 - The log is append-only. A writer adds a line and never edits or removes an earlier line.
 - A blank line is not allowed.
 - An event id appears once. A repeated id is invalid on its later line.
@@ -196,7 +197,7 @@ A reader works through the file line by line. It reports each line with its own 
 
 ### A truncated final line
 
-A crash during a write can leave the last line cut short. The last line then has no newline and is not complete JSON. A reader reports that line with the reason `truncated_tail` and sets `truncatedTail` to true. That line is not valid, but it is not fatal. The reader still reports every earlier line. A last line that has a newline and is not valid JSON is a damaged line with the reason `invalid`. A last line with no newline that is valid is a valid line.
+A crash during a write can leave the last line cut short. The last line then has no newline. It is not complete JSON, or it ends in the middle of a multibyte character. A reader reports that line with the reason `truncated_tail` and sets `truncatedTail` to true. That line is not valid, but it is not fatal. The reader still reports every earlier line. A last line that has a newline and is not valid JSON is a damaged line with the reason `invalid`. A last line with no newline that is valid is a valid line.
 
 A writer that finds a truncated tail starts its next event on a new line.
 
@@ -206,7 +207,7 @@ Both validators give the same results. Node uses camel case names and Python use
 
 - `validateEvent(document)` and `validate_event(document)` check one parsed event.
 - `validateEventText(text)` and `validate_event_text(text)` parse one line of JSON, then check it.
-- `validateLogText(text)` and `validate_log_text(text)` check a whole log. They take a string or the bytes of a log. Bytes must be strict UTF-8.
+- `validateLogText(text)` and `validate_log_text(text)` check a whole log. They take a string or the bytes of a log. A reader decodes bytes one line at a time with strict UTF-8.
 - `validateLogFile(file)` and `validate_log_file(path)` read a file and check it.
 
 An event result is `{ ok: true }` or `{ ok: false, reason, errors }`. The reason is `invalid`, `unsupported_version`, or `too_large`. Each error is `{ pointer, message }`, where `pointer` is a JSON Pointer into the document.
@@ -215,13 +216,13 @@ A log result is `{ ok, lines, truncatedTail }`.
 
 - `ok` is true for a log with only valid lines and no truncated tail. Any other log has `ok` false.
 - Each entry in `lines` is `{ line, ok: true }` for a valid line, with `line` counted from 1. An invalid line is `{ line, ok: false, reason, errors }`. The reason is `invalid`, `unsupported_version`, `too_large`, or `truncated_tail`.
-- A log that cannot be split into lines at all is refused as a whole. The result has `ok` false, a `reason`, `errors`, an empty `lines` list, and `truncatedTail` false. The reasons are these. `too_large` means the input is over 5 MB. `invalid` means the bytes are not UTF-8 or the input is not text. `unreadable` means the file did not open. An `unreadable` message names the error code and never a path.
+- A log that cannot be split into lines at all is refused as a whole. The result has `ok` false, a `reason`, `errors`, an empty `lines` list, and `truncatedTail` false. The reasons are these. `too_large` means the input is over 5 MB or has more than 50000 lines. `invalid` means the input is not text or bytes. `unreadable` means the file did not open. An `unreadable` message names the error code and never a path.
 
 The rules are the same as for the lesson contracts:
 
 - A reader reads the major number of `schemaVersion` first. If it is not 1, the result is `unsupported_version`, and the reader reports only `/schemaVersion`.
 - A validator never changes its input and never writes a file.
-- A line over 4096 bytes is `too_large` and is not parsed. A log over 5 MB is `too_large` and is not parsed.
+- A line over 4096 bytes is `too_large` and is not parsed. A log over 5 MB, or with more than 50000 lines, is `too_large` and is not parsed.
 - A result lists at most 100 errors. If there are more, the last entry has an empty pointer and the message `N more errors omitted.`
 
 ### Rules beyond the schema

@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { MAX_BYTES, MAX_LINE_BYTES, validateEventText, validateLogFile, validateLogText } from '../contracts/validate-events.mjs';
+import { MAX_BYTES, MAX_LINE_BYTES, MAX_LINES, validateEventText, validateLogFile, validateLogText } from '../contracts/validate-events.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const fixtureRoot = path.join(root, 'tests', 'fixtures', 'contracts');
@@ -18,7 +18,7 @@ const manifest = JSON.parse(await readFile(path.join(fixtureRoot, 'learning-even
 // A job is { op: 'event' | 'log' | 'file', text | file }. The -I flag keeps the working folder
 // and the environment out of the import path. No bytecode is written next to the sources.
 const PYTHON_RUNNER = [
-  'import sys, json',
+  'import sys, json, base64',
   'sys.path.insert(0, sys.argv[1])',
   'import learning_event as le',
   'jobs = json.load(sys.stdin)',
@@ -26,6 +26,8 @@ const PYTHON_RUNNER = [
   'for job in jobs:',
   '    if job["op"] == "file":',
   '        out.append(le.validate_log_file(job["file"]))',
+  '    elif job["op"] == "bytes":',
+  '        out.append(le.validate_log_text(base64.b64decode(job["b64"])))',
   '    elif job["op"] == "log":',
   '        out.append(le.validate_log_text(job["text"]))',
   '    else:',
@@ -135,7 +137,8 @@ test('the two validators agree on unreadable, oversized, and non-UTF-8 files', a
       assertSameLog(results[index], node, label);
       if (node.reason === 'unreadable') assert.deepEqual(results[index].errors, node.errors, label);
     }
-    assert.deepEqual(results.map((result) => result.reason), ['unreadable', 'unreadable', 'too_large', undefined, 'invalid', undefined]);
+    assert.deepEqual(results.map((result) => result.reason), ['unreadable', 'unreadable', 'too_large', undefined, undefined, undefined]);
+    assert.equal(results[4].lines[0].reason, 'invalid', 'a bad byte damages one line only');
     assert.equal(results[5].lines[0].ok, false, 'a byte order mark damages the first line');
   } finally {
     await rm(folder, { recursive: true, force: true });
@@ -264,6 +267,36 @@ test('the two validators agree on damaged, oversized, and odd event and log text
     if (op === 'event') assertSameEvent(results[index], validateEventText(text), label);
     else assertSameLog(results[index], validateLogText(text), label);
   });
+});
+
+test('the two validators agree on byte input, cut multibyte characters, and line counts', async () => {
+  const log = await readFile(path.join(fixtureRoot, 'learning-events/valid/log-multi-line.jsonl'));
+  const first = log.subarray(0, log.indexOf(10) + 1);
+  const cases = [
+    ['cut two-byte character', Buffer.concat([first, Buffer.from('{"n":"\u00e9').subarray(0, -1)])],
+    ['cut three-byte character', Buffer.concat([first, Buffer.from('{"n":"\u20ac').subarray(0, -1)])],
+    ['cut three-byte character, two bytes gone', Buffer.concat([first, Buffer.from('{"n":"\u20ac').subarray(0, -2)])],
+    ['cut four-byte character', Buffer.concat([first, Buffer.from('{"n":"\u{1F600}').subarray(0, -1)])],
+    ['bad byte in the tail', Buffer.concat([first, Buffer.from([0x7b, 0xff, 0x7b])])],
+    ['bad byte last in the tail', Buffer.concat([first, Buffer.from([0x7b, 0xff])])],
+    ['bad continuation in the tail', Buffer.concat([first, Buffer.from([0x7b, 0xc3, 0x28])])],
+    ['overlong encoding at the end', Buffer.concat([first, Buffer.from([0x7b, 0xc0])])],
+    ['surrogate bytes at the end', Buffer.concat([first, Buffer.from([0x7b, 0xed, 0xa0])])],
+    ['bad byte on a middle line', Buffer.concat([first, Buffer.from([0x7b, 0xff, 0x7d, 0x0a]), first])],
+    ['complete multibyte character in the tail', Buffer.concat([first, Buffer.from('{"n":"\u00e9')])],
+    ['byte order mark first', Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), log])],
+    ['MAX_LINES blank lines', Buffer.alloc(MAX_LINES, 0x0a)],
+    ['over MAX_LINES blank lines', Buffer.alloc(MAX_LINES + 1, 0x0a)],
+    ['MAX_LINES lines and a tail', Buffer.concat([Buffer.alloc(MAX_LINES, 0x0a), Buffer.from('{')])],
+  ];
+  const results = runJobs(cases.map(([, bytes]) => ({ op: 'bytes', b64: bytes.toString('base64') })));
+  cases.forEach(([label, bytes], index) => assertSameLog(results[index], validateLogText(new Uint8Array(bytes)), label));
+  const textCases = [
+    ['text: MAX_LINES blank lines', '\n'.repeat(MAX_LINES)],
+    ['text: over MAX_LINES blank lines', '\n'.repeat(MAX_LINES + 1)],
+  ];
+  const textResults = runJobs(textCases.map(([, text]) => ({ op: 'log', text })));
+  textCases.forEach(([label, text], index) => assertSameLog(textResults[index], validateLogText(text), label));
 });
 
 test('the two validators agree on a log of valid events with repeated ids and mixed damage', async () => {

@@ -15,6 +15,9 @@ export { MAX_BYTES, SUPPORTED_SCHEMA_MAJORS };
 /** The largest single log line, in bytes, not counting the newline. */
 export const MAX_LINE_BYTES = 4096;
 
+/** The most lines a log can hold. A valid event is over 300 bytes, so 5 MB holds far fewer. */
+export const MAX_LINES = 50000;
+
 /** The event types of schema major version 1. The set is closed. */
 export const EVENT_TYPES = Object.freeze([
   'attempt_submitted', 'check_result', 'hint_requested', 'agent_offer', 'reflection_saved',
@@ -117,43 +120,112 @@ const lineResult = (line, result) => (result.ok
   ? { line, ok: true }
   : { line, ok: false, reason: result.reason, errors: result.errors });
 
+const truncated = () => ({ ok: false, reason: 'truncated_tail', errors: [error('', 'The last line is cut short. It has no newline and is not complete JSON.')] });
+
+// Decode the bytes of one line. The status is 'ok', 'cut' (only a character left incomplete at the very
+// end), or 'bad'. A streaming decode accepts an incomplete ending and still refuses any other fault.
+function decodeLine(chunk) {
+  try {
+    return { text: new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(chunk), status: 'ok' };
+  } catch {
+    try {
+      new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(chunk, { stream: true });
+      return { text: null, status: 'cut' };
+    } catch {
+      return { text: null, status: 'bad' };
+    }
+  }
+}
+
+// Split a log into lines at the newline character only. Bytes are decoded one line at a time.
+function logParts(source) {
+  if (typeof source === 'string') {
+    const pieces = source.split('\n');
+    const tailHasNewline = pieces.at(-1) === '';
+    if (tailHasNewline) pieces.pop();
+    return { parts: pieces.map((text) => ({ text, size: null, status: 'ok' })), tailHasNewline };
+  }
+  const parts = [];
+  let start = 0;
+  let tailHasNewline = false;
+  while (start <= source.length) {
+    const found = source.indexOf(10, start);
+    const end = found === -1 ? source.length : found;
+    if (found === -1 && start === source.length) {
+      tailHasNewline = true;
+      break;
+    }
+    const chunk = source.subarray(start, end);
+    if (chunk.length > MAX_LINE_BYTES) parts.push({ text: '', size: chunk.length, status: 'ok' });
+    else parts.push({ ...decodeLine(chunk), size: chunk.length });
+    if (found === -1) break;
+    start = found + 1;
+    if (start === source.length) {
+      tailHasNewline = true;
+      break;
+    }
+  }
+  return { parts, tailHasNewline };
+}
+
+function lineCount(source) {
+  let newlines = 0;
+  if (typeof source === 'string') {
+    for (let at = source.indexOf('\n'); at !== -1; at = source.indexOf('\n', at + 1)) newlines += 1;
+    return source === '' || source.endsWith('\n') ? newlines : newlines + 1;
+  }
+  for (let at = source.indexOf(10); at !== -1; at = source.indexOf(10, at + 1)) newlines += 1;
+  return source.length === 0 || source[source.length - 1] === 10 ? newlines : newlines + 1;
+}
+
 /**
  * Validate JSON Lines text, one event per line. Text over MAX_BYTES is refused before parsing.
- * A final line with no newline that is not complete JSON is reported as truncated_tail.
- * A repeated event id is reported on the later line.
- * @param {string | Uint8Array} text A string, or the bytes of a log, which must be strict UTF-8.
+ * Bytes are decoded one line at a time, so a line that is not UTF-8 damages that line only.
+ * A final line with no newline that is not complete JSON, or that ends inside a character, is
+ * reported as truncated_tail. A repeated event id is reported on the later line.
+ * A log of more than MAX_LINES lines is refused as a whole.
+ * @param {string | Uint8Array} text A string, or the bytes of a log.
  * @returns {{ ok: boolean, lines: object[], truncatedTail: boolean } | { ok: false, reason: string, errors: object[], lines: [], truncatedTail: false }}
  */
 export function validateLogText(text) {
-  let source = text;
-  if (source instanceof Uint8Array) {
-    if (source.byteLength > MAX_BYTES) return tooLargeLog();
-    try {
-      source = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(source);
-    } catch {
-      return wholeLogFailure('invalid', 'The text is not valid UTF-8.');
-    }
+  if (text instanceof Uint8Array) {
+    if (text.byteLength > MAX_BYTES) return tooLargeLog();
+  } else if (typeof text !== 'string') {
+    return wholeLogFailure('invalid', 'The text must be a string.');
+  } else if (byteLength(text) > MAX_BYTES) {
+    return tooLargeLog();
   }
-  if (typeof source !== 'string') return wholeLogFailure('invalid', 'The text must be a string.');
-  if (byteLength(source) > MAX_BYTES) return tooLargeLog();
-  const parts = source.split('\n');
-  // Text that ends with a newline leaves one empty piece at the end. It is not a line.
-  const tailHasNewline = parts.at(-1) === '';
-  if (tailHasNewline) parts.pop();
+  if (lineCount(text) > MAX_LINES) return wholeLogFailure('too_large', 'The log has more than 50000 lines.');
+  const { parts, tailHasNewline } = logParts(text);
   const lines = [];
   const seen = new Set();
   let truncatedTail = false;
   parts.forEach((part, index) => {
     const line = index + 1;
     const isTail = index === parts.length - 1 && !tailHasNewline;
-    if (byteLength(part) > MAX_LINE_BYTES) {
+    const size = part.size ?? byteLength(part.text);
+    if (size > MAX_LINE_BYTES) {
       lines.push(lineResult(line, tooLargeLine()));
       return;
     }
-    let { result, stage, document } = runText(part);
+    if (part.status === 'cut' && isTail) {
+      truncatedTail = true;
+      lines.push(lineResult(line, truncated()));
+      return;
+    }
+    if (part.status !== 'ok') {
+      lines.push(lineResult(line, invalid([error('', 'The line is not valid UTF-8.')])));
+      return;
+    }
+    if (part.text === '') {
+      // A blank line is a fast path: it needs no parse.
+      lines.push(lineResult(line, invalid([error('', 'The text is not complete, valid JSON.')])));
+      return;
+    }
+    let { result, stage, document } = runText(part.text);
     if (isTail && stage === 'parse') {
       truncatedTail = true;
-      result = { ok: false, reason: 'truncated_tail', errors: [error('', 'The last line is cut short. It has no newline and is not complete JSON.')] };
+      result = truncated();
     } else if (result.ok) {
       if (seen.has(document.eventId)) result = invalid([error('/eventId', 'Each event id must be unique in a log. This one is repeated.')]);
       seen.add(document.eventId);

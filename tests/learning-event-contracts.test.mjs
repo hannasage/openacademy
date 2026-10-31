@@ -12,6 +12,7 @@ import {
   EVENT_TYPES,
   MAX_BYTES,
   MAX_LINE_BYTES,
+  MAX_LINES,
   validateEvent,
   validateEventText,
   validateLogFile,
@@ -312,17 +313,64 @@ test('text and lines over their caps are refused before parsing', () => {
   assert.equal(validateLogText('é'.repeat(MAX_BYTES / 2 + 1)).reason, 'too_large', 'the log cap counts bytes');
 });
 
-test('log text that is not a string or valid UTF-8 is refused as a whole', () => {
+test('log input that is not a string or bytes is refused as a whole', () => {
   for (const value of [null, 5, {}, undefined]) {
     const result = validateLogText(value);
     assert.equal(result.ok, false);
     assert.equal(result.reason, 'invalid');
     assert.deepEqual(result.lines, []);
   }
-  const result = validateLogText(Buffer.from([0x7b, 0xff, 0x7d, 0x0a]));
+});
+
+test('bytes are decoded one line at a time, so one bad line does not fail the whole log', async () => {
+  const log = await readText(fixture('learning-events/valid/log-multi-line.jsonl'));
+  const [first, second] = log.split('\n');
+  const bytes = Buffer.concat([Buffer.from(`${first}\n`), Buffer.from([0x7b, 0xff, 0x7d, 0x0a]), Buffer.from(`${second}\n`)]);
+  const result = validateLogText(bytes);
+  assert.equal(result.reason, undefined, 'no whole-log refusal');
   assert.equal(result.ok, false);
-  assert.equal(result.reason, 'invalid');
-  assert.match(result.errors[0].message, /UTF-8/);
+  assert.deepEqual(result.lines.map((line) => line.ok), [true, false, true]);
+  assert.equal(result.lines[1].reason, 'invalid');
+  assert.match(result.lines[1].errors[0].message, /UTF-8/);
+  assert.equal(result.truncatedTail, false);
+});
+
+test('a multibyte character cut at the end of the log is a truncated tail, not a failed log', async () => {
+  const log = await readText(fixture('learning-events/valid/log-multi-line.jsonl'));
+  const first = log.split('\n')[0];
+  const cutBytes = Buffer.from('{"note":"é').subarray(0, -1);
+  assert.equal(cutBytes.at(-1), 0xc3, 'the cut leaves a lead byte');
+  for (const tail of [cutBytes, Buffer.from('{"note":"€').subarray(0, -1), Buffer.from('{"note":"\u{1F600}').subarray(0, -2)]) {
+    const result = validateLogText(Buffer.concat([Buffer.from(`${first}\n`), tail]));
+    assert.equal(result.reason, undefined);
+    assert.equal(result.truncatedTail, true);
+    assert.deepEqual(result.lines.map((line) => line.ok), [true, false]);
+    assert.equal(result.lines[1].reason, 'truncated_tail');
+  }
+  // A bad byte that is not an incomplete ending is a damaged line, not a truncated tail.
+  for (const tail of [Buffer.from([0x7b, 0xff, 0x7b]), Buffer.from([0x7b, 0xff]), Buffer.from([0x7b, 0xc3, 0x28])]) {
+    const result = validateLogText(Buffer.concat([Buffer.from(`${first}\n`), tail]));
+    assert.equal(result.truncatedTail, false);
+    assert.equal(result.lines[1].reason, 'invalid');
+  }
+});
+
+test('a log with too many lines is refused as a whole, and blank lines are cheap', () => {
+  assert.equal(MAX_LINES, 50000);
+  const over = validateLogText('\n'.repeat(MAX_LINES + 1));
+  assert.equal(over.ok, false);
+  assert.equal(over.reason, 'too_large');
+  assert.deepEqual(over.lines, []);
+  assert.equal(validateLogText(Buffer.from('\n'.repeat(MAX_LINES + 1))).reason, 'too_large');
+  const edge = validateLogText('\n'.repeat(MAX_LINES));
+  assert.equal(edge.reason, undefined);
+  assert.equal(edge.lines.length, MAX_LINES);
+  assert.ok(edge.lines.every((line) => line.ok === false && line.reason === 'invalid'));
+  // A final line without a newline counts as a line.
+  assert.equal(validateLogText(`${'\n'.repeat(MAX_LINES)}{`).reason, 'too_large');
+  const started = performance.now();
+  validateLogText('\n'.repeat(MAX_LINES));
+  assert.ok(performance.now() - started < 2000, 'blank lines take the fast path');
 });
 
 test('a log splits on the newline character only', async () => {
@@ -466,7 +514,9 @@ test('an unreadable, oversized, or non-UTF-8 log file is refused as a whole', as
     assert.doesNotMatch(JSON.stringify(missing), new RegExp(folder.replaceAll('/', '\\/')), 'the message holds no path');
     const broken = path.join(folder, 'broken.jsonl');
     await writeFile(broken, Buffer.from([0x7b, 0xff, 0x0a]));
-    assert.equal((await validateLogFile(broken)).reason, 'invalid');
+    const damaged = await validateLogFile(broken);
+    assert.equal(damaged.reason, undefined, 'a bad byte damages one line, not the whole file');
+    assert.equal(damaged.lines[0].reason, 'invalid');
     const big = path.join(folder, 'big.jsonl');
     await writeFile(big, Buffer.alloc(MAX_BYTES + 1, 0x20));
     assert.equal((await validateLogFile(big)).reason, 'too_large');
