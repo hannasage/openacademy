@@ -1,0 +1,164 @@
+{
+  "schemaVersion": "1.0",
+  "id": "soccer-ml-m10",
+  "version": "1.0.0",
+  "title": "Read research like an engineer",
+  "outcome": "Write two structured paper notes and design a small reproduction.",
+  "blocks": [
+    {
+      "type": "text",
+      "id": "question",
+      "body": "Question: Which claims survive a closer look?"
+    },
+    {
+      "type": "text",
+      "id": "math",
+      "body": "Mathematics: Connect assumptions, objective functions, experimental controls, effect sizes, and uncertainty to research claims."
+    },
+    {
+      "type": "text",
+      "id": "dataset",
+      "body": "Dataset: Reuse the frozen soccer datasets and splits. For reproduction, use the selected paper’s public data if feasible; otherwise label the soccer experiment as an adaptation."
+    },
+    {
+      "type": "text",
+      "id": "reading",
+      "body": "Reading: Use abstracts to choose questions, then inspect methods and limitations. Refresh the current article when this stage begins."
+    },
+    {
+      "type": "source-link",
+      "id": "source-tabpfn",
+      "title": "Accurate predictions on small data with a tabular foundation model · 2025",
+      "url": "https://www.nature.com/articles/s41586-024-08328-6",
+      "note": "Read the question, evaluation design, and limitations. Reproduce one feasible comparison, not the original training run."
+    },
+    {
+      "type": "source-link",
+      "id": "source-paper2026",
+      "title": "Placeholder source: a paper on tabular prediction",
+      "url": "https://example.org/sources/paper2026",
+      "note": "Treat this preprint as a claim to examine. Compare its evaluation choices with your soccer experiments. No paid API experiment is required."
+    },
+    {
+      "type": "source-link",
+      "id": "source-research",
+      "title": "Anthropic research",
+      "url": "https://www.anthropic.com/research",
+      "note": "Select a recent public article about evaluations or model behavior. Follow its paper or methods link and record limitations."
+    },
+    {
+      "type": "text",
+      "id": "challenge",
+      "body": "Challenge: Separate an author claim from evidence and your inference. Name a confounder that can reverse the conclusion."
+    },
+    {
+      "type": "check-reference",
+      "id": "evidence-check",
+      "checkId": "evidence"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task-1",
+      "prompt": "Read the 2025 TabPFN paper and the 2026 tabular-prediction preprint. Record question, method, evidence, and limitations.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 1 of m10. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 1 of m10. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 1 of m10. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 1 of m10. Not written yet."
+        }
+      ]
+    },
+    {
+      "id": "task-2",
+      "prompt": "Trace one central equation into pseudocode. List every concept you cannot yet explain.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 2 of m10. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 2 of m10. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 2 of m10. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 2 of m10. Not written yet."
+        }
+      ]
+    },
+    {
+      "id": "task-3",
+      "prompt": "Choose one feasible claim about evaluation or tabular prediction. Specify data, baseline, metric, compute budget, and failure criteria.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 3 of m10. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 3 of m10. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 3 of m10. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 3 of m10. Not written yet."
+        }
+      ]
+    },
+    {
+      "id": "task-4",
+      "prompt": "Read one current Anthropic evaluation article. Explain how its evaluation principles transfer to your experiments.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 4 of m10. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 4 of m10. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 4 of m10. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 4 of m10. Not written yet."
+        }
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "id": "evidence",
+      "kind": "self-reported",
+      "description": "Two paper notes, one current research note, and a preregistered reproduction plan with a local compute budget."
+    }
+  ],
+  "prerequisites": [
+    "soccer-ml-m09"
+  ],
+  "estimatedMinutes": 1320,
+  "license": {
+    "id": "LicenseRef-Unspecified"
+  }
+}

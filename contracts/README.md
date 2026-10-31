@@ -16,6 +16,10 @@ These JSON Schemas use JSON Schema draft 2020-12. Their `urn:touchline:contract:
 | `published-library.v1` | A published library revision and optional focus curriculum |
 | `hub-description.v1` | Public connection discovery and supported sign-in methods |
 | `error.v1` | A structured error response |
+| `lesson-module.v1` | One single-lesson module: outcome, content, tasks, hint ladders, checks, optional harness, license, optional price |
+| `packet.v1` | An ordered set of lesson module references, each with an exact version |
+| `help-record.v1` | One hint request, with the attempt it follows |
+| `lesson-common.v1` | Shared definitions for the three schemas above |
 
 ## Local identity and revisions
 
@@ -54,3 +58,110 @@ A hub link or QR code contains the hub address only. Public discovery never cont
 `tests/fixtures/contracts/cases.json` lists each case's schema file, data file, and expected schema result (`valid`). A case marked `semanticValid: false` deliberately passes JSON Schema but must fail the relevant runtime check. Consumers must not treat schema success alone as permission to accept it. Fixture domains and credentials are synthetic; none grants access to a service.
 
 `node --test tests/contracts.test.mjs` compiles all schemas with Ajv2020, checks every case, round-trips valid JSON without loss, checks the shipped curriculum, rejects unknown versions, and checks publication and discovery field boundaries. Python storage checks use the same fixture files for local runtime rules.
+
+## Lesson modules and packets
+
+The three lesson contracts are new and additive. They change no existing schema, fixture, or storage key. Their identifiers use the form `urn:schola:contract:<name>:v1`. The older contracts keep their `urn:touchline:contract:*` identifiers.
+
+### Two meanings of module
+
+In the curriculum contract, a module is a multi-week unit. It has `weekStart` and `weekEnd`. In the lesson contracts, the unit is a lesson module. A lesson module is one lesson with one outcome and one piece of verified work. It has no weeks. The schema and file names always say `lesson-module`. Never read one as the other.
+
+### Files
+
+- `lesson-module.v1` holds `schemaVersion`, `id`, `version`, `title`, `outcome`, `blocks`, `tasks`, `checks`, `prerequisites`, `license`, and the optional `harness`, `estimatedMinutes`, and `price`.
+- `packet.v1` holds `schemaVersion`, `id`, `version`, `title`, and `modules`. Each entry in `modules` is an `id` and an exact `version`. A packet holds references, not module content. A packet with one entry is how a single module travels as a packet. `packetFromModule` in `validate.mjs` builds that packet from a module.
+- `help-record.v1` holds `schemaVersion`, `moduleId`, `taskId`, `level`, `attemptId`, `timestamp`, and `source`.
+- `lesson-common.v1` holds the shared patterns for ids, versions, hint levels, and timestamps.
+
+Every object is closed. The `runner` descriptor of a check is closed too, but its keys are not fixed, because its shape belongs to the check runner. It must be a flat object with a `type` string. Other keys must match `^[a-z][A-Za-z0-9]{0,39}$` and must not be `__proto__`, `constructor`, or `prototype`. It holds at most 20 properties. Each value is a string of at most 500 characters, a 32-bit integer, a boolean, or an array of at most 20 strings of at most 200 characters. Nested objects are not allowed.
+
+### Choices and their reasons
+
+- `schemaVersion` is a string in the form `MAJOR.MINOR`, such as `1.0`. The schemas accept major version 1 and any minor number. Objects are closed, so a document with new fields needs a schema that knows them. A reader that sees an unknown field in a `1.x` document reports it as invalid.
+- The content `version` of a module and a packet is a three-part string such as `1.2.0`. A plain integer cannot tell a fix from a new feature. A pre-release suffix is not allowed. A packet entry must name one exact version, never a range.
+- Ids use lowercase letters, digits, and hyphens, start with a letter or digit, and hold at most 60 characters. This pattern is stricter than the curriculum module id pattern, so ids are safe in file names and links.
+- Block, task, and check ids use the same pattern. They are unique inside one module.
+- A block has one of four types. `text` holds a body. `source-link` holds a title and an `http` or `https` link. `interactive-code` holds a language and starter text. `check-reference` names a check declared in the same module.
+- A task holds a prompt and a hint ladder. The ladder has exactly four entries. The levels are `nudge`, `question`, `partial-example`, and `full-answer`, in that order. The schema enforces the order. The validator also checks it as a backstop.
+- Text fields (`title`, `outcome`, task `prompt`, check `description`, and block `body`) need at least one visible character. White space, the zero-width characters U+200B to U+200D, U+2060, and U+FEFF do not count.
+- A link in a `source-link` block or in `license` uses `http` or `https`. It has no user information before the host. It holds no control character (U+0000 to U+001F and U+007F) and no bidirectional override (U+202A to U+202E and U+2066 to U+2069). An `@` in the path or query is allowed.
+- A check has a `kind`. The kind `automated` needs a `runner` descriptor. The kind `self-reported` must not have one.
+- A harness reference holds an id and `requiredPermissions`. The list is empty or holds names from a closed set. The set is the tutor call surface: `get_lesson`, `get_attempt`, `run_check`, `request_hint`, and `log_reflection`. A harness may add context. It never widens what an agent may do, so no other permission name is valid.
+- `prerequisites` is a list of module ids. It is advice only. A reader warns about a missing prerequisite and never blocks on it.
+- `license` is an object with an `id`, such as an SPDX identifier, and an optional link.
+- `price` is optional. An absent price means no price is set. The `amount` is an integer in minor units, such as cents, from 0 to 99999999. The `currency` is a three-letter code in capitals. The schema checks only that shape. The hosted backend must check the code against an allowlist of the currencies it supports. These fields describe a price. They carry no payment logic.
+
+### Checks hold descriptors, not code
+
+The module contract does not hold executable code in a check. A check holds a `description` and, for an automated check, a `runner` descriptor. A runner descriptor is data only. The validator never executes it. Nothing may use it to grant permissions. A runner reads the descriptor and decides what to do. The `interactive-code` block holds starter text for the student to edit. It is data. No reader may run it or any runner field unless the reader first shows the student what will run and the student agrees.
+
+### Help records and the full answer
+
+Every hint request makes one help record. The `attemptId` field is always present. It may be `null` only for the levels `nudge` and `question`. The levels `partial-example` and `full-answer` need the id of a logged attempt. This is how the contract keeps the full answer behind a logged attempt. The `source` is `student` or `agent`. The `timestamp` follows RFC 3339.
+
+### Validator
+
+`contracts/validate.mjs` exports these functions:
+
+- `validateLessonContract(kind, document)` checks a parsed document. The kind is `lesson-module`, `packet`, or `help-record`.
+- `validateLessonText(kind, text)` parses JSON text first. Text that is not complete JSON gives an invalid result.
+- `validateLessonFile(kind, file)` reads a file first. A file that cannot be read gives an invalid result.
+- `packetFromModule(module)` builds the one-entry packet for a module.
+
+A call returns `{ ok: true }` or `{ ok: false, reason, errors }`. Each error is `{ pointer, message }`, where `pointer` is a JSON Pointer into the document. The `reason` is one of these:
+
+- `invalid`: the document broke the schema or a semantic rule, or it is not JSON.
+- `unsupported_version`: the major version is not supported.
+- `too_large`: the document is larger than `MAX_BYTES`, which is 5 MB. The check runs before parsing, and a file is measured with a size check before it is read. The hosted backend must enforce the same cap at upload.
+- `unreadable`: a file could not be opened or measured. The message names the error code, such as `ENOENT`, `EISDIR`, or `EACCES`. It never holds a path.
+
+A result lists at most 100 errors. If there are more, the last entry has an empty pointer and the message `N more errors omitted.`
+
+The validator never changes its input. It never writes a file. It opens files for reading only. A damaged file or a file with an unsupported version stays exactly as it was.
+
+### Unknown major versions
+
+A reader supports a list of major versions. Today the list is `1`. A reader reads `schemaVersion` first. If the major number is not in its list, it stops. It returns `unsupported_version`, it reports only `/schemaVersion`, and it does not look at any other field. A reader never tries to repair, migrate, or rewrite such a file. The reader takes the digits before the first dot as the major number, so `2.0.0` and `1000000.0` are `unsupported_version`. A marker with major number 1 that is not in the `MAJOR.MINOR` form, such as `1.0.0`, is `invalid`. A marker with no dot is `invalid`.
+
+### Semantic checks
+
+A schema alone cannot check these rules. `validate.mjs` checks them after the schema passes:
+
+- Module ids are unique in a packet.
+- Block ids, task ids, and check ids are unique in a module.
+- Every `check-reference` block names a check that the module declares.
+- A prerequisite is not the id of the module itself. The schema already checks that each prerequisite is a valid module id. A prerequisite does not need to be in the same packet.
+- Every hint ladder holds the four levels in the required order. The schema already enforces this, so the check is a backstop.
+- A help record timestamp names a day that exists. The schema alone accepts a date such as 30 February.
+
+### Safe use of ids and links
+
+An id is a label. A tool must never use an id directly as a file name or path. Prefix it or hash it first. The hosted backend must also apply a server-side request filter, which blocks private and local addresses, before it fetches any `source-link` URL.
+
+A help record does not name a module in the same document. A tool that holds both must also check that `moduleId` and `taskId` exist in the module. That check belongs to the tool.
+
+### Fixtures and conformance
+
+The fixtures are in `tests/fixtures/contracts/valid/` and `tests/fixtures/contracts/invalid/`. Their names start with `lesson-module-`, `packet-`, or `help-record-`. The file `tests/fixtures/contracts/lesson-conformance.json` lists every one of them. Each entry has these fields:
+
+- `name` is a unique label.
+- `kind` is `lesson-module`, `packet`, or `help-record`.
+- `file` is a path relative to `tests/fixtures/contracts/`.
+- `expect` is `valid`, `invalid:invalid`, or `invalid:unsupported_version`.
+- `stage` names where a document first fails. It is `none`, `parse`, `version`, `schema`, or `semantic`. A `parse` fixture is not valid JSON. A `version` fixture has a `schemaVersion` string with a major number other than 1. A `schema` fixture fails the schema. A `semantic` fixture passes the schema and fails a semantic rule.
+
+The test refuses any file in `valid/` or `invalid/` that is neither a case in `cases.json` nor an entry in the manifest.
+
+Another implementation, for example a Rust service, proves conformance in these steps:
+
+1. Load every `contracts/*.schema.json` file as a draft 2020-12 schema. Register each by its `$id`.
+2. For each manifest entry, read the file as text. Do not change it.
+3. Refuse text over 5 MB before parsing. Then parse the text as JSON. A parse failure is the result `invalid`.
+4. Read `schemaVersion`. If the digits before its first dot are not a supported major number, the result is `unsupported_version`.
+5. Validate the document against the schema for its `kind`. A failure is `invalid`.
+6. Run the semantic checks above. A failure is `invalid`.
+7. Compare the result with `expect`. Every entry must match.
+8. Check that every file has the same bytes after the run.
+
+An implementation that applies only steps 1 to 5 passes every entry whose `stage` is not `semantic`. Entries with a `schema` stage include a hint ladder out of order. It must apply step 6 to pass the rest. The Node test is `tests/lesson-contracts.test.mjs`. Run it with `node --test tests/lesson-contracts.test.mjs`.

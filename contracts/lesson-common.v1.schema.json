@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:schola:contract:lesson-common:v1",
+  "$defs": {
+    "schemaVersion": {
+      "type": "string",
+      "pattern": "^1\\.(?:0|[1-9][0-9]{0,5})$"
+    },
+    "lessonId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{0,59}$"
+    },
+    "localId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{0,59}$"
+    },
+    "attemptId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,64}$"
+    },
+    "contentVersion": {
+      "type": "string",
+      "pattern": "^(?:0|[1-9][0-9]{0,8})\\.(?:0|[1-9][0-9]{0,8})\\.(?:0|[1-9][0-9]{0,8})$"
+    },
+    "title": {
+      "type": "string",
+      "pattern": "[^\\s\\u200B-\\u200D\\u2060\\uFEFF]",
+      "maxLength": 200
+    },
+    "httpUrl": {
+      "type": "string",
+      "pattern": "^https?://(?![^/?#]*@)[^\\s\\u0000-\\u001F\\u007F\\u202A-\\u202E\\u2066-\\u2069]+$",
+      "maxLength": 2000
+    },
+    "hintLevel": {
+      "enum": [
+        "nudge",
+        "question",
+        "partial-example",
+        "full-answer"
+      ]
+    },
+    "timestamp": {
+      "type": "string",
+      "pattern": "^\\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\\d|3[01])T(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d{1,9})?(?:Z|[+-](?:[01]\\d|2[0-3]):[0-5]\\d)$"
+    }
+  }
+}

@@ -1,0 +1,150 @@
+{
+  "schemaVersion": "1.0",
+  "id": "soccer-ml-m08",
+  "version": "1.0.0",
+  "title": "Build a neural network",
+  "outcome": "Train a small PyTorch network for the shot prediction task.",
+  "blocks": [
+    {
+      "type": "text",
+      "id": "question",
+      "body": "Question: Can learned features improve the forecast?"
+    },
+    {
+      "type": "text",
+      "id": "math",
+      "body": "Mathematics: Apply the chain rule to backpropagation, the calculation of gradients through a network."
+    },
+    {
+      "type": "text",
+      "id": "dataset",
+      "body": "Dataset: StatsBomb Open Data: events/{match_id}.json joined to match dates. For shots, use shot locations and outcomes. Split by whole match and date."
+    },
+    {
+      "type": "text",
+      "id": "reading",
+      "body": "Reading: D2L chapters on linear networks, multilayer perceptrons, and training. Keep the network small enough for local experiments."
+    },
+    {
+      "type": "source-link",
+      "id": "source-d2l",
+      "title": "Dive into Deep Learning",
+      "url": "https://d2l.ai/",
+      "note": "Use the interactive book for calculus, automatic differentiation, training loops, and attention."
+    },
+    {
+      "type": "text",
+      "id": "challenge",
+      "body": "Challenge: Trace a prediction and gradient through a tiny network. Explain train versus evaluation mode."
+    },
+    {
+      "type": "check-reference",
+      "id": "evidence-check",
+      "checkId": "evidence"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task-1",
+      "prompt": "Implement a two-layer network and annotate tensor shapes. Compare a tiny manual gradient with automatic differentiation.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 1 of m08. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 1 of m08. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 1 of m08. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 1 of m08. Not written yet."
+        }
+      ]
+    },
+    {
+      "id": "task-2",
+      "prompt": "Write a training loop with batches, validation, reproducible seeds, and saved model weights.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 2 of m08. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 2 of m08. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 2 of m08. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 2 of m08. Not written yet."
+        }
+      ]
+    },
+    {
+      "id": "task-3",
+      "prompt": "Overfit a tiny batch to diagnose the pipeline. Then use early stopping on the real training split.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 3 of m08. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 3 of m08. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 3 of m08. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 3 of m08. Not written yet."
+        }
+      ]
+    },
+    {
+      "id": "task-4",
+      "prompt": "Compare the network with logistic regression and boosting. Report when the neural network loses.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 4 of m08. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 4 of m08. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 4 of m08. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 4 of m08. Not written yet."
+        }
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "id": "evidence",
+      "kind": "self-reported",
+      "description": "A reproducible neural training run, a tiny-batch diagnostic, learning curves, and comparisons with simpler models."
+    }
+  ],
+  "prerequisites": [
+    "soccer-ml-m07"
+  ],
+  "estimatedMinutes": 1320,
+  "license": {
+    "id": "LicenseRef-Unspecified"
+  }
+}

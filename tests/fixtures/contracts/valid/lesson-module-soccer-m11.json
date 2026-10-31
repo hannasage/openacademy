@@ -1,0 +1,157 @@
+{
+  "schemaVersion": "1.0",
+  "id": "soccer-ml-m11",
+  "version": "1.0.0",
+  "title": "Reproduce and investigate",
+  "outcome": "Reproduce one limited research result and run an ablation, an experiment that removes one component.",
+  "blocks": [
+    {
+      "type": "text",
+      "id": "question",
+      "body": "Question: Can you recover a result and explain a failure?"
+    },
+    {
+      "type": "text",
+      "id": "math",
+      "body": "Mathematics: Apply confidence intervals, seed variability, multiple-comparison caution, and controlled comparisons."
+    },
+    {
+      "type": "text",
+      "id": "dataset",
+      "body": "Dataset: Reuse the frozen soccer datasets and splits. For reproduction, use the selected paper’s public data if feasible; otherwise label the soccer experiment as an adaptation."
+    },
+    {
+      "type": "text",
+      "id": "reading",
+      "body": "Reading: If pretrained weights or hardware are unavailable, reproduce an evaluation comparison using your existing models and label the adaptation."
+    },
+    {
+      "type": "source-link",
+      "id": "source-tabpfn",
+      "title": "Accurate predictions on small data with a tabular foundation model · 2025",
+      "url": "https://www.nature.com/articles/s41586-024-08328-6",
+      "note": "Read the question, evaluation design, and limitations. Reproduce one feasible comparison, not the original training run."
+    },
+    {
+      "type": "source-link",
+      "id": "source-paper2026",
+      "title": "Placeholder source: a paper on tabular prediction",
+      "url": "https://example.org/sources/paper2026",
+      "note": "Treat this preprint as a claim to examine. Compare its evaluation choices with your soccer experiments. No paid API experiment is required."
+    },
+    {
+      "type": "text",
+      "id": "challenge",
+      "body": "Challenge: Explain which conclusion your data supports and which it does not. Rerun one result from a clean command."
+    },
+    {
+      "type": "check-reference",
+      "id": "evidence-check",
+      "checkId": "evidence"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task-1",
+      "prompt": "Freeze data and code versions. Implement the selected experiment with a baseline and an explicit compute limit.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 1 of m11. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 1 of m11. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 1 of m11. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 1 of m11. Not written yet."
+        }
+      ]
+    },
+    {
+      "id": "task-2",
+      "prompt": "Run multiple seeds or resamples where appropriate. Record metrics and variation, not only the best run.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 2 of m11. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 2 of m11. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 2 of m11. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 2 of m11. Not written yet."
+        }
+      ]
+    },
+    {
+      "id": "task-3",
+      "prompt": "Remove one component and compare the result. Investigate a discrepancy with the original claim.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 3 of m11. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 3 of m11. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 3 of m11. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 3 of m11. Not written yet."
+        }
+      ]
+    },
+    {
+      "id": "task-4",
+      "prompt": "Write a short report that distinguishes exact reproduction, adaptation, and failure to reproduce.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 4 of m11. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 4 of m11. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 4 of m11. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 4 of m11. Not written yet."
+        }
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "id": "evidence",
+      "kind": "self-reported",
+      "description": "A rerunnable experiment, an ablation table, and a report with limitations and negative results."
+    }
+  ],
+  "prerequisites": [
+    "soccer-ml-m10"
+  ],
+  "estimatedMinutes": 1320,
+  "license": {
+    "id": "LicenseRef-Unspecified"
+  }
+}

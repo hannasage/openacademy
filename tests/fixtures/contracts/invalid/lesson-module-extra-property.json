@@ -1,0 +1,120 @@
+{
+  "schemaVersion": "1.0",
+  "id": "full-module",
+  "version": "2.1.0",
+  "title": "A full lesson module",
+  "outcome": "The student can write and test a function that adds two numbers.",
+  "blocks": [
+    {
+      "type": "text",
+      "id": "intro",
+      "body": "A function takes inputs and returns a result.\n\nYou can write \"add\" in one line."
+    },
+    {
+      "type": "source-link",
+      "id": "reference",
+      "title": "Language reference",
+      "url": "https://example.com/reference",
+      "note": "Read the section on functions."
+    },
+    {
+      "type": "interactive-code",
+      "id": "editor",
+      "language": "python",
+      "starter": "def add(a, b):\n    pass\n",
+      "readOnly": false
+    },
+    {
+      "type": "check-reference",
+      "id": "run-it",
+      "checkId": "add-works"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "write-add",
+      "prompt": "Write add(a, b) so that it returns the sum.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Look again at the first sentence of task 1."
+        },
+        {
+          "level": "question",
+          "text": "What result do you expect from task 1 before you run anything?"
+        },
+        {
+          "level": "partial-example",
+          "text": "Here is the first step of task 1. Finish the rest yourself."
+        },
+        {
+          "level": "full-answer",
+          "text": "Here is a complete answer to task 1."
+        }
+      ]
+    },
+    {
+      "id": "explain",
+      "prompt": "Explain in your own words why the function works.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Look again at the first sentence of task 2."
+        },
+        {
+          "level": "question",
+          "text": "What result do you expect from task 2 before you run anything?"
+        },
+        {
+          "level": "partial-example",
+          "text": "Here is the first step of task 2. Finish the rest yourself."
+        },
+        {
+          "level": "full-answer",
+          "text": "Here is a complete answer to task 2."
+        }
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "id": "add-works",
+      "kind": "automated",
+      "description": "Runs add(2, 3) and expects 5.",
+      "runner": {
+        "type": "script",
+        "language": "python",
+        "entry": "check_add",
+        "timeoutSeconds": 5
+      }
+    },
+    {
+      "id": "explained",
+      "kind": "self-reported",
+      "description": "The student confirms the explanation is written."
+    }
+  ],
+  "harness": {
+    "id": "full-module-tutor",
+    "requiredPermissions": [
+      "get_lesson",
+      "get_attempt",
+      "run_check",
+      "request_hint",
+      "log_reflection"
+    ]
+  },
+  "prerequisites": [
+    "hello-module"
+  ],
+  "estimatedMinutes": 45,
+  "license": {
+    "id": "CC-BY-4.0",
+    "url": "https://creativecommons.org/licenses/by/4.0/"
+  },
+  "price": {
+    "amount": 1999,
+    "currency": "USD"
+  },
+  "sponsor": "not part of the contract"
+}

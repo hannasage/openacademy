@@ -1,0 +1,157 @@
+{
+  "schemaVersion": "1.0",
+  "id": "soccer-ml-m03",
+  "version": "1.0.0",
+  "title": "Think in vectors",
+  "outcome": "Implement batched predictions with NumPy and build a player similarity explorer.",
+  "blocks": [
+    {
+      "type": "text",
+      "id": "question",
+      "body": "Question: Can a whole season be one calculation?"
+    },
+    {
+      "type": "text",
+      "id": "math",
+      "body": "Mathematics: Learn vectors, matrix shapes, dot products, norms, projections, rank, and feature scaling."
+    },
+    {
+      "type": "text",
+      "id": "dataset",
+      "body": "Dataset: StatsBomb Open Data: competitions.json → matches/{competition_id}/{season_id}.json. Use scores, dates, and information available before kickoff. Build recent-form features only from earlier matches. Player similarity uses player statistics aggregated from event files; restrict these to training matches."
+    },
+    {
+      "type": "text",
+      "id": "reading",
+      "body": "Reading: Mathematics for Machine Learning chapters 2 and 3. Read only the sections used by the experiments."
+    },
+    {
+      "type": "source-link",
+      "id": "source-math",
+      "title": "Mathematics for Machine Learning",
+      "url": "https://mml-book.github.io/",
+      "note": "Use selected sections as a reference after the visual experiment. The authors provide a free PDF."
+    },
+    {
+      "type": "source-link",
+      "id": "source-visual",
+      "title": "3Blue1Brown · visual mathematics",
+      "url": "https://www.3blue1brown.com/",
+      "note": "Find the linear algebra and calculus lessons. Recreate one visual idea in code."
+    },
+    {
+      "type": "text",
+      "id": "challenge",
+      "body": "Challenge: Calculate a small dot product yourself. Diagnose a shape error and explain one misleading similarity result."
+    },
+    {
+      "type": "check-reference",
+      "id": "evidence-check",
+      "checkId": "evidence"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task-1",
+      "prompt": "Represent matches as rows and pre-match measurements as columns. Annotate every matrix shape.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 1 of m03. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 1 of m03. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 1 of m03. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 1 of m03. Not written yet."
+        }
+      ]
+    },
+    {
+      "id": "task-2",
+      "prompt": "Compute one prediction with a loop and with a matrix product. Make sure that the results agree.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 2 of m03. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 2 of m03. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 2 of m03. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 2 of m03. Not written yet."
+        }
+      ]
+    },
+    {
+      "id": "task-3",
+      "prompt": "Build a player similarity search with normalized vectors. Show how scaling changes the neighbors.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 3 of m03. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 3 of m03. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 3 of m03. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 3 of m03. Not written yet."
+        }
+      ]
+    },
+    {
+      "id": "task-4",
+      "prompt": "Demonstrate redundant columns and explain why they create estimation problems.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 4 of m03. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 4 of m03. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 4 of m03. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 4 of m03. Not written yet."
+        }
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "id": "evidence",
+      "kind": "self-reported",
+      "description": "A matrix implementation with numerical comparisons and a similarity example whose behavior you can explain."
+    }
+  ],
+  "prerequisites": [
+    "soccer-ml-m02"
+  ],
+  "estimatedMinutes": 1320,
+  "license": {
+    "id": "LicenseRef-Unspecified"
+  }
+}

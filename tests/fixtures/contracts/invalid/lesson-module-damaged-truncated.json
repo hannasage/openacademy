@@ -1,0 +1,48 @@
+{
+  "schemaVersion": "1.0",
+  "id": "full-module",
+  "version": "2.1.0",
+  "title": "A full lesson module",
+  "outcome": "The student can write and test a function that adds two numbers.",
+  "blocks": [
+    {
+      "type": "text",
+      "id": "intro",
+      "body": "A function takes inputs and returns a result.\n\nYou can write \"add\" in one line."
+    },
+    {
+      "type": "source-link",
+      "id": "reference",
+      "title": "Language reference",
+      "url": "https://example.com/reference",
+      "note": "Read the section on functions."
+    },
+    {
+      "type": "interactive-code",
+      "id": "editor",
+      "language": "python",
+      "starter": "def add(a, b):\n    pass\n",
+      "readOnly": false
+    },
+    {
+      "type": "check-reference",
+      "id": "run-it",
+      "checkId": "add-works"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "write-add",
+      "prompt": "Write add(a, b) so that it returns the sum.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Look again at the first sentence of task 1."
+        },
+        {
+          "level": "question",
+          "text": "What result do you expect from task 1 before you run anything?"
+        },
+        {
+          "level": "partial-example",
+          "text": "Here is the first step of task 1. Finish the rest yoursel

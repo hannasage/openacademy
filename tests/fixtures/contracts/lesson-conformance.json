@@ -1,0 +1,310 @@
+[
+  {
+    "name": "lesson-module-minimal",
+    "kind": "lesson-module",
+    "file": "valid/lesson-module-minimal.json",
+    "expect": "valid",
+    "stage": "none"
+  },
+  {
+    "name": "lesson-module-full",
+    "kind": "lesson-module",
+    "file": "valid/lesson-module-full.json",
+    "expect": "valid",
+    "stage": "none"
+  },
+  {
+    "name": "lesson-module-harness-empty-permissions",
+    "kind": "lesson-module",
+    "file": "valid/lesson-module-harness-empty-permissions.json",
+    "expect": "valid",
+    "stage": "none"
+  },
+  {
+    "name": "packet-one-module",
+    "kind": "packet",
+    "file": "valid/packet-one-module.json",
+    "expect": "valid",
+    "stage": "none"
+  },
+  {
+    "name": "packet-multi-module",
+    "kind": "packet",
+    "file": "valid/packet-multi-module.json",
+    "expect": "valid",
+    "stage": "none"
+  },
+  {
+    "name": "lesson-module-soccer-m01",
+    "kind": "lesson-module",
+    "file": "valid/lesson-module-soccer-m01.json",
+    "expect": "valid",
+    "stage": "none"
+  },
+  {
+    "name": "lesson-module-soccer-m02",
+    "kind": "lesson-module",
+    "file": "valid/lesson-module-soccer-m02.json",
+    "expect": "valid",
+    "stage": "none"
+  },
+  {
+    "name": "lesson-module-soccer-m03",
+    "kind": "lesson-module",
+    "file": "valid/lesson-module-soccer-m03.json",
+    "expect": "valid",
+    "stage": "none"
+  },
+  {
+    "name": "lesson-module-soccer-m04",
+    "kind": "lesson-module",
+    "file": "valid/lesson-module-soccer-m04.json",
+    "expect": "valid",
+    "stage": "none"
+  },
+  {
+    "name": "lesson-module-soccer-m05",
+    "kind": "lesson-module",
+    "file": "valid/lesson-module-soccer-m05.json",
+    "expect": "valid",
+    "stage": "none"
+  },
+  {
+    "name": "lesson-module-soccer-m06",
+    "kind": "lesson-module",
+    "file": "valid/lesson-module-soccer-m06.json",
+    "expect": "valid",
+    "stage": "none"
+  },
+  {
+    "name": "lesson-module-soccer-m07",
+    "kind": "lesson-module",
+    "file": "valid/lesson-module-soccer-m07.json",
+    "expect": "valid",
+    "stage": "none"
+  },
+  {
+    "name": "lesson-module-soccer-m08",
+    "kind": "lesson-module",
+    "file": "valid/lesson-module-soccer-m08.json",
+    "expect": "valid",
+    "stage": "none"
+  },
+  {
+    "name": "lesson-module-soccer-m09",
+    "kind": "lesson-module",
+    "file": "valid/lesson-module-soccer-m09.json",
+    "expect": "valid",
+    "stage": "none"
+  },
+  {
+    "name": "lesson-module-soccer-m10",
+    "kind": "lesson-module",
+    "file": "valid/lesson-module-soccer-m10.json",
+    "expect": "valid",
+    "stage": "none"
+  },
+  {
+    "name": "lesson-module-soccer-m11",
+    "kind": "lesson-module",
+    "file": "valid/lesson-module-soccer-m11.json",
+    "expect": "valid",
+    "stage": "none"
+  },
+  {
+    "name": "lesson-module-soccer-m12",
+    "kind": "lesson-module",
+    "file": "valid/lesson-module-soccer-m12.json",
+    "expect": "valid",
+    "stage": "none"
+  },
+  {
+    "name": "lesson-module-soccer-m13",
+    "kind": "lesson-module",
+    "file": "valid/lesson-module-soccer-m13.json",
+    "expect": "valid",
+    "stage": "none"
+  },
+  {
+    "name": "packet-soccer-ml",
+    "kind": "packet",
+    "file": "valid/packet-soccer-ml.json",
+    "expect": "valid",
+    "stage": "none"
+  },
+  {
+    "name": "help-record-nudge-null-attempt",
+    "kind": "help-record",
+    "file": "valid/help-record-nudge-null-attempt.json",
+    "expect": "valid",
+    "stage": "none"
+  },
+  {
+    "name": "help-record-question-null-attempt",
+    "kind": "help-record",
+    "file": "valid/help-record-question-null-attempt.json",
+    "expect": "valid",
+    "stage": "none"
+  },
+  {
+    "name": "help-record-partial-example-student",
+    "kind": "help-record",
+    "file": "valid/help-record-partial-example-student.json",
+    "expect": "valid",
+    "stage": "none"
+  },
+  {
+    "name": "help-record-full-answer-agent",
+    "kind": "help-record",
+    "file": "valid/help-record-full-answer-agent.json",
+    "expect": "valid",
+    "stage": "none"
+  },
+  {
+    "name": "lesson-module-damaged-truncated",
+    "kind": "lesson-module",
+    "file": "invalid/lesson-module-damaged-truncated.json",
+    "expect": "invalid:invalid",
+    "stage": "parse"
+  },
+  {
+    "name": "lesson-module-extra-property",
+    "kind": "lesson-module",
+    "file": "invalid/lesson-module-extra-property.json",
+    "expect": "invalid:invalid",
+    "stage": "schema"
+  },
+  {
+    "name": "lesson-module-duplicate-task-ids",
+    "kind": "lesson-module",
+    "file": "invalid/lesson-module-duplicate-task-ids.json",
+    "expect": "invalid:invalid",
+    "stage": "semantic"
+  },
+  {
+    "name": "lesson-module-hint-ladder-out-of-order",
+    "kind": "lesson-module",
+    "file": "invalid/lesson-module-hint-ladder-out-of-order.json",
+    "expect": "invalid:invalid",
+    "stage": "schema"
+  },
+  {
+    "name": "lesson-module-hint-ladder-three-levels",
+    "kind": "lesson-module",
+    "file": "invalid/lesson-module-hint-ladder-three-levels.json",
+    "expect": "invalid:invalid",
+    "stage": "schema"
+  },
+  {
+    "name": "lesson-module-dangling-check-reference",
+    "kind": "lesson-module",
+    "file": "invalid/lesson-module-dangling-check-reference.json",
+    "expect": "invalid:invalid",
+    "stage": "semantic"
+  },
+  {
+    "name": "lesson-module-harness-wide-permission",
+    "kind": "lesson-module",
+    "file": "invalid/lesson-module-harness-wide-permission.json",
+    "expect": "invalid:invalid",
+    "stage": "schema"
+  },
+  {
+    "name": "lesson-module-missing-outcome",
+    "kind": "lesson-module",
+    "file": "invalid/lesson-module-missing-outcome.json",
+    "expect": "invalid:invalid",
+    "stage": "schema"
+  },
+  {
+    "name": "lesson-module-self-prerequisite",
+    "kind": "lesson-module",
+    "file": "invalid/lesson-module-self-prerequisite.json",
+    "expect": "invalid:invalid",
+    "stage": "semantic"
+  },
+  {
+    "name": "lesson-module-unknown-major",
+    "kind": "lesson-module",
+    "file": "invalid/lesson-module-unknown-major.json",
+    "expect": "invalid:unsupported_version",
+    "stage": "version"
+  },
+  {
+    "name": "packet-duplicate-module-ids",
+    "kind": "packet",
+    "file": "invalid/packet-duplicate-module-ids.json",
+    "expect": "invalid:invalid",
+    "stage": "semantic"
+  },
+  {
+    "name": "packet-empty-modules",
+    "kind": "packet",
+    "file": "invalid/packet-empty-modules.json",
+    "expect": "invalid:invalid",
+    "stage": "schema"
+  },
+  {
+    "name": "packet-unpinned-version",
+    "kind": "packet",
+    "file": "invalid/packet-unpinned-version.json",
+    "expect": "invalid:invalid",
+    "stage": "schema"
+  },
+  {
+    "name": "packet-extra-property",
+    "kind": "packet",
+    "file": "invalid/packet-extra-property.json",
+    "expect": "invalid:invalid",
+    "stage": "schema"
+  },
+  {
+    "name": "packet-unknown-major",
+    "kind": "packet",
+    "file": "invalid/packet-unknown-major.json",
+    "expect": "invalid:unsupported_version",
+    "stage": "version"
+  },
+  {
+    "name": "help-record-full-answer-null-attempt",
+    "kind": "help-record",
+    "file": "invalid/help-record-full-answer-null-attempt.json",
+    "expect": "invalid:invalid",
+    "stage": "schema"
+  },
+  {
+    "name": "help-record-partial-example-null-attempt",
+    "kind": "help-record",
+    "file": "invalid/help-record-partial-example-null-attempt.json",
+    "expect": "invalid:invalid",
+    "stage": "schema"
+  },
+  {
+    "name": "help-record-bad-source",
+    "kind": "help-record",
+    "file": "invalid/help-record-bad-source.json",
+    "expect": "invalid:invalid",
+    "stage": "schema"
+  },
+  {
+    "name": "help-record-impossible-date",
+    "kind": "help-record",
+    "file": "invalid/help-record-impossible-date.json",
+    "expect": "invalid:invalid",
+    "stage": "semantic"
+  },
+  {
+    "name": "help-record-extra-property",
+    "kind": "help-record",
+    "file": "invalid/help-record-extra-property.json",
+    "expect": "invalid:invalid",
+    "stage": "schema"
+  },
+  {
+    "name": "help-record-unknown-major",
+    "kind": "help-record",
+    "file": "invalid/help-record-unknown-major.json",
+    "expect": "invalid:unsupported_version",
+    "stage": "version"
+  }
+]

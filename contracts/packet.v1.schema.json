@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:schola:contract:packet:v1",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "$ref": "urn:schola:contract:lesson-common:v1#/$defs/schemaVersion"
+    },
+    "id": {
+      "$ref": "urn:schola:contract:lesson-common:v1#/$defs/lessonId"
+    },
+    "version": {
+      "$ref": "urn:schola:contract:lesson-common:v1#/$defs/contentVersion"
+    },
+    "title": {
+      "$ref": "urn:schola:contract:lesson-common:v1#/$defs/title"
+    },
+    "modules": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 2000,
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "urn:schola:contract:lesson-common:v1#/$defs/lessonId"
+          },
+          "version": {
+            "$ref": "urn:schola:contract:lesson-common:v1#/$defs/contentVersion"
+          }
+        },
+        "required": [
+          "id",
+          "version"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "id",
+    "version",
+    "title",
+    "modules"
+  ],
+  "additionalProperties": false
+}

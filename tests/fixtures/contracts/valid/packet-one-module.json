@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "1.0",
+  "id": "single-lesson",
+  "version": "1.0.0",
+  "title": "A packet with one module",
+  "modules": [
+    {
+      "id": "hello-module",
+      "version": "1.0.0"
+    }
+  ]
+}

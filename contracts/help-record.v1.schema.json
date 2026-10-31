@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:schola:contract:help-record:v1",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "$ref": "urn:schola:contract:lesson-common:v1#/$defs/schemaVersion"
+    },
+    "moduleId": {
+      "$ref": "urn:schola:contract:lesson-common:v1#/$defs/lessonId"
+    },
+    "taskId": {
+      "$ref": "urn:schola:contract:lesson-common:v1#/$defs/localId"
+    },
+    "level": {
+      "$ref": "urn:schola:contract:lesson-common:v1#/$defs/hintLevel"
+    },
+    "attemptId": {
+      "oneOf": [
+        {
+          "$ref": "urn:schola:contract:lesson-common:v1#/$defs/attemptId"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "timestamp": {
+      "$ref": "urn:schola:contract:lesson-common:v1#/$defs/timestamp"
+    },
+    "source": {
+      "enum": [
+        "student",
+        "agent"
+      ]
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "moduleId",
+    "taskId",
+    "level",
+    "attemptId",
+    "timestamp",
+    "source"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "level": {
+            "enum": [
+              "partial-example",
+              "full-answer"
+            ]
+          }
+        },
+        "required": [
+          "level"
+        ]
+      },
+      "then": {
+        "properties": {
+          "attemptId": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  ],
+  "additionalProperties": false
+}

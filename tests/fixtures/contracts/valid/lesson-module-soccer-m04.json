@@ -1,0 +1,164 @@
+{
+  "schemaVersion": "1.0",
+  "id": "soccer-ml-m04",
+  "version": "1.0.0",
+  "title": "Learn from error",
+  "outcome": "Fit a linear model from scratch and compare it with a library implementation.",
+  "blocks": [
+    {
+      "type": "text",
+      "id": "question",
+      "body": "Question: How does a model learn its weights?"
+    },
+    {
+      "type": "text",
+      "id": "math",
+      "body": "Mathematics: Learn limits through finite differences, derivatives, partial derivatives, gradients, and the chain rule."
+    },
+    {
+      "type": "text",
+      "id": "dataset",
+      "body": "Dataset: StatsBomb Open Data: competitions.json → matches/{competition_id}/{season_id}.json. Use scores, dates, and information available before kickoff. Build recent-form features only from earlier matches."
+    },
+    {
+      "type": "text",
+      "id": "reading",
+      "body": "Reading: Mathematics for Machine Learning chapters 5 and 7. D2L calculus and linear regression sections."
+    },
+    {
+      "type": "source-link",
+      "id": "source-math",
+      "title": "Mathematics for Machine Learning",
+      "url": "https://mml-book.github.io/",
+      "note": "Use selected sections as a reference after the visual experiment. The authors provide a free PDF."
+    },
+    {
+      "type": "source-link",
+      "id": "source-d2l",
+      "title": "Dive into Deep Learning",
+      "url": "https://d2l.ai/",
+      "note": "Use the interactive book for calculus, automatic differentiation, training loops, and attention."
+    },
+    {
+      "type": "source-link",
+      "id": "source-visual",
+      "title": "3Blue1Brown · visual mathematics",
+      "url": "https://www.3blue1brown.com/",
+      "note": "Find the linear algebra and calculus lessons. Recreate one visual idea in code."
+    },
+    {
+      "type": "text",
+      "id": "challenge",
+      "body": "Challenge: Derive one weight update, compute it on a tiny example, and explain how the loss changes."
+    },
+    {
+      "type": "check-reference",
+      "id": "evidence-check",
+      "checkId": "evidence"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task-1",
+      "prompt": "Plot an error curve. Estimate its slope with small input changes before using a derivative formula.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 1 of m04. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 1 of m04. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 1 of m04. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 1 of m04. Not written yet."
+        }
+      ]
+    },
+    {
+      "id": "task-2",
+      "prompt": "Derive the squared-error gradient for a linear model and implement gradient descent.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 2 of m04. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 2 of m04. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 2 of m04. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 2 of m04. Not written yet."
+        }
+      ]
+    },
+    {
+      "id": "task-3",
+      "prompt": "Compare analytic gradients with finite differences. Try several learning rates and explain divergence.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 3 of m04. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 3 of m04. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 3 of m04. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 3 of m04. Not written yet."
+        }
+      ]
+    },
+    {
+      "id": "task-4",
+      "prompt": "Fit a reference library model and compare predictions, training curves, and numerical stability.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 4 of m04. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 4 of m04. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 4 of m04. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 4 of m04. Not written yet."
+        }
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "id": "evidence",
+      "kind": "self-reported",
+      "description": "A working training loop, gradient comparison, learning curves, and a written explanation of a failed learning rate."
+    }
+  ],
+  "prerequisites": [
+    "soccer-ml-m03"
+  ],
+  "estimatedMinutes": 1320,
+  "license": {
+    "id": "LicenseRef-Unspecified"
+  }
+}

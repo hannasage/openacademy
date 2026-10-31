@@ -1,0 +1,60 @@
+{
+  "schemaVersion": "1.0",
+  "id": "soccer-ml",
+  "version": "1.0.0",
+  "title": "Soccer → machine learning",
+  "modules": [
+    {
+      "id": "soccer-ml-m01",
+      "version": "1.0.0"
+    },
+    {
+      "id": "soccer-ml-m02",
+      "version": "1.0.0"
+    },
+    {
+      "id": "soccer-ml-m03",
+      "version": "1.0.0"
+    },
+    {
+      "id": "soccer-ml-m04",
+      "version": "1.0.0"
+    },
+    {
+      "id": "soccer-ml-m05",
+      "version": "1.0.0"
+    },
+    {
+      "id": "soccer-ml-m06",
+      "version": "1.0.0"
+    },
+    {
+      "id": "soccer-ml-m07",
+      "version": "1.0.0"
+    },
+    {
+      "id": "soccer-ml-m08",
+      "version": "1.0.0"
+    },
+    {
+      "id": "soccer-ml-m09",
+      "version": "1.0.0"
+    },
+    {
+      "id": "soccer-ml-m10",
+      "version": "1.0.0"
+    },
+    {
+      "id": "soccer-ml-m11",
+      "version": "1.0.0"
+    },
+    {
+      "id": "soccer-ml-m12",
+      "version": "1.0.0"
+    },
+    {
+      "id": "soccer-ml-m13",
+      "version": "1.0.0"
+    }
+  ]
+}

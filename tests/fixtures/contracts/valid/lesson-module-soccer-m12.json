@@ -1,0 +1,157 @@
+{
+  "schemaVersion": "1.0",
+  "id": "soccer-ml-m12",
+  "version": "1.0.0",
+  "title": "Turn a model into a system",
+  "outcome": "Package a local prediction service and an evaluation harness, code that measures model behavior consistently.",
+  "blocks": [
+    {
+      "type": "text",
+      "id": "question",
+      "body": "Question: Can another engineer trust and run your model?"
+    },
+    {
+      "type": "text",
+      "id": "math",
+      "body": "Mathematics: Study numerical stability, data contracts, profiling, test design, and distribution shift through your own system."
+    },
+    {
+      "type": "text",
+      "id": "dataset",
+      "body": "Dataset: Reuse the frozen soccer datasets and splits. For reproduction, use the selected paper’s public data if feasible; otherwise label the soccer experiment as an adaptation."
+    },
+    {
+      "type": "text",
+      "id": "reading",
+      "body": "Reading: Use existing software skills. Spend time on ML-specific failure modes rather than introductory web development."
+    },
+    {
+      "type": "source-link",
+      "id": "source-research",
+      "title": "Anthropic research",
+      "url": "https://www.anthropic.com/research",
+      "note": "Select a recent public article about evaluations or model behavior. Follow its paper or methods link and record limitations."
+    },
+    {
+      "type": "source-link",
+      "id": "source-careers",
+      "title": "Anthropic careers",
+      "url": "https://www.anthropic.com/careers?hsLang=en",
+      "note": "Compare your evidence with a current engineering role. Requirements change. This curriculum does not guarantee a role or a credential."
+    },
+    {
+      "type": "text",
+      "id": "challenge",
+      "body": "Challenge: Debug a failing prediction without an AI agent writing the fix. Explain how you would detect changing input data."
+    },
+    {
+      "type": "check-reference",
+      "id": "evidence-check",
+      "checkId": "evidence"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task-1",
+      "prompt": "Package preprocessing and model weights together. Add a command that reproduces evaluation from saved data.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 1 of m12. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 1 of m12. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 1 of m12. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 1 of m12. Not written yet."
+        }
+      ]
+    },
+    {
+      "id": "task-2",
+      "prompt": "Test malformed inputs, missing values, changed categories, and data from a later period.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 2 of m12. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 2 of m12. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 2 of m12. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 2 of m12. Not written yet."
+        }
+      ]
+    },
+    {
+      "id": "task-3",
+      "prompt": "Measure prediction latency and memory use. Compare single predictions with batches. Document environment and model provenance.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 3 of m12. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 3 of m12. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 3 of m12. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 3 of m12. Not written yet."
+        }
+      ]
+    },
+    {
+      "id": "task-4",
+      "prompt": "Create a model report with intended use, training data, limitations, calibration, and monitoring signals.",
+      "hints": [
+        {
+          "level": "nudge",
+          "text": "Placeholder nudge for task 4 of m12. Not written yet."
+        },
+        {
+          "level": "question",
+          "text": "Placeholder question for task 4 of m12. Not written yet."
+        },
+        {
+          "level": "partial-example",
+          "text": "Placeholder partial example for task 4 of m12. Not written yet."
+        },
+        {
+          "level": "full-answer",
+          "text": "Placeholder full answer for task 4 of m12. Not written yet."
+        }
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "id": "evidence",
+      "kind": "self-reported",
+      "description": "A local service or CLI, an evaluation harness, failure tests, performance measurements, and clear run instructions."
+    }
+  ],
+  "prerequisites": [
+    "soccer-ml-m11"
+  ],
+  "estimatedMinutes": 1320,
+  "license": {
+    "id": "LicenseRef-Unspecified"
+  }
+}
