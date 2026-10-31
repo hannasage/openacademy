@@ -81,7 +81,7 @@ function Application({onMounted}) {
 /** @param {{error:Error}} props */
 function StartupFailure({error}) {
   return <main role="alert" style={{maxWidth:640,margin:'64px auto',padding:24,color:'var(--ui-text, #f5f5f5)',fontSize:16}}>
-    <h1>Touchline could not start</h1>
+    <h1>Schola could not start</h1>
     <p>Reload to try again. If this keeps happening, share the error below when reporting the problem.</p>
     <p style={{overflowWrap:'anywhere'}}>{error.message}</p>
     <button type="button" style={{minHeight:44,minWidth:88,fontSize:16}} onClick={()=>window.location.reload()}>Reload</button>
@@ -107,7 +107,7 @@ function fail(reason) {
   const error=reason instanceof Error ? reason : new Error(String(reason));
   if (!failed) {
     failed=true;
-    console.error('Touchline startup failed:',error);
+    console.error('Schola startup failed:',error);
     root.render(<StartupFailure error={error}/>);
   }
   rejectMount(error);

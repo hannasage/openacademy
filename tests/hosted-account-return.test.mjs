@@ -26,5 +26,5 @@ test('blocked history changes give a recovery message without navigation', () =>
     document: {getElementById(id) { assert.equal(id, 'return-privacy'); return notice; }},
   });
   assert.match(notice.textContent, /Close this tab/);
-  assert.match(notice.textContent, /Touchline app/);
+  assert.match(notice.textContent, /Schola app/);
 });

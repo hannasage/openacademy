@@ -4,7 +4,7 @@ const refPattern=/^[a-z0-9]{20}$/;
 export const expectedScopes=Object.freeze({discovery:['projects:read','database:read','auth:read'],install:['projects:read','database:read','database:write','auth:read','auth:write','secrets:read']});
 const authFields=['site_url','uri_allow_list','disable_signup','external_email_enabled','mailer_autoconfirm','mailer_allow_unverified_email_sign_ins','external_anonymous_users_enabled','mailer_templates_confirmation_content','mailer_templates_magic_link_content','external_google_enabled','external_apple_enabled'];
 export const learningRedirects=hubOrigin=>[hubOrigin+'/auth/return\\?touchline-return=*','http://127.0.0.1:8765/auth/return\\?touchline-return=*','http://localhost:8765/auth/return\\?touchline-return=*','love.hannasage.touchline://auth/return\\?attempt=*'];
-const tokenTemplate='<p>Your Touchline sign-in code is {{ .Token }}</p>';
+const tokenTemplate='<p>Your Schola sign-in code is {{ .Token }}</p>';
 // The captured PostgreSQL 17 baseline has four GRANT ALL entries for MAINTAIN,
 // introduced in 17: https://www.postgresql.org/docs/release/17.0/
 // Adapt only expected evidence for 15/16. Never remove observed grants or alter hashes.
@@ -65,7 +65,7 @@ export class SupabaseProvider {
   const compatibility=!dedicated?'unknown':stage?.migrations.length===0&&metadata[0].users===0?'empty':stage?.migrations.length?'touchline':'unknown';
   return {compatibility,fingerprint:digest(canonical({schema:snapshot.schema_hash,auth,owner,dedicated,users:metadata[0].users})),schemaHash:snapshot.schema_hash,authHash:digest(canonical(auth)),postgresMajor:metadata[0].major,migrations:stage?stage.migrations:[]};
  }
- #guard(schemaHash){if(!/^[a-f0-9]{32}$/.test(schemaHash||''))fail('stale_review','The database fingerprint is missing. Inspect the project again.');return `do $touchline_guard$ begin if (select md5(catalog::text) from (${this.#catalog}) snapshot) <> '${schemaHash}' then raise exception 'Touchline project changed after review'; end if; end $touchline_guard$;`;}
+ #guard(schemaHash){if(!/^[a-f0-9]{32}$/.test(schemaHash||''))fail('stale_review','The database fingerprint is missing. Inspect the project again.');return `do $touchline_guard$ begin if (select md5(catalog::text) from (${this.#catalog}) snapshot) <> '${schemaHash}' then raise exception 'Schola project changed after review'; end if; end $touchline_guard$;`;}
  async applyMigration(token,ref,migration,{schemaHash}={}){
   const index=this.#migrations.findIndex(value=>value.id===migration.id&&value.sha256===migration.sha256&&value.sql===migration.sql);if(index<0)fail('invalid_migration','Only the shipped migration SQL can run.');
   const before=await this.#snapshot(token,ref);if(before.schema_hash!==schemaHash||!this.#matches(before,this.#evidence[index].catalog))fail('stale_review','The database changed before this migration. Inspect it again.');

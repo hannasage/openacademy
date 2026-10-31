@@ -20,7 +20,7 @@ Never reconstruct an uncertain completed effect from memory.
 Research requests ask one answerable question or propose one bounded test.
 Article candidates use accepted public evidence and name either the Bowerloom or Sage Advice desk.
 Client material requires Hanna's approval and the client's approval before either shared arm receives it.
-Touchline evidence stays in its company until Hanna approves another use.
+Schola evidence stays in its company until Hanna approves another use.
 Brandkit and Sage Web can propose Sage Advice article candidates but cannot publish them.
 
 For release health, report the current checks, deployed revision if known, incidents, and approval state.

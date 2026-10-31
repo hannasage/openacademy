@@ -20,7 +20,7 @@ const messages = {
   approval_required:'Review the current changes and grant installation permission before preparing this hub.',
   preparation_failed:'Preparation did not finish. Check the recorded steps and review the project again before retrying.',
   operation_busy:'Another setup operation is running. Refresh its status before continuing.',
-  manual_revoke_required:'Remove the earlier Touchline setup integrations in Supabase, then start a fresh setup.',
+  manual_revoke_required:'Remove the earlier Schola setup integrations in Supabase, then start a fresh setup.',
   wrong_deployment:'The returned deployment does not match your configured connector address. Open your configured address manually.',
   not_ready:'This deployment does not have a published hub yet. Finish private hub setup before checking it again.',
 };

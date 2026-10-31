@@ -1,4 +1,4 @@
-# Touchline contracts
+# Schola contracts
 
 These JSON Schemas use JSON Schema draft 2020-12. Their `urn:touchline:contract:*` identifiers identify schemas; they are not network addresses. Load all `*.schema.json` files before compiling a schema with Ajv2020. Validation must not coerce values, add defaults, or remove fields.
 

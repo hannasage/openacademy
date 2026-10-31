@@ -12,7 +12,7 @@ It does not contain the local learning editor, curricula, progress files, or acc
 4. Run `node backend/setup/cli.mjs initialize-secrets` locally. Transfer its generated values to your deployment's secret settings. Never commit them or paste them into an issue or chat. Enter the one-time setup code only at your verified HTTPS connector address; encryption keys, database credentials, and provider secrets never belong in the setup page.
 5. Set the environment values below in your Vercel project. Run the repository checks, then deploy through your own Vercel account. The tracked `vercel.json` uses `node hosted/build.mjs`.
 6. Open `https://your-hub/setup`, enter the one-time setup code, select a project, and review the changes. Installation needs separate permission and an explicit Prepare action.
-7. When setup reports ready, enter the hub address in your local Touchline app and sign in by email. Google and Apple appear only when the owner enables them in their backend.
+7. When setup reports ready, enter the hub address in your local Schola app and sign in by email. Google and Apple appear only when the owner enables them in their backend.
 
 | Environment value | Purpose |
 |---|---|
@@ -79,7 +79,7 @@ Apply reviewed backend migrations through the separately approved database proce
 Keep email confirmation enabled.
 Configure Supabase's email template to send `{{ .Token }}` rather than a magic link.
 Configure the desired code expiry and delivery limits in Supabase Auth.
-Touchline also prevents another code request for one minute in the current page.
+Schola also prevents another code request for one minute in the current page.
 The server enforces expiry and rate limits across browsers.
 
 List Google or Apple in the public description only after that provider is enabled in the owner's Supabase project.
@@ -97,8 +97,8 @@ Each owner supplies their own configuration and hosts their own service.
 ## Sessions and recovery
 
 Every private operation checks a verified account token and registers its live Supabase session through the backend.
-The session list names sessions observed by Touchline and labels others as unknown devices.
-A last-checked time records a successful Touchline request, not proof that a device is online.
+The session list names sessions observed by Schola and labels others as unknown devices.
+A last-checked time records a successful Schola request, not proof that a device is online.
 Revoking a session blocks the next private database request, including requests with an unexpired access token.
 Signing out this browser uses Supabase's local scope and hides its private learning records.
 A failed sign-out leaves a retry action visible.

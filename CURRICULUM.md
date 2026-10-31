@@ -1,4 +1,4 @@
-# Touchline: six months of applied machine learning
+# Schola: six months of applied machine learning
 
 This plan contains 26 weeks at 10–12 hours per week. The working estimate is 286 hours.
 

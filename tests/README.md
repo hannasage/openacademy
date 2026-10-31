@@ -1,6 +1,6 @@
 # Browser checks
 
-Install the project dependencies and Playwright Chromium from the Touchline directory:
+Install the project dependencies and Playwright Chromium from the Schola directory:
 
 ```sh
 npm ci

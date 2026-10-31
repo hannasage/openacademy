@@ -187,7 +187,7 @@ class ConnectionController {
       throw Error("This account cannot access this private hub. Sign out, then use your owner account or another hub.");
     }
     const transfer = this.deps.makeClient(hub, session.access_token);
-    const authResult = await this.verificationRequest(()=>transfer.rpc("register_touchline_session", { device_label: "Touchline web browser" }),check);
+    const authResult = await this.verificationRequest(()=>transfer.rpc("register_touchline_session", { device_label: "Schola web browser" }),check);
     check();
     if (!authResult.data || authResult.data.accountId !== user.id || !uuid.test(authResult.data.sessionId)) await this.verificationFailed(null);
     const origin = /** @type {CloudOrigin} */({ kind: "cloud", hubId: hub.hubId, backendOrigin: hub.backend.url, accountId: user.id });

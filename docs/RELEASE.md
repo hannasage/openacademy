@@ -56,7 +56,7 @@ Do not overwrite the newer record to clear the warning.
 
 For a damaged local record, use the recovery screen's validated retained backup.
 Recovery preserves the damaged bytes and assigns a new revision.
-Reload other open Touchline tabs afterward.
+Reload other open Schola tabs afterward.
 If that screen cannot offer a valid backup, stop the server and retain the damaged files before restoring a known complete data backup.
 Do not edit revision numbers or replace unknown versions with empty records.
 
@@ -105,9 +105,9 @@ List installed native destinations before running both device classes:
 
 ```sh
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun simctl list devices available
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project ios/Touchline.xcodeproj -scheme Touchline -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/touchline-release-build CODE_SIGNING_ALLOWED=NO build
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project ios/Touchline.xcodeproj -scheme Touchline -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=18.5' -derivedDataPath /tmp/touchline-release-tests CODE_SIGNING_ALLOWED=NO test
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project ios/Touchline.xcodeproj -scheme Touchline -destination 'platform=iOS Simulator,name=iPad Pro 11-inch (M4),OS=18.5' -derivedDataPath /tmp/touchline-release-tests CODE_SIGNING_ALLOWED=NO test
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project ios/Touchline.xcodeproj -scheme Schola -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/touchline-release-build CODE_SIGNING_ALLOWED=NO build
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project ios/Touchline.xcodeproj -scheme Schola -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=18.5' -derivedDataPath /tmp/touchline-release-tests CODE_SIGNING_ALLOWED=NO test
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project ios/Touchline.xcodeproj -scheme Schola -destination 'platform=iOS Simulator,name=iPad Pro 11-inch (M4),OS=18.5' -derivedDataPath /tmp/touchline-release-tests CODE_SIGNING_ALLOWED=NO test
 ```
 
 If either named simulator is absent, choose an installed iPhone and iPad from the list.

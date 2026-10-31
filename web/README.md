@@ -44,7 +44,7 @@ The journal keeps one unfinished experiment per curriculum. Hypotheses, results,
 
 Import review validates the file without writing records. A new curriculum defaults to saved for later. It cannot replace an existing curriculum with the same identity. Restore backup replaces only the selected record after review, preserves its local identity, and rejects a stale saved revision. Legacy backups retain the current lesson selection.
 
-When a damaged local record blocks startup, the recovery panel offers a validated retained backup for that record. The recovery request checks the current damaged bytes, backup contents, and recovery history. It reserves a new revision before writing the restored record. Repeated recovery and retries cannot reuse an older recovery revision. It preserves the damaged bytes in a separate file and leaves the retained backup intact. Reload other open Touchline tabs after recovery. Cloud backups are excluded from this local recovery route.
+When a damaged local record blocks startup, the recovery panel offers a validated retained backup for that record. The recovery request checks the current damaged bytes, backup contents, and recovery history. It reserves a new revision before writing the restored record. Repeated recovery and retries cannot reuse an older recovery revision. It preserves the damaged bytes in a separate file and leaves the retained backup intact. Reload other open Schola tabs after recovery. Cloud backups are excluded from this local recovery route.
 
 To roll back these screens, retain all record and backup files. The earlier client can read the unchanged record format and the experiment evidence stored in result text.
 

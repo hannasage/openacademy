@@ -1,8 +1,7 @@
-# Touchline
+# Schola
 
-Touchline is a local learning hub with a native reading companion.
-The approved sequence is recorded in https://github.com/sageadvicellc/workbench/pull/554.
-The approved screens are in https://www.figma.com/design/dHJwW62Wb4nxGvDIuQn7EE/Touchline?node-id=41-2221.
+Schola is a local learning hub with a native reading companion.
+The maintainer keeps the build sequence and the approved screens in private records.
 
 ## Work
 

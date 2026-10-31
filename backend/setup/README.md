@@ -1,6 +1,6 @@
 # Owner-hosted setup connector
 
-This server installs Touchline into an owner's dedicated Supabase project. Each owner runs their own Vercel deployment, PostgreSQL connector database, and two Supabase OAuth registrations. The connector stores no learning files. The desktop hub keeps editable lessons and journals on the owner's computer.
+This server installs Schola into an owner's dedicated Supabase project. Each owner runs their own Vercel deployment, PostgreSQL connector database, and two Supabase OAuth registrations. The connector stores no learning files. The desktop hub keeps editable lessons and journals on the owner's computer.
 
 ## Deployment configuration
 

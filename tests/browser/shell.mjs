@@ -42,7 +42,7 @@ export async function verifyStartupRecovery({page,server}) {
     },{times:1});
     await page.goto(server.url);
     const fallback=page.getByRole('alert');
-    await fallback.getByRole('heading',{name:'Touchline could not start'}).waitFor({timeout:3000});
+    await fallback.getByRole('heading',{name:'Schola could not start'}).waitFor({timeout:3000});
     assert.match(await fallback.textContent(),new RegExp(`Missing control: #${missing}`));
     assert.equal(await page.locator('#hub-host').count(),0);
     assert.deepEqual(writes,[],'Startup failure must not mutate learning records.');
@@ -50,7 +50,7 @@ export async function verifyStartupRecovery({page,server}) {
     await fallback.getByRole('button',{name:'Reload'}).click();
     await page.locator('#notes').waitFor();
     assert.equal(await page.locator('#notes').inputValue(),'A navigation failure must retain this note.');
-    assert.equal(await page.getByRole('heading',{name:'Touchline could not start'}).count(),0);
+    assert.equal(await page.getByRole('heading',{name:'Schola could not start'}).count(),0);
   }
   assert.ok(diagnostics.some(message=>message.includes('resume-slot')),'Keep render diagnostics available.');
   assert.ok(diagnostics.some(message=>message.includes('retry')),'Keep controller diagnostics available.');

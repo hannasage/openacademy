@@ -13,7 +13,7 @@ const olderCatalog=catalog=>catalog.filter(item=>!(item.kind==='table-grant'&&ma
 async function fixture(major,{stage=0,alter=value=>value}={}){
  let current=stage,migrationCalls=0;
  const snapshot=()=>{const catalog=alter(structuredClone(major<17?olderCatalog(evidence[current].catalog):evidence[current].catalog));return {catalog,schema_hash:createHash('md5').update(JSON.stringify(catalog)).digest('hex'),postgres_major:major};};
- const auth={site_url:config.hubOrigin,uri_allow_list:learningRedirects(config.hubOrigin).join(','),disable_signup:false,external_email_enabled:true,mailer_autoconfirm:false,mailer_allow_unverified_email_sign_ins:false,external_anonymous_users_enabled:false,mailer_templates_confirmation_content:'<p>Your Touchline sign-in code is {{ .Token }}</p>',mailer_templates_magic_link_content:'<p>Your Touchline sign-in code is {{ .Token }}</p>'};
+ const auth={site_url:config.hubOrigin,uri_allow_list:learningRedirects(config.hubOrigin).join(','),disable_signup:false,external_email_enabled:true,mailer_autoconfirm:false,mailer_allow_unverified_email_sign_ins:false,external_anonymous_users_enabled:false,mailer_templates_confirmation_content:'<p>Your Schola sign-in code is {{ .Token }}</p>',mailer_templates_magic_link_content:'<p>Your Schola sign-in code is {{ .Token }}</p>'};
  const request=async(address,options)=>{
   const path=new URL(address).pathname;if(path.endsWith('/config/auth'))return Response.json(auth);if(path.endsWith('/api-keys'))return Response.json([{type:'publishable',api_key:'sb_publishable_example'}]);
   if(path.endsWith('/database/migrations')){migrationCalls++;current++;return Response.json({});}

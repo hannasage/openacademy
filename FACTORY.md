@@ -1,4 +1,4 @@
-# Touchline factory
+# Schola factory
 
 This factory is an agent team with a bounded workflow for this repository.
 
@@ -43,8 +43,7 @@ Members receive their task from a person and return their evidence to that perso
 
 ## Source
 
-The workbench concept is knowledge-base/wiki/domains/automation/concepts/repository-factories.md.
-The factory catalog and source history live in the workbench factories/ directory.
+The maintainer keeps the factory concept and catalog in private records.
 Bowerloom 0.8.0-beta.1 at 1359561 created and checks this definition.
 
 ## Install on another checkout
