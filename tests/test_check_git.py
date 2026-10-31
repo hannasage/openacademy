@@ -313,7 +313,10 @@ class CommandShapeTests(GitCase):
             self.assertEqual(env['GIT_OPTIONAL_LOCKS'], '0')
             self.assertEqual(env['GIT_PAGER'], 'cat')
             allowed = {'PATH', 'HOME', 'XDG_CONFIG_HOME', 'LANG', 'LC_ALL', 'GIT_CONFIG_NOSYSTEM', 'GIT_CONFIG_GLOBAL', 'GIT_CONFIG_SYSTEM',
-                       'GIT_TERMINAL_PROMPT', 'GIT_OPTIONAL_LOCKS', 'GIT_PAGER', 'GIT_ATTR_NOSYSTEM', 'GIT_NO_REPLACE_OBJECTS'}
+                       'GIT_TERMINAL_PROMPT', 'GIT_OPTIONAL_LOCKS', 'GIT_PAGER', 'GIT_ATTR_NOSYSTEM', 'GIT_NO_REPLACE_OBJECTS',
+                       'GIT_NO_LAZY_FETCH', 'GIT_ALLOW_PROTOCOL'}
+            self.assertEqual(env['GIT_NO_LAZY_FETCH'], '1')
+            self.assertEqual(env['GIT_ALLOW_PROTOCOL'], 'none')
             self.assertLessEqual(set(env), allowed)
             self.assertNotIn(str(Path.home()), json.dumps(env))
 
@@ -328,7 +331,7 @@ class CommandShapeTests(GitCase):
                 self.assertIn(f'{key}={value}', command)
             after = command[command.index('--git-dir') + 2:]
             verbs.append(next(item for item in after if not item.startswith('-') and '=' not in item))
-        self.assertLessEqual(set(verbs), {'rev-parse', 'rev-list', 'cat-file'})
+        self.assertLessEqual(set(verbs), {'rev-parse', 'rev-list', 'cat-file', 'show-ref'})
         # A diff driver (textconv) is named by .gitattributes, so no fixed override can switch it off. The defence is
         # to never ask git for a patch, a filtered blob, or a checkout.
         for command, _ in seen:
@@ -355,6 +358,13 @@ class CommandShapeTests(GitCase):
 
 
 class HostileRepositoryTests(GitCase):
+    def setUp(self):
+        super().setUp()
+        # These tests prove the second layer: even if a hostile config got past the allow-list, the commands run nothing.
+        patcher = mock.patch.object(check_git, 'check_config', lambda gitdir: None)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     def test_a_hostile_config_runs_nothing_for_our_commands(self):
         self.repo_with('first', 'second')
         self.hostile_config()
@@ -554,6 +564,201 @@ class HostileRepositoryTests(GitCase):
         result = self.check()
         self.assertIn(result['status'], ('error', 'failed'))
         self.assertNotEqual(result['status'], 'passed')
+
+
+class ConfigAllowListTests(GitCase):
+    """The repository config may hold only keys from a short list of plain-data settings."""
+
+    def with_config(self, text):
+        self.repo_with('first')
+        config = self.work / '.git' / 'config'
+        config.write_text(config.read_text() + '\n' + text)
+
+    def test_a_plain_config_is_accepted(self):
+        self.with_config('[user]\n\tname = A Student\n\temail = a@example.com\n[remote "origin"]\n\turl = https://example.com/x.git\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n'
+                         '[branch "main"]\n\tremote = origin\n\tmerge = refs/heads/main\n[pull]\n\trebase = false\n[color "diff"]\n\tnew = green\n# a comment\n; another\n')
+        self.assertEqual(self.check()['status'], 'passed')
+
+    def test_settings_that_name_a_program_or_pull_in_more_config_are_refused(self):
+        cases = {
+            'fsmonitor': '[core]\n\tfsmonitor = /bin/true\n', 'hooks': '[core]\n\thooksPath = /tmp\n', 'ssh': '[core]\n\tsshCommand = /bin/true\n',
+            'pager': '[core]\n\tpager = /bin/true\n', 'editor': '[core]\n\teditor = /bin/true\n', 'worktree': '[core]\n\tworktree = /tmp\n',
+            'diff external': '[diff]\n\texternal = /bin/true\n', 'diff driver': '[diff "x"]\n\ttextconv = /bin/true\n', 'filter': '[filter "x"]\n\tclean = /bin/true\n',
+            'credential': '[credential]\n\thelper = !true\n', 'gpg': '[gpg]\n\tprogram = /bin/true\n', 'include': '[include]\n\tpath = /tmp/x\n',
+            'includeIf': '[includeIf "gitdir:/"]\n\tpath = /tmp/x\n', 'extension': '[extensions]\n\tworktreeConfig = true\n',
+            'partial clone': '[extensions]\n\tpartialClone = origin\n', 'promisor': '[remote "origin"]\n\tpromisor = true\n',
+            'promisor mixed case': '[remote "origin"]\n\tProMiSor = true\n', 'partial filter': '[remote "origin"]\n\tpartialclonefilter = blob:none\n',
+            'ext url': '[remote "origin"]\n\turl = ext::sh -c true\n', 'upload pack': '[remote "origin"]\n\tuploadpack = /bin/true\n',
+            'same line': '[core] fsmonitor = /bin/true\n', 'unknown section': '[mystery]\n\tkey = value\n', 'alias': '[alias]\n\tco = !true\n',
+            'uploadpack hook': '[uploadpack]\n\tpackObjectsHook = /bin/true\n', 'garbage line': '[core]\n\t= = =\n',
+        }
+        for label, text in cases.items():
+            shutil.rmtree(self.work, ignore_errors=True)
+            self.work.mkdir()
+            self.with_config(text)
+            with self.subTest(label=label):
+                result = self.check()
+                self.assertEqual((result['status'], result['evidence']['reason']), ('error', 'unsafe_git_dir'))
+                self.assertEqual(self.fired(), [])
+
+    def test_a_huge_config_is_refused(self):
+        self.with_config('# ' + 'x' * 300000 + '\n')
+        self.assertEqual(self.check()['evidence']['reason'], 'unsafe_git_dir')
+
+    def test_a_promisor_pack_marker_is_refused(self):
+        self.repo_with('first')
+        pack = self.work / '.git' / 'objects' / 'pack'
+        pack.mkdir(exist_ok=True)
+        (pack / 'pack-1234.promisor').write_text('')
+        self.assertEqual(self.check()['evidence']['reason'], 'unsafe_git_dir')
+
+
+class PromisorTests(GitCase):
+    """A partial clone fetches a missing object by running a transport. A hostile repository names a program there."""
+
+    def build(self):
+        self.repo_with('first', 'second', 'third')
+        # Remove the oldest commit object, so git needs it and would ask the promisor remote for it.
+        oldest = git(self.work, 'rev-list', '--max-parents=0', 'HEAD').stdout.decode().strip()
+        wanted = git(self.work, 'rev-list', '--objects', 'HEAD', f'^{oldest}').stdout
+        pack_dir = self.work / '.git' / 'objects' / 'pack'
+        pack_dir.mkdir(exist_ok=True)
+        # A pack of everything except the oldest commit, marked as promised by a remote. Then the oldest commit is gone.
+        names = git(self.work, 'pack-objects', str(pack_dir / 'pack'), input=wanted).stdout.decode().strip()
+        (pack_dir / f'pack-{names}.promisor').write_text('')
+        git(self.work, 'prune-packed')
+        for path in (self.work / '.git' / 'objects').glob(f'{oldest[:2]}/{oldest[2:]}'):
+            path.unlink()
+        self.assertTrue(list(pack_dir.glob('*.pack')), 'the fixture needs a pack')
+        trap = self.script('transport')
+        remote = self.init(self.outside / 'remote')
+        self.commit('remote commit', remote)
+        config = self.work / '.git' / 'config'
+        config.write_text(config.read_text().replace('repositoryformatversion = 0', 'repositoryformatversion = 1') +
+                          f'[extensions]\n\tpartialClone = origin\n[remote "origin"]\n\turl = file://{remote}\n\tuploadpack = {trap}\n\tpromisor = true\n\tpartialclonefilter = blob:none\n')
+        return oldest
+
+    def test_a_promisor_repository_is_refused_before_git_runs_and_nothing_is_started(self):
+        self.build()
+        result = self.check()
+        self.assertEqual((result['status'], result['evidence']['reason']), ('error', 'unsafe_git_dir'))
+        self.assertEqual(self.fired(), [])
+        result = self.check({'messageContains': 'first'})
+        self.assertEqual(result['evidence']['reason'], 'unsafe_git_dir')
+        self.assertEqual(self.fired(), [])
+
+    def test_the_environment_blocks_every_transport_even_if_the_config_check_is_skipped(self):
+        oldest = self.build()
+        # Control: with the protections off, git does start the transport program for the missing commit.
+        git(self.work, '--no-pager', 'rev-list', '--count', 'HEAD', check=False, env=CLEAN_ENV)
+        controlled = self.fired()
+        if 'transport' not in controlled:
+            self.skipTest(f'this git did not try to fetch the missing commit {oldest[:7]}, so the control cannot show the risk')
+        with mock.patch.object(check_git, 'check_config', lambda gitdir: None):
+            result = self.check()
+            self.check({'messageContains': 'first'})
+        self.assertEqual(self.fired(), [])
+        self.assertNotEqual(result['status'], 'passed')
+
+
+class RepositoryStateTests(GitCase):
+    def fake_git(self, script):
+        path = self.base / 'fake-git'
+        path.write_text('#!/bin/sh\n' + script)
+        path.chmod(0o755)
+        return str(path)
+
+    def verb_script(self, **answers):
+        """A fake git. `answers` maps a verb to shell text that runs for it. Other verbs exit 2."""
+        body = 'verb=""\nfor a in "$@"; do case "$a" in rev-parse|rev-list|cat-file|show-ref) verb=$a;; esac; done\ncase "$verb" in\n'
+        for verb, text in answers.items():
+            body += f'  {verb}) {text} ;;\n'
+        return self.fake_git(body + '  *) exit 2 ;;\nesac\n')
+
+    def run_with(self, fake, **fields):
+        self.repo_with('a')
+        with mock.patch.object(check_git, 'find_git', return_value=fake):
+            return self.check(fields)
+
+    HEAD = 'echo ' + 'a' * 40
+
+    def test_a_missing_head_object_is_an_error_not_no_commits(self):
+        self.repo_with('first', 'second')
+        head = git(self.work, 'rev-parse', 'HEAD').stdout.decode().strip()
+        git(self.work, 'repack', '-a', '-d', '-q')
+        git(self.work, 'prune-packed')
+        for pack in (self.work / '.git' / 'objects' / 'pack').glob('*.pack'):
+            pack.unlink()
+        for index in (self.work / '.git' / 'objects' / 'pack').glob('*.idx'):
+            index.unlink()
+        result = self.check()
+        self.assertEqual(result['status'], 'error', (head, result))
+        self.assertNotEqual(result['evidence'].get('reason'), 'no_commits')
+
+    def test_a_detached_head_that_names_a_missing_commit_is_an_error(self):
+        self.repo_with('first')
+        (self.work / '.git' / 'HEAD').write_text('b' * 40 + '\n')
+        result = self.check()
+        self.assertEqual(result['status'], 'error')
+
+    def test_a_new_repository_with_no_refs_is_still_no_commits(self):
+        self.init()
+        result = self.check()
+        self.assertEqual((result['status'], result['evidence']['reason']), ('failed', 'no_commits'))
+
+    def test_an_unborn_branch_beside_other_branches_is_an_error_that_names_the_cause(self):
+        self.repo_with('first')
+        git(self.work, 'branch', 'other')
+        git(self.work, 'symbolic-ref', 'HEAD', 'refs/heads/unborn')
+        result = self.check()
+        self.assertEqual((result['status'], result['evidence']['reason']), ('error', 'git_failed'))
+
+    def test_a_rev_list_count_with_an_error_exit_is_not_a_pass(self):
+        fake = self.verb_script(**{'rev-parse': self.HEAD, 'rev-list': 'echo 99; exit 1'})
+        result = self.run_with(fake, minCommits=1)
+        self.assertEqual((result['status'], result['evidence']['reason']), ('error', 'git_failed'))
+        self.assertNotIn('commits', result['evidence'])
+
+    def test_a_rev_list_count_that_is_not_a_number_is_not_a_pass(self):
+        fake = self.verb_script(**{'rev-parse': self.HEAD, 'rev-list': 'echo lots'})
+        self.assertEqual(self.run_with(fake)['status'], 'error')
+
+    def test_a_cat_file_error_exit_is_not_a_pass(self):
+        batch = 'cat >/dev/null; printf "%s commit 20\\ntree x\\n\\nmatch\\n\\n" ' + 'a' * 40 + '; exit 1'
+        fake = self.verb_script(**{'rev-parse': self.HEAD, 'rev-list': self.HEAD, 'cat-file': batch})
+        result = self.run_with(fake, messageContains='match')
+        self.assertEqual((result['status'], result['evidence']['reason']), ('error', 'git_failed'))
+
+    def test_a_cat_file_answer_that_cannot_be_parsed_is_not_a_pass(self):
+        fake = self.verb_script(**{'rev-parse': self.HEAD, 'rev-list': self.HEAD, 'cat-file': 'cat >/dev/null; echo garbage'})
+        result = self.run_with(fake, messageContains='match')
+        self.assertEqual((result['status'], result['evidence']['reason']), ('error', 'git_failed'))
+
+    def test_a_git_that_cannot_start_is_never_a_pass(self):
+        self.repo_with('a')
+        with mock.patch.object(check_git.subprocess, 'Popen', side_effect=OSError('no')):
+            result = self.check()
+        self.assertNotEqual(result['status'], 'passed')
+        self.assertEqual(result['status'], 'skipped')
+
+    def test_a_scan_that_hit_the_cap_says_so(self):
+        self.init()
+        for index in range(4):
+            git(self.work, 'commit', '-q', '--allow-empty', '-m', f'c{index}')
+        result = self.check({'messageContains': 'c0'}, Limits(git_max_scan=3))
+        self.assertIn('newest 3', ' '.join(result['log']))
+        result = self.check({'messageContains': 'c3'}, Limits(git_max_scan=10))
+        self.assertNotIn('newest', ' '.join(result['log']))
+
+    def test_a_scratch_folder_that_cannot_be_removed_is_noted_in_the_log(self):
+        self.repo_with('a')
+        with mock.patch.object(check_git.shutil, 'rmtree', lambda *a, **k: None):
+            result = self.check()
+        self.assertEqual(result['status'], 'passed')
+        self.assertIn('could not remove', ' '.join(result['log']).lower())
+        for name in os.listdir(tempfile.gettempdir()):
+            if name.startswith(check_git.PRIVATE_PREFIX):
+                shutil.rmtree(Path(tempfile.gettempdir()) / name, ignore_errors=True)
 
 
 class LimitTests(GitCase):

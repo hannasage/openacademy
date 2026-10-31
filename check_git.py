@@ -53,6 +53,8 @@ FIXED_CONFIG = (
     ('credential.helper', ''),
     ('gpg.program', 'false'),
     ('uploadpack.packObjectsHook', ''),
+    ('protocol.allow', 'never'),
+    ('protocol.ext.allow', 'never'),
     ('gc.auto', '0'),
     ('maintenance.auto', 'false'),
 )
@@ -163,7 +165,94 @@ def _validate_git_dir(root, gitdir):
         _require(real, name, stat.S_ISREG, required=name == 'HEAD')
     for name in _FOLDERS:
         _require(real, name, stat.S_ISDIR, required=name != 'info')
+    check_config(real)
     return real
+
+
+MAX_CONFIG_BYTES = 262144
+# The settings a repository config may hold: plain data that names no program and pulls in no other file.
+# Section -> allowed keys (lower case). `None` allows any key. A section name ending in `+` also allows a subsection.
+_ALLOWED_CONFIG = {
+    'core': {'repositoryformatversion', 'filemode', 'bare', 'logallrefupdates', 'ignorecase', 'precomposeunicode', 'symlinks', 'autocrlf',
+             'eol', 'safecrlf', 'quotepath', 'trustctime', 'checkstat', 'sharedrepository', 'ignorestat', 'hidedotfiles', 'protecthfs',
+             'protectntfs', 'whitespace', 'untrackedcache', 'commentchar', 'abbrev', 'compression', 'loosecompression', 'longpaths',
+             'warnambiguousrefs', 'bigfilethreshold'},
+    'user': {'name', 'email', 'signingkey', 'useconfigonly'},
+    'init': {'defaultbranch'},
+    'pull': {'rebase', 'ff'},
+    'push': {'default', 'followtags', 'autosetupremote'},
+    'fetch': {'prune', 'prunetags'},
+    'status': {'showuntrackedfiles', 'short', 'branch'},
+    'merge': {'ff', 'conflictstyle'},
+    'rebase': {'autostash', 'autosquash'},
+    'log': {'date', 'abbrevcommit'},
+    'diff': {'renames', 'algorithm', 'colormoved', 'mnemonicprefix'},
+    'help': {'autocorrect'},
+    'color': None,
+    'advice': None,
+    'extensions': {'objectformat'},
+    'branch': {'remote', 'merge', 'rebase', 'description', 'pushremote', 'autosetupmerge', 'autosetuprebase'},
+    'remote': {'url', 'fetch', 'pushurl', 'tagopt', 'push', 'prune'},
+    'url': {'insteadof', 'pushinsteadof'},
+}
+_SUBSECTIONS = frozenset({'branch', 'remote', 'url', 'color'})
+_HEADER = re.compile(r'^\[\s*([A-Za-z0-9.-]+)(?:\s+"((?:[^"\\]|\\.)*)")?\s*\](.*)$')
+_KEY = re.compile(r'^([A-Za-z][A-Za-z0-9-]*)\s*(?:=.*)?$')
+
+
+def check_config(gitdir):
+    """Refuse a repository whose config holds anything outside the allow-list. Reads the file as text and runs nothing."""
+    pack = os.path.join(gitdir, 'objects', 'pack')
+    try:
+        if any(entry.endswith('.promisor') for entry in os.listdir(pack)):
+            raise _unsafe(_CONFIG_MESSAGE)
+    except FileNotFoundError:
+        pass
+    except OSError:
+        raise _unsafe() from None
+    path = os.path.join(gitdir, 'config')
+    try:
+        info = os.lstat(path)
+        if not stat.S_ISREG(info.st_mode) or info.st_size > MAX_CONFIG_BYTES:
+            raise _unsafe(_CONFIG_MESSAGE)
+        with open(path, 'rb') as handle:
+            text = handle.read(MAX_CONFIG_BYTES + 1).decode('utf-8', errors='replace')
+    except FileNotFoundError:
+        text = ''
+    except OSError:
+        raise _unsafe(_CONFIG_MESSAGE) from None
+    section, continued = None, False
+    for raw in text.split('\n'):
+        line = raw.strip()
+        was_continued, continued = continued, line.endswith('\\') and not line.startswith(('#', ';'))
+        if was_continued or not line or line[0] in '#;':
+            continue
+        while line:
+            header = _HEADER.match(line)
+            if header:
+                name, sub, line = header.group(1).lower(), header.group(2), header.group(3).strip()
+                if '.' in name:
+                    name, _, sub = name.partition('.')
+                section = (name, sub)
+                if name not in _ALLOWED_CONFIG or (sub is not None and name not in _SUBSECTIONS):
+                    raise _unsafe(_CONFIG_MESSAGE)
+                if line[:1] in ('#', ';'):
+                    line = ''
+                continue
+            key = _KEY.match(line)
+            if not key or section is None:
+                raise _unsafe(_CONFIG_MESSAGE)
+            allowed = _ALLOWED_CONFIG[section[0]]
+            name = key.group(1).lower()
+            if allowed is not None and name not in allowed:
+                raise _unsafe(_CONFIG_MESSAGE)
+            if section[0] == 'remote' and name in ('url', 'pushurl') and '::' in line.split('=', 1)[-1]:
+                raise _unsafe(_CONFIG_MESSAGE)
+            break
+
+
+_CONFIG_MESSAGE = ('This repository has a setting that Schola does not read, such as a program, a partial clone, or an included file. '
+                   'Schola will not run git on it. Make a repository of your own with git init.')
 
 
 def _require(gitdir, name, kind, required):
@@ -190,6 +279,7 @@ def clean_environment(private):
         'PATH': SAFE_PATH, 'HOME': private, 'XDG_CONFIG_HOME': private, 'LANG': 'C', 'LC_ALL': 'C',
         'GIT_CONFIG_NOSYSTEM': '1', 'GIT_CONFIG_GLOBAL': os.devnull, 'GIT_CONFIG_SYSTEM': os.devnull,
         'GIT_TERMINAL_PROMPT': '0', 'GIT_OPTIONAL_LOCKS': '0', 'GIT_PAGER': 'cat', 'GIT_ATTR_NOSYSTEM': '1', 'GIT_NO_REPLACE_OBJECTS': '1',
+        'GIT_NO_LAZY_FETCH': '1', 'GIT_ALLOW_PROTOCOL': 'none',
     }
 
 
@@ -268,14 +358,19 @@ def run_git(git, gitdir, workspace, private, args, limits, input_bytes=None):
 
 
 def _remove_private(path):
-    """Remove the private folder, but only a folder this module made directly in the temp root."""
+    """Remove the private folder, but only a folder this module made directly in the temp root.
+
+    Returns True when nothing is left behind that Schola made. Returns False when the folder is still there.
+    """
     try:
         real = os.path.realpath(path)
         root = os.path.realpath(tempfile.gettempdir())
-        if os.path.dirname(real) == root and os.path.basename(real).startswith(PRIVATE_PREFIX) and not os.path.islink(path):
-            shutil.rmtree(real, ignore_errors=True)
+        if os.path.dirname(real) != root or not os.path.basename(real).startswith(PRIVATE_PREFIX) or os.path.islink(path):
+            return True
+        shutil.rmtree(real, ignore_errors=True)
+        return not os.path.lexists(real)
     except OSError:
-        pass
+        return False
 
 
 def _parse_batch(data, wanted):
@@ -328,17 +423,20 @@ class GitAdapter:
         private = tempfile.mkdtemp(prefix=PRIVATE_PREFIX)
         try:
             gitdir = locate_git_dir(workspace)
-            return self._check(git, gitdir, workspace, private, limits, needle, minimum, fields.get('ignoreCase', False))
+            outcome = self._check(git, gitdir, workspace, private, limits, needle, minimum, fields.get('ignoreCase', False))
         except GitProblem as problem:
-            return problem.as_result()
+            outcome = problem.as_result()
         finally:
-            _remove_private(private)
+            clean = _remove_private(private)
+        if not clean:
+            outcome['log'].append('Schola could not remove its temporary git folder. It is safe to delete a folder named schola-git-* in your temp folder.')
+        return outcome
 
     def _check(self, git, gitdir, workspace, private, limits, needle, minimum, ignore_case):
         code, out, err = run_git(git, gitdir, workspace, private, ['rev-parse', '--verify', '--quiet', 'HEAD^{commit}'], limits)
         head = out.decode('ascii', errors='replace').strip()
         if code == 1 and not head:
-            return result('failed', {'reason': 'no_commits', 'commits': 0, 'required': minimum}, ['This repository has no commits yet. Make a commit first.'])
+            return self._no_head(git, gitdir, workspace, private, limits, minimum)
         if code != 0 or not _SHA.match(head):
             return self._git_failed(code, err)
         evidence = {'head': head[:7], 'required': minimum}
@@ -366,9 +464,23 @@ class GitAdapter:
         wanted = needle.casefold() if ignore_case else needle
         matching = sum(1 for message in messages if wanted in (message.casefold() if ignore_case else message))
         evidence.update({'matching': matching, 'scanned': len(messages)})
+        note = [f'Schola read only the newest {limits.git_max_scan} commits.'] if len(messages) >= limits.git_max_scan else []
         if matching >= minimum:
-            return result('passed', evidence, [f'Found {matching} matching commits.'])
-        return result('failed', evidence, ['Not enough commit messages contain that text.'])
+            return result('passed', evidence, [f'Found {matching} matching commits.'] + note)
+        return result('failed', evidence, ['Not enough commit messages contain that text.'] + note)
+
+    def _no_head(self, git, gitdir, workspace, private, limits, minimum):
+        """HEAD does not name a commit. That is 'no commits yet' only for a repository with no refs and a HEAD that names a branch."""
+        code, out, err = run_git(git, gitdir, workspace, private, ['show-ref'], limits)
+        try:
+            with open(os.path.join(gitdir, 'HEAD'), 'rb') as handle:
+                head_text = handle.read(512).decode('utf-8', errors='replace').strip()
+        except OSError:
+            return self._git_failed(None, b'')
+        if code == 1 and not out.strip() and head_text.startswith('ref: refs/'):
+            return result('failed', {'reason': 'no_commits', 'commits': 0, 'required': minimum}, ['This repository has no commits yet. Make a commit first.'])
+        return result('error', {'reason': 'git_failed', 'exitCode': code},
+                      ['HEAD does not point at a commit, but the repository holds other refs or a damaged HEAD. Schola cannot tell whether you made commits.'])
 
     @staticmethod
     def _git_failed(code, err):
