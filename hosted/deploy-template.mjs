@@ -16,6 +16,6 @@ export function deployButtonURL(returnOrigin,template=deployTemplate){
  url.searchParams.set('repository-url',repository.href);
  url.searchParams.set('redirect-url',origin+'/setup/deployment-return');
  url.searchParams.set('env',template.environment.join(','));
- url.searchParams.set('envDescription','Owner-hosted Touchline setup configuration. Supply your own connector database and Supabase app registrations.');
+ url.searchParams.set('envDescription','Owner-hosted Schola setup configuration. Supply your own connector database and Supabase app registrations.');
  return url.href;
 }

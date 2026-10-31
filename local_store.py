@@ -230,7 +230,7 @@ class LocalStore:
                 result.append(record)
             except StoreError as error:
                 if error.code == 'unsupported_version':
-                    raise StoreError('A saved record uses an unsupported version. Update Touchline before opening or restoring it. The file was preserved.', 'unsupported_version', 409) from error
+                    raise StoreError('A saved record uses an unsupported version. Update Schola before opening or restoring it. The file was preserved.', 'unsupported_version', 409) from error
                 if error.status == 400:
                     raise StoreError('A saved record is invalid. The file was preserved.', 'corrupt_file', 500) from error
                 raise

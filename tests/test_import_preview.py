@@ -155,7 +155,7 @@ class ImportPreviewTests(unittest.TestCase):
         self.assertEqual(problem.exception.code, 'unsupported_version')
         with self.assertRaises(StoreError) as listing:
             self.store.library()
-        self.assertIn('Update Touchline', str(listing.exception))
+        self.assertIn('Update Schola', str(listing.exception))
         self.assertEqual(self.snapshot(), before)
 
     def test_future_record_with_new_fields_is_not_a_recovery_candidate(self):

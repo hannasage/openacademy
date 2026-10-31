@@ -1,6 +1,6 @@
 # Database fixtures
 
-`auth.sql` defines only the Supabase database fields that Touchline reads.
+`auth.sql` defines only the Supabase database fields that Schola reads.
 It is a test substitute for the Auth schema, not a Supabase installation.
 All users, addresses, and credentials in these tests are synthetic.
 
@@ -11,7 +11,7 @@ The following upstream migrations define the additional authorization fields:
 - [Account deletion time](https://github.com/supabase/auth/blob/master/migrations/20230116124412_add_deleted_at.up.sql).
 - [Anonymous-account flag](https://github.com/supabase/auth/blob/master/migrations/20240214120130_add_is_anonymous_column.up.sql).
 
-`legacy-schema.sql` is Touchline's pre-P07 schema.
+`legacy-schema.sql` is Schola's pre-P07 schema.
 Upgrade tests apply it only inside their own disposable database.
 The fixture preserves the old table grants so tests can prove that migration removes them.
 

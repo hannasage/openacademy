@@ -1,8 +1,7 @@
-# Touchline
+# Schola
 
-Touchline is a local learning hub with a native reading companion.
-The approved sequence is recorded in https://github.com/sageadvicellc/workbench/pull/554.
-The approved screens are in https://www.figma.com/design/dHJwW62Wb4nxGvDIuQn7EE/Touchline?node-id=41-2221.
+Schola is a local learning hub with a native reading companion.
+The maintainer keeps the build sequence and the approved screens in private records.
 
 ## Work
 
@@ -29,13 +28,3 @@ Never commit `.env*`, `.vercel/`, `cloud-config.local.json`, `data/`, or user fi
 Never run database setup or access tests against production without the required approval.
 Keep management secrets on the owner's server.
 Do not remove the original recovery folder.
-
-
-## Repository factory
-
-Read FACTORY.md for the factory charter and invocation.
-Use factory-intake for intake, factory-delivery for accepted work, and factory-review for independent review.
-Use factory-handoff for research requests, article candidates, and release-health reports.
-Shared factories use their named research or articles skill.
-The factory grants no new permission to merge, publish, deploy, spend, or access another repository.
-Keep every existing repository rule and approval path.

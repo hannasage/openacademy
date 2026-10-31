@@ -1,6 +1,6 @@
 # Design contract
 
-Touchline is a local curriculum tracker for an experienced engineer who learns machine learning through soccer projects.
+Schola is a local curriculum tracker for an experienced engineer who learns machine learning through soccer projects.
 The primary action resumes a module and saves evidence of learning.
 The layout puts the next experiment first, followed by tasks, resources, and reflection.
 The approved visual direction uses Projection UI and its shared typography.

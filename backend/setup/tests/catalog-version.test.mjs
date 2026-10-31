@@ -10,10 +10,11 @@ const maintainKeys=new Set(['learning_courses','learning_libraries','learning_li
 const olderCatalog=catalog=>catalog.filter(item=>!(item.kind==='table-grant'&&maintainKeys.has(item.key)&&item.value===false));
 // PostgreSQL 17's captured fixture minus the four new MAINTAIN grants models
 // 15/16's documented GRANT ALL table privilege set. Observed grants stay intact.
-async function fixture(major,{stage=0,alter=value=>value}={}){
+const sentTemplate='<p>Your Schola sign-in code is {{ .Token }}</p>',earlierTemplate='<p>Your Touchline sign-in code is {{ .Token }}</p>';
+async function fixture(major,{stage=0,alter=value=>value,template=sentTemplate}={}){
  let current=stage,migrationCalls=0;
  const snapshot=()=>{const catalog=alter(structuredClone(major<17?olderCatalog(evidence[current].catalog):evidence[current].catalog));return {catalog,schema_hash:createHash('md5').update(JSON.stringify(catalog)).digest('hex'),postgres_major:major};};
- const auth={site_url:config.hubOrigin,uri_allow_list:learningRedirects(config.hubOrigin).join(','),disable_signup:false,external_email_enabled:true,mailer_autoconfirm:false,mailer_allow_unverified_email_sign_ins:false,external_anonymous_users_enabled:false,mailer_templates_confirmation_content:'<p>Your Touchline sign-in code is {{ .Token }}</p>',mailer_templates_magic_link_content:'<p>Your Touchline sign-in code is {{ .Token }}</p>'};
+ const auth={site_url:config.hubOrigin,uri_allow_list:learningRedirects(config.hubOrigin).join(','),disable_signup:false,external_email_enabled:true,mailer_autoconfirm:false,mailer_allow_unverified_email_sign_ins:false,external_anonymous_users_enabled:false,mailer_templates_confirmation_content:template,mailer_templates_magic_link_content:template};
  const request=async(address,options)=>{
   const path=new URL(address).pathname;if(path.endsWith('/config/auth'))return Response.json(auth);if(path.endsWith('/api-keys'))return Response.json([{type:'publishable',api_key:'sb_publishable_example'}]);
   if(path.endsWith('/database/migrations')){migrationCalls++;current++;return Response.json({});}
@@ -44,4 +45,11 @@ test('version adaptation never ignores observed extra grants, changed grant opti
   catalog=>catalog.map(item=>item.key==='public.learning_courses:service_role:SELECT'?{...item,value:true}:item),
  ]){const f=await fixture(major,{stage:1,alter});assert.equal((await f.provider.inspect({},ref,config)).compatibility,'unknown');await assert.rejects(f.provider.applyMigration({},ref,migrations[1],{schemaHash:f.snapshot().schema_hash}),{code:'stale_review'});assert.equal(f.migrationCalls,0);const complete=await fixture(major,{stage:4,alter});await assert.rejects(complete.provider.verify({},ref,config),{code:'verification_failed'});}
  const missing=await fixture(17,{stage:1,alter:olderCatalog});assert.equal((await missing.provider.inspect({},ref,config)).compatibility,'unknown');await assert.rejects(missing.provider.applyMigration({},ref,migrations[1],{schemaHash:missing.snapshot().schema_hash}),{code:'stale_review'});const incomplete=await fixture(17,{stage:4,alter:olderCatalog});await assert.rejects(incomplete.provider.verify({},ref,config),{code:'verification_failed'});
+});
+
+test('verification accepts the sign-in code text installed by earlier setups and rejects any other text',async()=>{
+ const earlier=await fixture(17,{stage:migrations.length,template:earlierTemplate});
+ assert.equal((await earlier.provider.verify({},ref,config)).ready,true);
+ const changed=await fixture(17,{stage:migrations.length,template:'<p>Another message {{ .Token }}</p>'});
+ await assert.rejects(()=>changed.provider.verify({},ref,config),/does not match the approved setup/);
 });

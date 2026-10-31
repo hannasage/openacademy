@@ -21,4 +21,4 @@ export async function buildHosted({output=join(root,'.vercel/output')}={}){
  await writeFile(join(output,'config.json'),JSON.stringify({version:3,routes:[{src:'/(?:setup-assets|assets/appearance)/.*',headers:{'X-Content-Type-Options':'nosniff','Cache-Control':'public, max-age=0, must-revalidate'},continue:true},{handle:'filesystem'},{src:'/.*',dest:'/connector'}]},null,2)+'\n');
  return {output,browserInputs:Object.keys(browser.metafile.inputs),serverInputs:Object.keys(server.metafile.inputs)};
 }
-if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href){const result=await buildHosted();console.log('Built the isolated Touchline connector at '+result.output);}
+if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href){const result=await buildHosted();console.log('Built the isolated Schola connector at '+result.output);}

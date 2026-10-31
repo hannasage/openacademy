@@ -76,7 +76,7 @@ def initial(c):
 def validate(s, c):
     module_map = {m["id"]: m for m in c["modules"]}
     if not isinstance(s, dict) or s.get("version") != 1:
-        raise ValueError("This file is not a version 1 Touchline backup.")
+        raise ValueError("This file is not a version 1 Schola backup.")
     if s.get("curriculumId") != c["id"]:
         raise ValueError("This backup belongs to a different curriculum. Switch curricula before restoring it.")
     if type(s.get("revision")) is not int or s["revision"] < 0:
@@ -283,7 +283,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     server = HTTPServer(("127.0.0.1", args.port), Handler)
     server.data_dir = args.data_dir
-    print(f"Touchline is ready at http://127.0.0.1:{args.port}", flush=True)
+    print(f"Schola is ready at http://127.0.0.1:{args.port}", flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

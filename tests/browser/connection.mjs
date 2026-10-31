@@ -17,7 +17,7 @@ export async function verifyConnection({page,server}){
   if(path==='/auth/v1/user')return route.fulfill({json:account,headers});
   if(path==='/auth/v1/logout')return route.fulfill({status:204,headers});
   if(path==='/rest/v1/rpc/register_touchline_session')return route.fulfill({status:unavailable?503:revoked?403:200,json:unavailable?{message:'Service unavailable'}:revoked?{code:'42501',message:'denied'}:{sessionId,accountId:account.id},headers});
-  if(path==='/rest/v1/rpc/list_touchline_sessions')return route.fulfill({json:[{sessionId,label:'Touchline web browser',createdAt:null,lastSeenAt:null,isCurrent:true}],headers});
+  if(path==='/rest/v1/rpc/list_touchline_sessions')return route.fulfill({json:[{sessionId,label:'Schola web browser',createdAt:null,lastSeenAt:null,isCurrent:true}],headers});
   if(path==='/rest/v1/learning_courses')return route.fulfill({json:[{id:'broken',curriculum:null,revision:1,updated_at:'2026-10-28T12:00:00Z'}],headers});
   return route.abort('blockedbyclient');
  });

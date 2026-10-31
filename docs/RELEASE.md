@@ -56,7 +56,7 @@ Do not overwrite the newer record to clear the warning.
 
 For a damaged local record, use the recovery screen's validated retained backup.
 Recovery preserves the damaged bytes and assigns a new revision.
-Reload other open Touchline tabs afterward.
+Reload other open Schola tabs afterward.
 If that screen cannot offer a valid backup, stop the server and retain the damaged files before restoring a known complete data backup.
 Do not edit revision numbers or replace unknown versions with empty records.
 

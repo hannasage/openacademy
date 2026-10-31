@@ -342,7 +342,7 @@ async function offerRecovery(){
   panel.innerHTML=`<h2>Recover a local learning record</h2><p>A saved record is damaged. Choose a retained local backup to restore. The damaged file stays on this computer.</p><label>Available local backup<select id="recovery-record">${options.map(option=>`<option value="${esc(option.recordId)}">${esc(option.title)} · saved revision ${option.revision}</option>`).join('')}</select></label><button id="recover-record" type="button">Restore saved local copy</button><p id="recovery-error" role="status"></p>`;
   $('#recover-record').onclick=async()=>{
    const option=options.find(item=>item.recordId===/** @type {HTMLSelectElement} */($('#recovery-record')).value);if(!option)return;
-   if(!confirm(`Restore the retained backup for ${option.title}? Newer work in the damaged file will remain in a separate recovery file. Reload any other open Touchline tabs after recovery.`))return;
+   if(!confirm(`Restore the retained backup for ${option.title}? Newer work in the damaged file will remain in a separate recovery file. Reload any other open Schola tabs after recovery.`))return;
    /** @type {HTMLButtonElement} */($('#recover-record')).disabled=true;
    try{await learning.recoverRecord(option.recordId,option.damagedDigest);location.reload();}
    catch(error){$('#recovery-error').textContent=message(error)+' Reload the page to inspect recovery again.';/** @type {HTMLButtonElement} */($('#recover-record')).disabled=false;}

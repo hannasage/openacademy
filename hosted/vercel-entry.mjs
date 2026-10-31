@@ -24,5 +24,5 @@ async function initialize(){
 }
 export default async function handler(req,res){
  try{adapter??=initialize();await(await adapter)(req,res);}
- catch{adapter=undefined;res.writeHead(503,{...securityHeaders,'Content-Type':'text/plain; charset=utf-8'});res.end('This private connector is not configured. Follow hosted/README.md in your Touchline repository.');}
+ catch{adapter=undefined;res.writeHead(503,{...securityHeaders,'Content-Type':'text/plain; charset=utf-8'});res.end('This private connector is not configured. Follow hosted/README.md in your Schola repository.');}
 }

@@ -1,6 +1,6 @@
-# Touchline
+# Schola
 
-Touchline is a local learning hub with a 26-week curriculum about machine learning through soccer projects.
+Schola is a local learning hub with a 26-week curriculum about machine learning through soccer projects.
 The plan assumes 10–12 study hours per week and prior software engineering experience.
 
 ## Start the application

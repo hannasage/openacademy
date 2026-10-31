@@ -69,8 +69,8 @@ export class SetupService {
  async #inspection(row,phase,projectRef,ownerEmail){
   let inspection;try{inspection=await this.#provider.inspect(this.#credentials(row,phase),projectRef,{ownerEmail});}catch(error){if(error instanceof SetupError)throw error;fail('inspection_failed','Project compatibility could not be confirmed. Nothing was installed.',true);}
   exact(inspection,['compatibility','fingerprint','postgresMajor','migrations'],['schemaHash','authHash']);text(inspection.fingerprint,256);
-  if(!['empty','touchline'].includes(inspection.compatibility)||!Number.isInteger(inspection.postgresMajor)||inspection.postgresMajor<15||!Array.isArray(inspection.migrations)||inspection.migrations.length>this.#migrations.length)fail('incompatible_project','This project is not a known compatible Touchline installation. Use the manual review route.');
-  inspection.migrations.forEach((migration,index)=>{exact(migration,['id','sha256']);if(migration.id!==this.#migrations[index].id||migration.sha256!==this.#migrations[index].sha256)fail('incompatible_project','Existing migrations do not match this Touchline release.');});
+  if(!['empty','touchline'].includes(inspection.compatibility)||!Number.isInteger(inspection.postgresMajor)||inspection.postgresMajor<15||!Array.isArray(inspection.migrations)||inspection.migrations.length>this.#migrations.length)fail('incompatible_project','This project is not a known compatible Schola installation. Use the manual review route.');
+  inspection.migrations.forEach((migration,index)=>{exact(migration,['id','sha256']);if(migration.id!==this.#migrations[index].id||migration.sha256!==this.#migrations[index].sha256)fail('incompatible_project','Existing migrations do not match this Schola release.');});
   if(inspection.compatibility==='empty'&&inspection.migrations.length)fail('incompatible_project','The project inspection is inconsistent.');return copy(inspection);
  }
  async review(context,id,input){

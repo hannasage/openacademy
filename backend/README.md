@@ -1,6 +1,6 @@
 # Private publications
 
-Touchline keeps editable learning records on the local computer.
+Schola keeps editable learning records on the local computer.
 An owner publishes copies to their own Supabase project.
 Each deployment admits one owner account and stores that account's published curricula.
 

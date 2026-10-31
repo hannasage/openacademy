@@ -9,8 +9,8 @@ export function SetupEntryCard(){
    <Input id="owner-connector-address" label="Owner connector address" type="url" placeholder="https://learn.example.org" value={address} onChange={event=>setAddress(event.target.value)} style={{fontSize:16,minHeight:48}} required/>
    <Button type="submit" variant="primary" size="lg" disabled={!destination}>Open owner setup</Button>
   </form><p className="muted">Opens a separate tab. Backend permission is granted there; email remains your learning sign-in.</p>
-  <details><summary>Host a connector with Vercel</summary><p>The public Deploy with Vercel template is not available while Touchline is private. Import your own repository into Vercel and follow <code>hosted/README.md</code> with your own PostgreSQL database.</p><Button type="button" size="lg" disabled>Deploy with Vercel · not available yet</Button></details>
-  <details><summary>Use manual setup</summary><p>Follow <code>backend/README.md</code> in your Touchline copy to configure owner access and publish a hub description. Then enter the hub address under “I already have a hub.”</p></details>
+  <details><summary>Host a connector with Vercel</summary><p>The public Deploy with Vercel template is not available yet. Import your own repository into Vercel and follow <code>hosted/README.md</code> with your own PostgreSQL database.</p><Button type="button" size="lg" disabled>Deploy with Vercel · not available yet</Button></details>
+  <details><summary>Use manual setup</summary><p>Follow <code>backend/README.md</code> in your Schola copy to configure owner access and publish a hub description. Then enter the hub address under “I already have a hub.”</p></details>
   <p className="muted">You can keep learning locally and connect later.</p>
  </section>;
 }
